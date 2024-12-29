@@ -142,6 +142,7 @@ def test_clashes(timetables):
 
 def test_nonoptimaltimetable(timetables):
     nonoptimaltimetable = {}
+    
     for cls, timetable in timetables.items():
         totalSubjectsAmt = sum(timetable.periodsPerDay)
         timeTableSubjectsAmt = sum([subject.perWeek for subject in timetable._subjects]) + len(timetable.weekInfo)
@@ -152,5 +153,7 @@ def test_nonoptimaltimetable(timetables):
             print(f"Couldn't get the perfect timetable combination for {timetable.cls.name} after all {timetable._perfectTimetableCounter + 1} tries")
         else:
             print(f"Found the perfect time table for {timetable.cls.name} after {timetable._perfectTimetableCounter + 1} {'tries' if timetable._perfectTimetableCounter else 'try'}")
+    
+    return nonoptimaltimetable
 
 
