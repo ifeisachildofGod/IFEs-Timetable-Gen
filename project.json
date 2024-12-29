@@ -1,0 +1,229 @@
+{
+    "levels": {
+        "1": [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], [10, 10, 10, 10, 10]],
+        "2": [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], [10, 10, 10, 10, 10]],
+        "3": [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], [10, 10, 10, 10, 10]],
+        "4": [["A", "B", "C", "D", "E", "F", "G", "H", "I"], [10, 10, 10, 10, 9]],
+        "5": [["A", "B", "C", "D", "E", "F", "G", "H"], [10, 10, 10, 10, 9]],
+        "6": [["A", "B", "C", "D", "E", "F", "G", "H"], [10, 10, 10, 10, 9]]
+    },
+
+    "subjectTeacherMapping": {
+        "Mathematics": {
+            "Mary Seymore": [1, 2, 3, 4, 5, 6],
+            "Charles Fuggerton": [1, 2, 3, 4, 5, 6],
+            "Jack Green": [1, 2, 3],
+            "Lexy Hamillton": [1, 2, 3],
+            "Fredrick Loggermouth": [4, 5, 6],
+            "James Naismith": [4, 5, 6],
+            "&timings": {
+                "1": [2, 5],
+                "2": [2, 5],
+                "3": [2, 5],
+                "4": [2, 5],
+                "5": [2, 5],
+                "6": [2, 5]
+            }
+        },
+        "English": {
+            "Dana White": [1, 2, 3],
+            "Brolin Thomas": [1, 2, 3],
+            "Mary Kendrick": [1, 2, 3],
+            "Cassie Shroud": [4, 5, 6],
+            "Casper Paul": [4, 5, 6],
+            "Leonard Fuggerton": [4, 5, 6],
+            "&timings": {
+                "1": [2, 5],
+                "2": [2, 5],
+                "3": [2, 5],
+                "4": [2, 5],
+                "5": [2, 5],
+                "6": [2, 5]
+            }
+        },
+        "Civic Education": {
+            "Leo Deo": [1, 2, 3, 4, 5, 6],
+            "Bah Rain": [1, 2, 3, 4, 5, 6],
+            "Jesse Smollet": [1, 2, 3],
+            "Iker Cassilas": [1, 2, 3],
+            "Micheal Phelps": [4, 5, 6],
+            "Masson Thomas": [4, 5, 6],
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4],
+                "4": [2, 3],
+                "5": [2, 3],
+                "6": [2, 3]
+            }
+        },
+        "Cisco": {
+            "Brandon Marlin": [1, 2, 3, 4, 5, 6],
+            "Jesse Rain": [1, 2, 3, 4, 5, 6],
+            "Carbary Tuska": [1, 2, 3, 4, 5, 6],
+            "Creg Joseph": [1, 2, 3, 4, 5, 6],
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4],
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Chemistry": {
+            "Joseph Stalin": [4, 5, 6],
+            "Adolph Hitler": [4, 5, 6],
+            "&classes": {"4": ["C", "D", "E", "F", "G", "H", "I"], "5": ["C", "D", "E", "F", "G", "H", "I"], "6": ["C", "D", "E", "F", "G", "H", "I"]},
+            "&timings": {
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Physics": {
+            "Mao Tse Tong": [4, 5, 6],
+            "Heinrich Himler": [4, 5, 6],
+            "&classes": {"4": ["C", "D", "E", "F", "G", "H", "I"], "5": ["C", "D", "E", "F", "G", "H", "I"], "6": ["C", "D", "E", "F", "G", "H", "I"]},
+            "&timings": {
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Biology": {
+            "John Wayne Gacy": [4, 5, 6],
+            "Drew BaryMore": [4, 5, 6],
+            "&timings": {
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Further Mathematics": {
+            "Olden Days": [4, 5, 6],
+            "Mantissa": [4, 5, 6],
+            "&classes": {"4": ["F", "G", "H", "I"], "5": ["F", "G", "H", "I"], "6": ["F", "G", "H", "I"]},
+            "&timings": {
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Computer": {
+            "Amanda Davies": [4, 5, 6],
+            "Josh Carol Lewis": [4, 5, 6],
+            "Cardy B": [1, 2, 3, 4, 5, 6],
+            "Kevin Browlin": [1, 2, 3, 4, 5, 6],
+            "&classes": {"4": ["C", "D", "E", "F", "G", "H", "I"], "5": ["C", "D", "E", "F", "G", "H", "I"], "6": ["C", "D", "E", "F", "G", "H", "I"]},
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4],
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Food and Nut": {
+            "Mary Kelly": [4, 5, 6],
+            "Tyler Fischer": [4, 5, 6],
+            "Robert Stewart": [4, 5, 6],
+            "Kennedy Robert": [4, 5, 6],
+            "John Lackner": [4, 5, 6],
+            "&classes": {"4": ["A", "B", "C", "D", "E", "F"], "5": ["A", "B", "C", "D", "E", "F"], "6": ["A", "B", "C", "D", "E", "F"]},
+            "&timings": {
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Basic Elect": {
+            "Barry Sleuth": [4, 5, 6],
+            "Fisher Eggburt": [4, 5, 6],
+            "&classes": {"4": ["H", "I"], "5": ["H", "I"], "6": ["H", "I"]},
+            "&timings": {
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Electrical Inst": {
+            "Barry Sessil": [4, 5, 6],
+            "Lewis Carol": [4, 5, 6],
+            "&classes": {"4": ["G", "H", "I"], "5": ["G", "H", "I"], "6": ["G", "H", "I"]},
+            "&timings": {
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        },
+        "Basic Tech": {
+            "Laury Trevor": [1, 2, 3],
+            "Chapman Gold": [1, 2, 3],
+            "Garry Tailburn": [1, 2, 3],
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4]
+            }
+        },
+        "Basic Science": {
+            "Joseph Stalin": [1, 2, 3],
+            "R Kelly": [1, 2, 3],
+            "Hikaru Nakamura": [1, 2, 3],
+            "Mary Tallburner": [1, 2, 3],
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4]
+            }
+        },
+        "Social Studies": {
+            "Jesse Smollet": [1, 2, 3],
+            "Iker Cassilas": [1, 2, 3],
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4]
+            }
+        },
+        "Home Economics": {
+            "Mary Kelly": [1, 2, 3],
+            "Tyler Fischer": [1, 2, 3],
+            "Robert Stewart": [1, 2, 3],
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4]
+            }
+        },
+        "CCA": {
+            "Johnny Dep": [1, 2, 3],
+            "Kevin Stewart": [1, 2, 3],
+            "Ravi Sachs": [1, 2, 3],
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4]
+            }
+        },
+        "Music": {
+            "Michell Graham": [1, 2, 3],
+            "Tyler Morgan": [1, 2, 3],
+            "Mary Felcher": [1, 2, 3],
+            "Gary Lenner": [1, 2, 3, 4, 5, 6],
+            "Margaret Thatcher": [1, 2, 3, 4, 5, 6],
+            "&classes": {"4": ["A", "B"], "5": ["A", "B"], "6": ["A", "B"]},
+            "&timings": {
+                "1": [2, 4],
+                "2": [2, 4],
+                "3": [2, 4],
+                "4": [2, 4],
+                "5": [2, 4],
+                "6": [2, 4]
+            }
+        }
+    }
+
+}
