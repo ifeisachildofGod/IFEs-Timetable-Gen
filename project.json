@@ -10,12 +10,14 @@
 
     "subjectTeacherMapping": {
         "Mathematics": {
-            "Mary Seymore": [1, 2, 3, 4, 5, 6],
-            "Charles Fuggerton": [1, 2, 3, 4, 5, 6],
+            "Mary Seymore": [1, 2, 3],
+            "Charles Fuggerton": [4, 5, 6],
             "Jack Green": [1, 2, 3],
             "Lexy Hamillton": [1, 2, 3],
+            "Trevor Nolan": [1, 2, 3],
             "Fredrick Loggermouth": [4, 5, 6],
             "James Naismith": [4, 5, 6],
+            "Greg Sanchez": [4, 5, 6],
             "&timings": {
                 "1": [2, 5],
                 "2": [2, 5],
@@ -72,8 +74,8 @@
             }
         },
         "Chemistry": {
-            "Joseph Stalin": [4, 5, 6],
-            "Adolph Hitler": [4, 5, 6],
+            "Jeffery Dahmer": [4, 5, 6],
+            "Caitlin Jenner": [4, 5, 6],
             "&classes": {"4": ["C", "D", "E", "F", "G", "H", "I"], "5": ["C", "D", "E", "F", "G", "H", "I"], "6": ["C", "D", "E", "F", "G", "H", "I"]},
             "&timings": {
                 "4": [2, 4],

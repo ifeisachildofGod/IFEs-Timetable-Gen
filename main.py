@@ -52,8 +52,7 @@
 
 
 import json
-from helpers import nullCheck, displayAndDebugTimetable
-from functions import getSubjects
+from helpers import nullCheck, displayAndDebugTimetable, getSubjects, test_clashes, test_nonoptimaltimetable
 from objects import Teacher, Class, Subject, TEACHERS, CLASSES, TIMETABLES
 
 levels = [1, 2, 3, 4, 5, 6]
@@ -106,4 +105,7 @@ for subjectName, subjectInfo in subjects.items():
 for name, cls in CLASSES.items():
     cls.timetable.generate()
 
-displayAndDebugTimetable(TIMETABLES, 2)
+displayAndDebugTimetable(TIMETABLES, 0)
+
+test_clashes(TIMETABLES)
+test_nonoptimaltimetable(TIMETABLES)

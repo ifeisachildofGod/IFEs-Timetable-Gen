@@ -1,10 +1,60 @@
 import json
 from constants import WEEKDAYS
+import random
+
+def getSubjects(levels: list[int], classOptions: list[str], classes: list[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
+    totalInfo = {}
+    
+    for subjectName, info in mappings.items():
+        totalInfo[subjectName] = {}
+        
+        for level in levels:
+            teachersMapping = {}
+            availableTeachers = []
+            for nameOfTeacher, levelsTaught in info.items():
+                if level in levelsTaught:
+                    availableTeachers.append(nameOfTeacher)
+            
+            if len(availableTeachers):
+                if random.choice([True, False]):
+                    random.shuffle(availableTeachers)
+                
+                options = info.get("&classes")
+                
+                if options is not None:
+                    options = options.get(str(level))
+                
+                timings = info.get("&timings")
+                
+                optionIndex = 0
+                for option in nullCheck(options, classOptions):
+                    if option in classes[str(level)]:
+                        teachersMapping[option] = availableTeachers[optionIndex % len(availableTeachers)]
+                        optionIndex += 1
+                
+                totalInfo[subjectName][str(level)] = [timings[str(level)][0], timings[str(level)][1], teachersMapping]
+
+    return totalInfo
+
+
+def findClashes(timetables, subject, day: str, period: int, cls):
+    clashes = []
+    
+    for ttCls, timetable in timetables.items():
+        subjPeriod = 1
+        for subj in timetable.table[day]:
+            if  period <= subjPeriod <= period + subject.total - 1 and subject.teacher == subj.teacher and subject.teacher is not None and subj.teacher is not None and cls.name != ttCls.name:
+                clashes.append([subj, ttCls])
+            subjPeriod += subj.total
+    
+    return clashes
+
 
 def nullCheck(value, null_replacement):
     if value is None:
         return null_replacement
     return value
+
 
 def displayAndDebugTimetable(timetables, drawType: int = 0):
     if drawType == 0:
@@ -66,5 +116,41 @@ def displayAndDebugTimetable(timetables, drawType: int = 0):
                 print(f"Period {clashIndex + 1}")
                 print()
                 print(json.dumps(clash, indent=2))
+
+
+def test_clashes(timetables):
+    clashes = {}
+    for cls, timetable in timetables.items():
+        for day, subjects in timetable.table.items():
+            for subjectIndex, subject in enumerate(subjects):
+                if subject.teacher is not None:
+                    period = sum([subj.total for subj in subjects[:subjectIndex]]) + 1
+                    clash = findClashes(timetables, subject, day, period, cls)
+                    if clash:
+                        if clashes.get(subject) is None:
+                            clashes[subject] = []
+                        clashes[subject].append(clash)
+                        
+                        print()
+                        print(f"{subject.name} in {cls.name} clashes with")
+                        for clashSubject, clashCls in clash:
+                            print(f"{clashSubject.name} in {clashCls.name}")
+                        print(f"in period {period} on {day}")
+    
+    return clashes
+
+
+def test_nonoptimaltimetable(timetables):
+    nonoptimaltimetable = {}
+    for cls, timetable in timetables.items():
+        totalSubjectsAmt = sum(timetable.periodsPerDay)
+        timeTableSubjectsAmt = sum([subject.perWeek for subject in timetable._subjects]) + len(timetable.weekInfo)
+        totalRemainingSubjectsAmt = len(timetable.remainderContent)
+        
+        if max(timeTableSubjectsAmt - totalSubjectsAmt, 0) != totalRemainingSubjectsAmt:
+            nonoptimaltimetable[cls] = timetable.remainderContent
+            print(f"Couldn't get the perfect timetable combination for {timetable.cls.name} after all {timetable._perfectTimetableCounter + 1} tries")
+        else:
+            print(f"Found the perfect time table for {timetable.cls.name} after {timetable._perfectTimetableCounter + 1} {'tries' if timetable._perfectTimetableCounter else 'try'}")
 
 

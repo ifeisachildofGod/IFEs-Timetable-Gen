@@ -3,9 +3,10 @@ from typing import Any
 
 from matplotlib.cbook import flatten
 from constants import *
+from helpers import findClashes
 
 class Subject:
-    def __init__(self, name: str, total: int, perWeek: int, teacher: Any | None) -> None:
+    def __init__(self, name: str, total: int, perWeek: int, teacher: Any | None, lockedPeriod: list[int, int] | None = None) -> None:
         self.TOTAL = total
         self.PERWEEK = perWeek
         
@@ -13,9 +14,10 @@ class Subject:
         self.total = self.TOTAL
         self.perWeek = self.PERWEEK
         self.teacher = teacher
+        self.lockedPeriod = lockedPeriod
     
     def copy(self):
-        return Subject(self.name, self.total, self.perWeek, self.teacher)
+        return Subject(self.name, self.total, self.perWeek, self.teacher, self.lockedPeriod)
     
     def fullReset(self):
         self.total = self.TOTAL
@@ -95,18 +97,6 @@ class Timetable:
         self.table: dict[str, Subject] = {}
         self.remainderContent = []
     
-    def findClashes(self, subject: Subject, day: str, period: int, cls: Class):
-        clashes = []
-        
-        for ttCls, timetable in TIMETABLES.items():
-            subjPeriod = 1
-            for subj in timetable.table[day]:
-                if  period <= subjPeriod <= period + subject.total - 1 and subject.teacher == subj.teacher and subject.teacher is not None and subj.teacher is not None and cls.name != ttCls.name:
-                    clashes.append([subj, ttCls])
-                subjPeriod += subj.total
-        
-        return clashes
-    
     def switchExtras(self, day: str, subjects: list[Subject]):
         for subjectIndex, subject in enumerate(subjects):
             if subject.perWeek > subject.total:
@@ -121,8 +111,10 @@ class Timetable:
                             if not [True for subjInfo in subjects if subjInfo.name == s.name]\
                                and s.name != "Break" and subject.perWeek > s.total\
                                and subject.total + s.total == subject.perWeek\
-                               and not self.findClashes(subject, timetableDay, replacementPeriod, self.cls)\
-                               and not self.findClashes(s, day, subjectPeriod, self.cls):
+                               and not findClashes(TIMETABLES, subject, timetableDay, replacementPeriod, self.cls)\
+                               and not findClashes(TIMETABLES, s, day, subjectPeriod, self.cls)\
+                               and not s.lockedPeriod\
+                               and not subject.lockedPeriod:
                                 tableReplace = subject.copy()
                                 tableReplace.TOTAL = s.total
                                 tableReplace.total = tableReplace.TOTAL
@@ -152,24 +144,17 @@ class Timetable:
         for subject in subjectsCopy:
             nonClash = []
             for nonClashingPeriod in range(self.periodsPerDay[WEEKDAYS.index(subjectDay)]):
-                if not self.findClashes(subject, subjectDay, nonClashingPeriod + 1, self.cls):
-                    tmpSubjPeriod = 1
-                    for subjIndex, subj in enumerate(subjectsCopy):
-                        if nonClashingPeriod + 1 <= tmpSubjPeriod <= nonClashingPeriod + subject.total:
-                            nonClash.append(subjIndex)
-                        tmpSubjPeriod += subj.total
+                condition = not (subject.lockedPeriod[0] <= nonClashingPeriod + 1 <= subject.lockedPeriod[0] + subject.lockedPeriod[1] - 1) if subject.lockedPeriod is not None else True
+                if condition:
+                    if not findClashes(TIMETABLES, subject, subjectDay, nonClashingPeriod + 1, self.cls):
+                        tmpSubjPeriod = 1
+                        for subjIndex, subj in enumerate(subjectsCopy):
+                            if nonClashingPeriod + 1 <= tmpSubjPeriod <= nonClashingPeriod + subject.total:
+                                nonClash.append(subjIndex)
+                            tmpSubjPeriod += subj.total
             nonClashingPeriodsMapping[subject] = list(set(nonClash))
             
             period += subject.total
-            
-            if not nonClashingPeriodsMapping[subject]:
-                nonClashingPeriodsMapping[subject] = []
-                
-                if subject.teacher is not None:# and self.cls.name == "SS2 H":
-                    print()
-                    clashes = flatten([[f"{"\n" if not nonClashingPeriod else ""}{subj.name} in {cls.name} by period {nonClashingPeriod + 1}" for subj, cls in self.findClashes(subject, subjectDay, nonClashingPeriod, self.cls)] for nonClashingPeriod in range(self.periodsPerDay[WEEKDAYS.index(subjectDay)])])
-                    print(f"{subject.name} in {self.cls.name} will always clash with {",\n".join(clashes) if clashes else "nothing"}")
-                    print()
         
         for subject, nonClash in sorted(nonClashingPeriodsMapping.items(), key=lambda nCInfo: len(nCInfo[1]), reverse=True):
             if nonClash:
@@ -179,10 +164,6 @@ class Timetable:
                 for index in nonClashesCopy:
                     if index in otherNonClashes:
                         nonClashingPeriodsMapping[subject].remove(index)
-            else:
-                pass
-                # if subject.teacher is not None:
-                #     print(f"{subject.name} will always clash with another subject in {self.cls.name}")
         
         for subject, nonClash in nonClashingPeriodsMapping.items():
             if nonClash:
@@ -193,12 +174,15 @@ class Timetable:
         takenIndexes = [nonClash for _, nonClash in nonClashingPeriodsMapping.items() if nonClash is not None]
         
         for subject, nonClashingIndex in nonClashingPeriodsMapping.items():
-            if nonClashingIndex is not None:
-                subjects[nonClashingIndex] = subject
+            if not subject.lockedPeriod:
+                if nonClashingIndex is not None:
+                    subjects[nonClashingIndex] = subject
+                else:
+                    index = [i for i in range(len(subjects)) if i not in takenIndexes][0]
+                    subjects[index] = subject
+                    takenIndexes.append(index)
             else:
-                index = [i for i in range(len(subjects)) if i not in takenIndexes][0]
-                subjects[index] = subject
-                takenIndexes.append(index)
+                subjects[subject.lockedPeriod[0]] = subject
     
     def generate(self):
         self._subjects = [subject.copy() for subject in self.subjects]
@@ -214,10 +198,9 @@ class Timetable:
             for subject in self.subjects:
                 subject.resetTotal()
             
-            self.classSort(self.subjects, day)
-            
             if dayIndex == len(self.weekInfo) - 1:
                 self.switchExtras(WEEKDAYS[dayIndex], self.subjects)
+            self.classSort(self.subjects, day)
             
             for subjectIndex, subject in enumerate(self.subjects):
                 breakTime = False
@@ -278,16 +261,12 @@ class Timetable:
             if max(timeTableSubjectsAmt - totalSubjectsAmt, 0) == totalRemainingSubjectsAmt:
                 self._foundPerfectTimeTable = True
                 TIMETABLES[self.cls] = self
-                print()
-                print(f"Found the perfect time table for {self.cls.name} after {self._perfectTimetableCounter + 1} {'tries' if self._perfectTimetableCounter else 'try'}")
-                print()
             else:
                 self._perfectTimetableCounter += 1
                 self.reset()
                 self.generate()
         else:
             TIMETABLES[self.cls] = self
-            print(f"Couldn't get the perfect timetable combination for {self.cls.name} after all {self._perfectTimetableCounter + 1} tries")
 
 CLASSES: dict[str, Class] = {}
 TIMETABLES: dict[Class, Timetable] = {}
