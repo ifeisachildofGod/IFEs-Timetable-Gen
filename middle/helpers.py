@@ -1,46 +1,10 @@
 import json
 from constants import WEEKDAYS
-import random
 
-def getSubjects(levels: list[int], classOptions: list[str], classes: list[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
-    totalInfo = {}
-    
-    for subjectName, info in mappings.items():
-        totalInfo[subjectName] = {}
-        
-        for level in levels:
-            teachersMapping = {}
-            availableTeachers = []
-            for nameOfTeacher, levelsTaught in info.items():
-                if level in levelsTaught:
-                    availableTeachers.append(nameOfTeacher)
-            
-            if len(availableTeachers):
-                if random.choice([True, False]):
-                    random.shuffle(availableTeachers)
-                
-                options = info.get("&classes")
-                
-                if options is not None:
-                    options = options.get(str(level))
-                
-                timings = info.get("&timings")
-                
-                optionIndex = 0
-                for option in nullCheck(options, classOptions):
-                    if option in classes[str(level)]:
-                        teachersMapping[option] = availableTeachers[optionIndex % len(availableTeachers)]
-                        optionIndex += 1
-                
-                totalInfo[subjectName][str(level)] = [timings[str(level)][0], timings[str(level)][1], teachersMapping]
-
-    return totalInfo
-
-
-def findClashes(timetables, subject, day: str, period: int, cls):
+def findClashes(school, subject, day: str, period: int, cls):
     clashes = []
     
-    for ttCls, timetable in timetables.items():
+    for ttCls, timetable in school.items():
         subjPeriod = 1
         for subj in timetable.table[day]:
             if  period <= subjPeriod <= period + subject.total - 1 and subject.teacher == subj.teacher and subject.teacher is not None and subj.teacher is not None and cls.name != ttCls.name:
@@ -56,9 +20,9 @@ def nullCheck(value, null_replacement):
     return value
 
 
-def displayAndDebugTimetable(timetables, drawType: int = 0):
+def display_school(school, drawType: int = 0):
     if drawType == 0:
-        for cls, timetable in timetables.items():
+        for cls, timetable in school.items():
             print(f"| {cls.name} |")
             
             for day, todaysSubjects in timetable.table.items():
@@ -79,7 +43,7 @@ def displayAndDebugTimetable(timetables, drawType: int = 0):
             print()
             print(f"| {day} |")
             print()
-            for cls, timetable in timetables.items():
+            for cls, timetable in school.items():
                 for timetableDay, todaysSubjects in timetable.table.items():
                     if day == timetableDay:
                         subjectsContent = [subjs.get() for subjs in todaysSubjects]
@@ -90,7 +54,7 @@ def displayAndDebugTimetable(timetables, drawType: int = 0):
         clashesDict = {}
         for day in WEEKDAYS:
             clashesDict[day] = {}
-            for _, timetable in timetables.items():
+            for _, timetable in school.items():
                 for timetableDay, todaysSubjects in timetable.table.items():
                     if day == timetableDay:
                         subjectsContent = []
@@ -118,14 +82,15 @@ def displayAndDebugTimetable(timetables, drawType: int = 0):
                 print(json.dumps(clash, indent=2))
 
 
-def test_clashes(timetables):
+def get_clashes(school):
     clashes = {}
-    for cls, timetable in timetables.items():
+    
+    for cls, timetable in school.items():
         for day, subjects in timetable.table.items():
             for subjectIndex, subject in enumerate(subjects):
                 if subject.teacher is not None:
                     period = sum([subj.total for subj in subjects[:subjectIndex]]) + 1
-                    clash = findClashes(timetables, subject, day, period, cls)
+                    clash = findClashes(school, subject, day, period, cls)
                     if clash:
                         if clashes.get(subject) is None:
                             clashes[subject] = []
@@ -140,10 +105,10 @@ def test_clashes(timetables):
     return clashes
 
 
-def test_nonoptimaltimetable(timetables):
+def get_schools_non_optimalism(school):
     nonoptimaltimetable = {}
     
-    for cls, timetable in timetables.items():
+    for cls, timetable in school.items():
         totalSubjectsAmt = sum(timetable.periodsPerDay)
         timeTableSubjectsAmt = sum([subject.perWeek for subject in timetable._subjects]) + len(timetable.weekInfo)
         totalRemainingSubjectsAmt = len(timetable.remainderContent)

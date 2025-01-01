@@ -6,10 +6,12 @@ from constants import *
 from helpers import findClashes
 
 class Subject:
-    def __init__(self, name: str, total: int, perWeek: int, teacher: Any | None, lockedPeriod: list[int, int] | None = None) -> None:
+    def __init__(self, name: str, total: int, perWeek: int, teacher: Any | None, schoolSubjectsList: list) -> None:
         global global_subjectID
         
-        SEED_SUBJECTS_TRACKER.append(self)
+        self.schoolSubjectsList = schoolSubjectsList
+        
+        self.schoolSubjectsList.append(self)
         
         self.id = global_subjectID
         global_subjectID += 1
@@ -21,10 +23,12 @@ class Subject:
         self.total = self.TOTAL
         self.perWeek = self.PERWEEK
         self.teacher = teacher
-        self.lockedPeriod = lockedPeriod
+        self.lockedPeriod = None
     
     def copy(self):
-        return Subject(self.name, self.total, self.perWeek, self.teacher, self.lockedPeriod)
+        subject = Subject(self.name, self.total, self.perWeek, self.teacher, self.schoolSubjectsList)
+        subject.lockedPeriod = self.lockedPeriod
+        return subject
     
     def fullReset(self):
         self.total = self.TOTAL
@@ -44,17 +48,24 @@ class Subject:
         self.perWeek -= amount
 
 class Class:
-    def __init__(self, level: int, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str]) -> None:
-        SEED_CLASSES_TRACKER.append(self)
+    def __init__(self, level: int, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school: dict, schoolTeachers: dict[str, Any], schoolClasses: dict[str, Any], schoolSubjectsList: list[Subject], schoolClassesList: list) -> None:
+        self.school = school
+        self.schoolSubjectsList = schoolSubjectsList
+        self.schoolClassesList = schoolClassesList
+        
+        self.schoolClassesList.append(self)
         
         self.level = level
-        self.name = namingConvention[self.level - 1] + " " + className
+        self.className = className
+        self.namingConvention = namingConvention
+        
+        self.name = self.namingConvention[self.level - 1] + " " + self.className
         self.subjects = subjects
         self.periodsPerDay = periodsPerDay
         self.teachers = {}
         
         for subjs in self.subjects:
-            for _, teacher in TEACHERS.items():
+            for _, teacher in schoolTeachers.items():
                 classTaught = teacher.subjects.get(subjs)
                 
                 if classTaught is not None:
@@ -63,21 +74,23 @@ class Class:
         
         self.breakTimePeriods = [BREAKTIMEPERIOD for _ in range(len(WEEKDAYS))]
         
-        self.timetable = Timetable(self, self.subjects, self.periodsPerDay, self.breakTimePeriods)
+        self.timetable = Timetable(self, self.subjects, self.periodsPerDay, self.breakTimePeriods, self.school, self.schoolSubjectsList)
         
-        CLASSES[self.name] = self
+        schoolClasses[self.name] = self
 
 class Teacher:
-    def __init__(self, name: str, subjects: dict[Subject, Class]) -> None:
+    def __init__(self, name: str, subjects: dict[Subject, Class], schoolTeachers: dict[str, Any]) -> None:
         self.name = name
         self.subjects = subjects
         
-        TEACHERS[self.name] = self
-
+        schoolTeachers[self.name] = self
 
 class Timetable:
-    def __init__(self, cls: Class, subjects: list[Subject], periodsPerDay: list[int], breakTimePeriod: list[int]) -> None:
+    def __init__(self, cls: Class, subjects: list[Subject], periodsPerDay: list[int], breakTimePeriod: list[int], school: dict[Class, Any], schoolSubjectsList: list[Subject]) -> None:
         global global_subjectID
+        
+        self.school = school
+        self.schoolSubjectsList = schoolSubjectsList
         
         self.periodsPerDay = periodsPerDay
         self.breakTimePeriod = breakTimePeriod
@@ -90,7 +103,7 @@ class Timetable:
         
         for subjectIndex, subject in enumerate(self.subjects):
             self._subjects[subjectIndex].id = subject.id
-            SEED_SUBJECTS_TRACKER.remove(self._subjects[subjectIndex])
+            self.schoolSubjectsList.remove(self._subjects[subjectIndex])
         
         global_subjectID -= len(self.subjects)
         
@@ -110,11 +123,11 @@ class Timetable:
         global global_subjectID
         
         if self.freePeriodAmt:
-            self.subjects.append(Subject("Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None))
-            self._subjects.append(Subject("Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None))
+            self.subjects.append(Subject("Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.schoolSubjectsList))
+            self._subjects.append(Subject("Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.schoolSubjectsList))
             
             self._subjects[-1].id = self.subjects[-1].id
-            SEED_SUBJECTS_TRACKER.pop()
+            self.schoolSubjectsList.pop()
             
             global_subjectID -= 1
     
@@ -129,13 +142,13 @@ class Timetable:
         
         for subjectIndex, subject in enumerate(self._subjects):
             subject.id = self.subjects[subjectIndex].id
-            SEED_SUBJECTS_TRACKER.remove(subject)
+            self.schoolSubjectsList.remove(subject)
         
         global_subjectID -= len(self._subjects)
         
         for subject in flatten(list(self.table.values()) + self.remainderContent):
-            if subject in SEED_SUBJECTS_TRACKER:
-                SEED_SUBJECTS_TRACKER.remove(subject)
+            if subject in self.schoolSubjectsList:
+                self.schoolSubjectsList.remove(subject)
         
         self.table: dict[str, list[Subject]] = {day: [] for day in WEEKDAYS}
         self.remainderContent = []
@@ -156,14 +169,14 @@ class Timetable:
                             if not [True for subjInfo in subjects if subjInfo.name == s.name]\
                                and s.name != "Break" and subject.perWeek > s.total\
                                and subject.total + s.total == subject.perWeek\
-                               and not findClashes(SCHOOL, subject, timetableDay, replacementPeriod, self.cls)\
-                               and not findClashes(SCHOOL, s, day, subjectPeriod, self.cls)\
+                               and not findClashes(self.school, subject, timetableDay, replacementPeriod, self.cls)\
+                               and not findClashes(self.school, s, day, subjectPeriod, self.cls)\
                                and not s.lockedPeriod\
                                and not subject.lockedPeriod:
-                                   if subject in SEED_SUBJECTS_TRACKER:
-                                        SEED_SUBJECTS_TRACKER.remove(subject)
-                                   if s in SEED_SUBJECTS_TRACKER:
-                                        SEED_SUBJECTS_TRACKER.remove(s)
+                                   if subject in self.schoolSubjectsList:
+                                        self.schoolSubjectsList.remove(subject)
+                                   if s in self.schoolSubjectsList:
+                                        self.schoolSubjectsList.remove(s)
                                    
                                    tableReplace = subject.copy()
                                    tableReplace.TOTAL = s.total
@@ -195,7 +208,7 @@ class Timetable:
         
         subjectsCopy = [subject.copy() for subject in subjects]
         for subject in subjectsCopy:
-            SEED_SUBJECTS_TRACKER.remove(subject)
+            self.schoolSubjectsList.remove(subject)
         global_subjectID -= len(subjectsCopy)
         
         period = 1
@@ -205,7 +218,7 @@ class Timetable:
             for nonClashingPeriod in range(self.periodsPerDay[WEEKDAYS.index(subjectDay)]):
                 condition = not (subject.lockedPeriod[0] <= nonClashingPeriod + 1 <= subject.lockedPeriod[0] + subject.lockedPeriod[1] - 1) if subject.lockedPeriod is not None else True
                 if condition:
-                    if not findClashes(SCHOOL, subject, subjectDay, nonClashingPeriod + 1, self.cls):
+                    if not findClashes(self.school, subject, subjectDay, nonClashingPeriod + 1, self.cls):
                         tmpSubjPeriod = 1
                         for subjIndex, subj in enumerate(subjectsCopy):
                             if nonClashingPeriod + 1 <= tmpSubjPeriod <= nonClashingPeriod + subject.total:
@@ -290,10 +303,10 @@ class Timetable:
                 if not breakTime:
                     period += subjectAmount
                     subject.remove(subjectAmount)
-                    subjects.append(Subject(subject.name, subjectAmount, subject.perWeek, subject.teacher))
+                    subjects.append(Subject(subject.name, subjectAmount, subject.perWeek, subject.teacher, self.schoolSubjectsList))
                 else:
                     period += 1
-                    subjects.append(Subject('Break', 1, 1, None))
+                    subjects.append(Subject('Break', 1, 1, None, self.schoolSubjectsList))
                     
                     self.subjects.append(subject)
                     empties.append(subjectIndex)
@@ -321,16 +334,21 @@ class Timetable:
             
             if max(timeTableSubjectsAmt - totalSubjectsAmt, 0) == totalRemainingSubjectsAmt:
                 self._foundPerfectTimeTable = True
-                SCHOOL[self.cls] = self
+                self.school[self.cls] = self
             else:
                 self._perfectTimetableCounter += 1
                 self.reset()
                 self.generate()
         else:
-            SCHOOL[self.cls] = self
+            self.school[self.cls] = self
 
-class TimetableSeed:
-    def __init__(self):
+class SeedSystem:
+    def __init__(self, school: dict[Class, Timetable], schoolClasses: dict[str, Class], schoolSubjectsList: list, schoolClassesList: list):
+        self.school = school
+        self.schoolClasses = schoolClasses
+        self.schoolSubjectsList = schoolSubjectsList
+        self.schoolClassesList = schoolClassesList
+        
         seedNumberOptions = ["(", "@", "*", "#", "/", "\\", ">", "["]
         self._seedNumberSep = random.choice(seedNumberOptions)
         
@@ -424,16 +442,16 @@ class TimetableSeed:
         
         timetablesList = []
         for subjects in timetable.table.values():
-            timetablesList.append(random.choice(self._seedSeperators) + self._seedPartsSeperators[3].join([random.choice(self._seedSeperators) + self._convertNumberToSeedString([subj.id for subj in SEED_SUBJECTS_TRACKER].index(subject.id)) + random.choice(self._seedSeperators) + self._seedPartsSeperators[4] + random.choice(self._seedSeperators) + str(SEED_SUBJECTS_TRACKER[[subj.id for subj in SEED_SUBJECTS_TRACKER].index(subject.id)].total) + random.choice(self._seedSeperators) + self._seedPartsSeperators[4] + random.choice(self._seedSeperators) + str(SEED_SUBJECTS_TRACKER[[subj.id for subj in SEED_SUBJECTS_TRACKER].index(subject.id)].perWeek) + random.choice(self._seedSeperators) for subject in subjects]) + random.choice(self._seedSeperators))
+            timetablesList.append(random.choice(self._seedSeperators) + self._seedPartsSeperators[3].join([random.choice(self._seedSeperators) + self._convertNumberToSeedString([subj.id for subj in self.schoolSubjectsList].index(subject.id)) + random.choice(self._seedSeperators) + self._seedPartsSeperators[4] + random.choice(self._seedSeperators) + str(self.schoolSubjectsList[[subj.id for subj in self.schoolSubjectsList].index(subject.id)].total) + random.choice(self._seedSeperators) + self._seedPartsSeperators[4] + random.choice(self._seedSeperators) + str(self.schoolSubjectsList[[subj.id for subj in self.schoolSubjectsList].index(subject.id)].perWeek) + random.choice(self._seedSeperators) for subject in subjects]) + random.choice(self._seedSeperators))
         
         list_timetable = random.choice(self._seedSeperators) + self._seedPartsSeperators[1].join(timetablesList) + random.choice(self._seedSeperators) + self._seedPartsSeperators[1] + random.choice(self._seedSeperators)
         
         list_remainderContent = []
         for subject in timetable.remainderContent:
-            if subject not in SEED_SUBJECTS_TRACKER:
-                SEED_SUBJECTS_TRACKER.append(subject)
+            if subject not in self.schoolSubjectsList:
+                self.schoolSubjectsList.append(subject)
             
-            list_remainderContent.append(random.choice(self._seedSeperators) + self._convertNumberToSeedString(SEED_SUBJECTS_TRACKER.index(subject)) + random.choice(self._seedSeperators) + self._seedPartsSeperators[5] + random.choice(self._seedSeperators) + str(subject.total) + random.choice(self._seedSeperators) + self._seedPartsSeperators[5] + random.choice(self._seedSeperators) + str(subject.perWeek) + random.choice(self._seedSeperators))
+            list_remainderContent.append(random.choice(self._seedSeperators) + self._convertNumberToSeedString(self.schoolSubjectsList.index(subject)) + random.choice(self._seedSeperators) + self._seedPartsSeperators[5] + random.choice(self._seedSeperators) + str(subject.total) + random.choice(self._seedSeperators) + self._seedPartsSeperators[5] + random.choice(self._seedSeperators) + str(subject.perWeek) + random.choice(self._seedSeperators))
         
         list_remainderContent = random.choice(self._seedSeperators) + self._seedPartsSeperators[2].join(list_remainderContent) + random.choice(self._seedSeperators) + self._seedPartsSeperators[2] + random.choice(self._seedSeperators)
         
@@ -442,7 +460,7 @@ class TimetableSeed:
         return seed
     
     def generateClassSeed(self, cls: Class):
-        return random.choice(self._seedSeperators) + self._convertNumberToSeedString(SEED_CLASSES_TRACKER.index(cls)) + random.choice(self._seedSeperators)
+        return random.choice(self._seedSeperators) + self._convertNumberToSeedString(self.schoolClassesList.index(cls)) + random.choice(self._seedSeperators)
     
     def generateSchoolSeed(self, school: dict[Class, Timetable]):
         return self._seedPartsSeperators[6].join([random.choice(self._seedSeperators) + self.generateTimetableSeed(timetable) + random.choice(self._seedSeperators) for timetable in school.values()])
@@ -466,10 +484,10 @@ class TimetableSeed:
         
         classIndex, list_timetable, list_remainderContent = seedInfo
         
-        cls = SEED_CLASSES_TRACKER[self._convertSeedStringToNumber("".join(classIndex))]
+        cls = self.schoolClassesList[self._convertSeedStringToNumber("".join(classIndex))]
         timetable = Timetable(cls, cls.subjects, cls.periodsPerDay, cls.breakTimePeriods)
         
-        refClass = list(CLASSES.values())[[cls.level for cls in list(CLASSES.values())].index(timetable.cls.level)]
+        refClass = list(self.schoolClasses.values())[[cls.level for cls in list(self.schoolClasses.values())].index(timetable.cls.level)]
         
         timetable.periodsPerDay = refClass.periodsPerDay.copy()
         timetable.breakTimePeriod = refClass.breakTimePeriods.copy()
@@ -478,7 +496,7 @@ class TimetableSeed:
         for subjectIndexInfo in list_remainderContent:
             index, perDay, perWeek = subjectIndexInfo.split(self._seedPartsSeperators[5])
             
-            subject = SEED_SUBJECTS_TRACKER[self._convertSeedStringToNumber(index)]
+            subject = self.schoolSubjectsList[self._convertSeedStringToNumber(index)]
             subject.total = perDay
             subject.perWeek = perWeek
             
@@ -494,7 +512,7 @@ class TimetableSeed:
                 if subjectInfo:
                     index, perDay, perWeek = subjectInfo.split(self._seedPartsSeperators[4])
                     
-                    subject = SEED_SUBJECTS_TRACKER[self._convertSeedStringToNumber(index)]
+                    subject = self.schoolSubjectsList[self._convertSeedStringToNumber(index)]
                     
                     subject.total = int(perDay)
                     subject.perWeek = int(perWeek)
@@ -508,7 +526,7 @@ class TimetableSeed:
             
             copy.id = subject.id
             
-            SEED_SUBJECTS_TRACKER.remove(copy)
+            self.schoolSubjectsList.remove(copy)
             timetable._subjects.append(copy)
         
         global_subjectID -= len(timetable._subjects)
@@ -520,19 +538,14 @@ class TimetableSeed:
             if seperators:
                 seed = ", ".join(seed.split(seperators))
         
-        return SEED_CLASSES_TRACKER[int("".join([val for val in seed.split(", ") if val]))]
+        return self.schoolClassesList[int("".join([val for val in seed.split(", ") if val]))]
     
     def getSchoolFromSeed(self, seed: str):
-        SCHOOL = {}
+        self.school.clear()
         
         for timetableSeed in seed.split(self._seedPartsSeperators[6]):
             cls = self.getClassFromSeed(timetableSeed)
             timetable = self.getTimetableFromSeed(timetableSeed)
-            SCHOOL[cls] = timetable
+            self.school[cls] = timetable
 
-CLASSES: dict[str, Class] = {}
-SCHOOL: dict[Class, Timetable] = {}
-TEACHERS: dict[str, Teacher] = {}
-SEED_SUBJECTS_TRACKER: list[Subject] = []
-SEED_CLASSES_TRACKER: list[Class] = []
 global_subjectID = 1

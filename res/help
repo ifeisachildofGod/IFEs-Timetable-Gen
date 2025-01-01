@@ -1,0 +1,51 @@
+
+Project Framework
+
+"""
+{
+    "levels": {
+        level1: [*classes, *periods],
+        level2: [*classes, *periods],
+        level3: [*classes, *periods],
+        ...
+    }
+    
+    "subjectTeacherMapping": {
+        subjectName: {
+            teachersName: *levels,
+            ...,
+            "&timings": {
+                level1: [maxPerDay, maxPerWeek],
+                level2: [maxPerDay, maxPerWeek],
+                level3: [maxPerDay, maxPerWeek],
+                ...
+            }
+            ,
+            "&class?": {
+                level1: *classes,
+                level2: *classes,
+                level3: *classes,
+                ...
+            }
+        },
+        ...
+    }
+    
+    "subjects"?: {
+        name: {
+            level: [
+                perDay,
+                perWeek,
+                {
+                    className1: teacherName,
+                    className2: teacherName,
+                    className3: teacherName,
+                    ...
+                }
+            ],
+            ...
+        },
+        ...
+    }
+}
+"""
