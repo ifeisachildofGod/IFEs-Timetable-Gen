@@ -1,7 +1,7 @@
 import json
 import random
-from helpers import nullCheck  #, display_school, get_clashes, get_schools_non_optimalism
-from objects import Teacher, Class, Subject, Timetable
+from middle.helpers import nullCheck  #, display_school, get_clashes, get_schools_non_optimalism
+from middle.objects import Teacher, Class, Subject, Timetable
 
 class School:
     def __init__(self, projectPath: str):

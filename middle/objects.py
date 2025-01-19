@@ -2,8 +2,8 @@ import random
 from typing import Any
 
 from matplotlib.cbook import flatten
-from constants import *
-from helpers import findClashes
+from middle.constants import *
+from middle.helpers import findClashes
 
 class Subject:
     def __init__(self, name: str, total: int, perWeek: int, teacher: Any | None, schoolSubjectsList: list) -> None:
@@ -547,5 +547,6 @@ class SeedSystem:
             cls = self.getClassFromSeed(timetableSeed)
             timetable = self.getTimetableFromSeed(timetableSeed)
             self.school[cls] = timetable
+
 
 global_subjectID = 1

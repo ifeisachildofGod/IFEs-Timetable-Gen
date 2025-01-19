@@ -1,5 +1,5 @@
 import json
-from constants import WEEKDAYS
+from middle.constants import WEEKDAYS
 
 def findClashes(school, subject, day: str, period: int, cls):
     clashes = []

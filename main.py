@@ -8,5 +8,5 @@ from middle.main import School
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = Window()
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec())
