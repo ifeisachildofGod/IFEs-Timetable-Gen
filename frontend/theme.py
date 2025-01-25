@@ -1,4 +1,3 @@
-
 _main_bg_color_1 = "#1e1e1e"
 
 _border_color_1 = "#3d3d3d"
@@ -458,6 +457,8 @@ SUBJECT_SELECTION = "SUBJECT_SELECTION"
 CLASS_OPTION_SELECTION = "CLASS_OPTION_SELECTION"
 SUBJECT_TEACHERS_CLASSES = "SUBJECT_TEACHERS_CLASSES"
 
+TIMETABLE_EDITOR = "TIMETABLE_EDITOR"
+
 THEME = {WINDOW: _window_theme,
          WINDOW_MENUBAR_ADDITION: _window_menubar_addition_theme,
          WINDOW_SIDEBAR: _window_sidebar_theme,
@@ -466,6 +467,41 @@ THEME = {WINDOW: _window_theme,
          SUBJECT_SELECTION: _subject_selection_theme,
          CLASS_OPTION_SELECTION: _class_option_selection_theme,
          SUBJECT_TEACHERS_CLASSES: _subjects_teachers_classes_theme,
+         TIMETABLE_EDITOR: """
+    QTableWidget {
+        background-color: """ + _widgets_bg_color_1 + """;
+        border: none;
+        border-radius: """ + _widget_border_radius_1 + """;
+        gridline-color: """ + _border_color_1 + """;
+    }
+    QTableWidget::item {
+        padding: 10px;
+        border-radius: 4px;
+        color: """ + _widget_text_color_2 + """;
+    }
+    QTableWidget::item:selected {
+        background-color: """ + _widgets_bg_color_4 + """;
+    }
+    QTableWidget::item:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_1) + """;
+    }
+    QHeaderView::section {
+        background-color: """ + _widgets_bg_color_2 + """;
+        color: """ + _widget_text_color_2 + """;
+        padding: 8px;
+        border: none;
+    }
+    QLabel.subject-item {
+        color: """ + _widget_text_color_2 + """;
+        background-color: """ + _widgets_bg_color_2 + """;
+        padding: 8px;
+        border-radius: 4px;
+        margin: 2px;
+    }
+    QLabel.subject-item:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_2) + """;
+    }
+"""
          }
 
 

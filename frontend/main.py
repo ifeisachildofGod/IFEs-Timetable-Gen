@@ -1,18 +1,22 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout,
     QVBoxLayout, QPushButton, QStackedWidget,
-    QMenuBar, QLineEdit
+    QMenuBar, QComboBox, QLabel
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QIcon
-from matplotlib.cbook import flatten
-from frontend.widgets import Subjects, Teachers, Classes
+from PyQt6.QtGui import QIcon
+from frontend.widgets import Subjects, Teachers, Classes, TimeTableEditor
 from frontend.theme import *
+from middle.main import School  # Add this import
 
 
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
+        
+        # Initialize school data
+        self.school = School("res/project.json")
+        self.school.setSchoolInfoFromProjectDict()
+        self.school.generateNewSchoolTimetables()
         
         # Set application style
         self.setStyleSheet(THEME[WINDOW])
@@ -61,42 +65,73 @@ class Window(QMainWindow):
         subjects_btn = QPushButton("Subjects")
         teachers_btn = QPushButton("Teachers")
         classes_btn = QPushButton("Classes")
+        timetable_btn = QPushButton("Timetable")
         
         subjects_btn.setCheckable(True)
         teachers_btn.setCheckable(True)
         classes_btn.setCheckable(True)
+        timetable_btn.setCheckable(True)
         
         # Add widgets to stack
         self.subjects_widget = Subjects(None, {})
         self.teachers_widget = Teachers(None)
         self.classes_widget = Classes([], [])
+        self.timetable_widget = TimeTableEditor(self.school)
+        
+        option_buttons = [subjects_btn, teachers_btn, classes_btn, timetable_btn]
         
         self.stack.addWidget(self.subjects_widget)
         self.stack.addWidget(self.teachers_widget)
         self.stack.addWidget(self.classes_widget)
+        self.stack.addWidget(self.timetable_widget)
         
         # Connect buttons
-        subjects_btn.clicked.connect(lambda: self.switch_page(0, [subjects_btn, teachers_btn, classes_btn]))
-        teachers_btn.clicked.connect(lambda: self.switch_page(1, [subjects_btn, teachers_btn, classes_btn]))
-        classes_btn.clicked.connect(lambda: self.switch_page(2, [subjects_btn, teachers_btn, classes_btn]))
+        for index, button in enumerate(option_buttons):
+            button.clicked.connect(self.make_option_button_func(index, option_buttons))
         
         # Add buttons to sidebar
         sidebar_layout.addWidget(subjects_btn)
         sidebar_layout.addWidget(teachers_btn)
         sidebar_layout.addWidget(classes_btn)
         sidebar_layout.addStretch()
+        sidebar_layout.addWidget(timetable_btn)
         sidebar.setLayout(sidebar_layout)
         
         # Add widgets to main layout
         main_layout.addWidget(sidebar)
         main_layout.addWidget(self.stack)
         
+        # Create class selector for timetable
+        self.class_selector = QWidget()
+        class_selector_layout = QVBoxLayout(self.class_selector)
+        class_selector_layout.addWidget(QLabel("Select Class:"))
+        self.class_combo = QComboBox()
+        class_selector_layout.addWidget(self.class_combo)
+        self.class_combo.currentTextChanged.connect(self.on_class_changed)
+        
         self.setCentralWidget(container)
         subjects_btn.click()  # Start with subjects page selected
-        
+    
+    def make_option_button_func(self, index, option_buttons):
+        def func():
+            self.switch_page(index, option_buttons)
+        return func
+    
+    def on_class_changed(self, class_name):
+        if class_name and class_name in self.school.classes:
+            if self.timetable_widget:
+                self.stack.removeWidget(self.timetable_widget)
+                self.timetable_widget.deleteLater()
+            self.timetable_widget = TimeTableEditor(self.school.classes[class_name])
+            self.stack.addWidget(self.timetable_widget)
+            self.stack.setCurrentWidget(self.timetable_widget)
+    
     def switch_page(self, index, buttons):
         self.update_interaction(index)
         self.stack.setCurrentIndex(index)
+        
+        # Only update button states for non-timetable views
+        # if index != 3:
         for i, btn in enumerate(buttons):
             btn.setChecked(i == index)
 

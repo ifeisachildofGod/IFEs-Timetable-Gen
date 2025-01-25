@@ -2,11 +2,11 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,
     QFrame, QDialog, QCheckBox,
-    QComboBox, QLineEdit,
-    QLayout, QGridLayout
+    QComboBox, QLineEdit, QTableWidgetItem,
+    QLayout, QGridLayout, QMenu
 )
-from PyQt6.QtGui import QFontMetrics, QFont, QIntValidator, QPainter
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect
+from PyQt6.QtGui import QFontMetrics, QFont, QIntValidator, QPainter, QDrag
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect, QMimeData
 from frontend.theme import *
 from frontend.theme import (
     _main_bg_color_1, _widgets_bg_color_2, _widgets_bg_color_1,
@@ -14,6 +14,7 @@ from frontend.theme import (
     _widgets_bg_color_5, _general_scrollbar_theme, _widgets_bg_color_6,
     _widget_text_color_2
 )
+from middle.objects import Class, Subject
 
 class SelectionList(QDialog):
     def __init__(self, window_title: str, contents: list):
@@ -740,6 +741,74 @@ class ClassOptionSelection(QDialog):
                 self.current_col = 0
                 self.current_row += 1
 
+
+
+class TimeTableItem(QTableWidgetItem):
+    def __init__(self, subject: Subject = None):
+        super().__init__()
+        
+        self.subject = subject
+        
+        if subject is not None:
+            if subject.name.lower() == "break":
+                self.subject = None
+        
+        self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsEditable & (~Qt.ItemFlag.ItemIsEnabled if self.subject is None else Qt.ItemFlag.ItemIsEnabled) & (~Qt.ItemFlag.ItemIsDragEnabled if self.subject is None else Qt.ItemFlag.ItemIsDragEnabled) & (~Qt.ItemFlag.ItemIsDropEnabled if self.subject is None else Qt.ItemFlag.ItemIsDropEnabled))
+        
+        if self.subject is not None:
+            self.setText(self.subject.name)
+            self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.setToolTip(f"Teacher: {self.subject.teacher.name if self.subject.teacher else 'None'}")
+
+class DraggableSubjectLabel(QLabel):
+    def __init__(self, subject: Subject, cls: Class):
+        super().__init__(subject.name)
+        self.subject = subject
+        self.cls = cls  # Store reference to class
+        self.setProperty('class', 'subject-item')
+        self.setToolTip(f"Class: {cls.name}\nTeacher: {subject.teacher.name if subject.teacher else 'None'}")
+        
+        self.external_source_ref = None
+        # self.setFixedHeight(30)  # Make labels more compact
+    
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.external_source_ref = None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.external_source_ref = self
+            
+            drag = QDrag(self)
+            mime_data = QMimeData()
+            mime_data.setText(self.subject.name)
+            drag.setMimeData(mime_data)
+            
+            # Create drag feedback
+            pixmap = self.grab()
+            drag.setPixmap(pixmap)
+            drag.setHotSpot(event.pos())
+            
+            drag.exec()
+    
+    def mouseDoubleClickEvent(self, event):
+        # Allow double clicking to edit subject details
+        menu = QMenu(self)
+        menu.addAction("Edit")
+        if self.subject.lockedPeriod:
+            menu.addAction("Unlock")
+        else:
+            menu.addAction("Lock")
+            
+        action = menu.exec(self.mapToGlobal(event.pos()))
+        
+        if action and action.text() == "Edit":
+            # Add edit functionality here
+            pass
+        elif action and action.text() == "Lock":
+            self.subject.lockedPeriod = [0, 1]  # Lock to first period
+        elif action and action.text() == "Unlock":
+            self.subject.lockedPeriod = None
 
 
 

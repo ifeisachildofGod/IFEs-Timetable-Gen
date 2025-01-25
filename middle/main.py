@@ -1,6 +1,6 @@
 import json
 import random
-from middle.helpers import nullCheck  #, display_school, get_clashes, get_schools_non_optimalism
+from middle.functions import nullCheck  #, display_school, get_clashes, get_schools_non_optimalism
 from middle.objects import Teacher, Class, Subject, Timetable
 
 class School:
@@ -49,7 +49,7 @@ class School:
 
         return totalInfo
 
-    def getSchoolInfoFromProjectDict(self):
+    def setSchoolInfoFromProjectDict(self):
         levels = [int(level) for level in self.project['levels'].keys()]
         
         classOptions = sorted([levelInfo[0] for levelInfo in self.project['levels'].values()], key = lambda options: len(options), reverse = True)[0]
@@ -171,7 +171,7 @@ class School:
 
 # school = School("backend/project.json")
 
-# school.getSchoolInfoFromProjectDict()
+# school.setSchoolInfoFromProjectDict()
 
 # school.generateNewSchoolTimetables()
 

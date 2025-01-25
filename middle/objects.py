@@ -3,10 +3,10 @@ from typing import Any
 
 from matplotlib.cbook import flatten
 from middle.constants import *
-from middle.helpers import findClashes
+from middle.functions import findClashes
 
 class Subject:
-    def __init__(self, name: str, total: int, perWeek: int, teacher: Any | None, schoolSubjectsList: list) -> None:
+    def __init__(self, name: str, total: int, perWeek: int, teacher: 'Teacher', schoolSubjectsList: list) -> None:
         global global_subjectID
         
         self.schoolSubjectsList = schoolSubjectsList
