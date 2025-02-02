@@ -19,7 +19,7 @@ _widget_text_color_1 = "#000000"
 _widget_text_color_2 = "#ffffff"
 
 
-def _hex_to_rgb(hex_color: str, brightness: int = 255) -> tuple[int, int, int]:
+def _hex_to_rgb(hex_color: str, brightness: int = 1) -> tuple[int, int, int]:
     hex_color = hex_color.lstrip('#')
     
     assert len(hex_color) == 6, f"Invalid color value: {"#" + hex_color}"
@@ -28,9 +28,9 @@ def _hex_to_rgb(hex_color: str, brightness: int = 255) -> tuple[int, int, int]:
     
     assert 1 > brightness >= 0, f"Invalid brightness value: {int(brightness * 255)}"
     
-    r = int(int(hex_color[0:2], 16) * brightness)
-    g = int(int(hex_color[2:4], 16) * brightness)
-    b = int(int(hex_color[4:6], 16) * brightness)
+    r = int(hex_color[0:2], 16) * brightness
+    g = int(hex_color[2:4], 16) * brightness
+    b = int(hex_color[4:6], 16) * brightness
     
     return (r, g, b, 1)
 
@@ -447,6 +447,44 @@ _subjects_teachers_classes_theme = """
     
     """ + _general_scrollbar_theme
 
+_timetable_editor = """
+    QTableWidget {
+        background-color: """ + _widgets_bg_color_1 + """;
+        border: none;
+        border-radius: """ + _widget_border_radius_1 + """;
+        gridline-color: """ + _border_color_1 + """;
+    }
+    QPushButton {
+        color: """ + _widget_text_color_2 + """;
+        background-color: """ + _widgets_bg_color_6 + """;
+        border: none;
+        padding: 8px 16px;
+        border-radius: """ + _widget_border_radius_1 + """;
+        font-size: 13px;
+        min-width: 80px;
+    }
+    QPushButton:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_6) + """;
+    }
+    QHeaderView::section {
+        background-color: """ + _widgets_bg_color_2 + """;
+        color: """ + _widget_text_color_2 + """;
+        padding: 8px;
+        border: none;
+    }
+    QLabel.subject-item {
+        color: """ + _widget_text_color_2 + """;
+        background-color: """ + _widgets_bg_color_2 + """;
+        padding: 8px;
+        border-radius: 4px;
+        margin: 2px;
+    }
+    QLabel.subject-item:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_2) + """;
+    }
+"""
+
+
 
 WINDOW = "WINDOW"
 WINDOW_MENUBAR_ADDITION = "WINDOW_MENUBAR_ADDITION"
@@ -467,41 +505,7 @@ THEME = {WINDOW: _window_theme,
          SUBJECT_SELECTION: _subject_selection_theme,
          CLASS_OPTION_SELECTION: _class_option_selection_theme,
          SUBJECT_TEACHERS_CLASSES: _subjects_teachers_classes_theme,
-         TIMETABLE_EDITOR: """
-    QTableWidget {
-        background-color: """ + _widgets_bg_color_1 + """;
-        border: none;
-        border-radius: """ + _widget_border_radius_1 + """;
-        gridline-color: """ + _border_color_1 + """;
-    }
-    QTableWidget::item {
-        padding: 10px;
-        border-radius: 4px;
-        color: """ + _widget_text_color_2 + """;
-    }
-    QTableWidget::item:selected {
-        background-color: """ + _widgets_bg_color_4 + """;
-    }
-    QTableWidget::item:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_1) + """;
-    }
-    QHeaderView::section {
-        background-color: """ + _widgets_bg_color_2 + """;
-        color: """ + _widget_text_color_2 + """;
-        padding: 8px;
-        border: none;
-    }
-    QLabel.subject-item {
-        color: """ + _widget_text_color_2 + """;
-        background-color: """ + _widgets_bg_color_2 + """;
-        padding: 8px;
-        border-radius: 4px;
-        margin: 2px;
-    }
-    QLabel.subject-item:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_2) + """;
-    }
-"""
+         TIMETABLE_EDITOR: _timetable_editor
          }
 
 

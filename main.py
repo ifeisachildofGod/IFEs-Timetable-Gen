@@ -2,7 +2,6 @@ import sys
 from PyQt6.QtWidgets import QApplication
 
 from frontend.main import Window
-from middle.main import School
 
 
 if __name__ == "__main__":

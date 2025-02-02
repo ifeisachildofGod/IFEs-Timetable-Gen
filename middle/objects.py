@@ -2,7 +2,6 @@ import random
 from typing import Any
 
 from matplotlib.cbook import flatten
-from middle.constants import *
 from middle.functions import findClashes
 
 class Subject:
@@ -48,10 +47,11 @@ class Subject:
         self.perWeek -= amount
 
 class Class:
-    def __init__(self, level: int, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school: dict, schoolTeachers: dict[str, Any], schoolClasses: dict[str, Any], schoolSubjectsList: list[Subject], schoolClassesList: list) -> None:
+    def __init__(self, level: int, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school: dict, schoolTeachers: dict[str, Any], schoolClasses: dict[str, Any], schoolSubjectsList: list[Subject], schoolClassesList: list, weekdays: list[str], breakTimePeriods: list[int]) -> None:
         self.school = school
         self.schoolSubjectsList = schoolSubjectsList
         self.schoolClassesList = schoolClassesList
+        self.weekdays = weekdays
         
         self.schoolClassesList.append(self)
         
@@ -72,7 +72,7 @@ class Class:
                     if self.name in classTaught.name:
                         self.teachers[teacher] = subjs
         
-        self.breakTimePeriods = [BREAKTIMEPERIOD for _ in range(len(WEEKDAYS))]
+        self.breakTimePeriods = breakTimePeriods
         
         self.timetable = Timetable(self, self.subjects, self.periodsPerDay, self.breakTimePeriods, self.school, self.schoolSubjectsList)
         
@@ -89,12 +89,13 @@ class Timetable:
     def __init__(self, cls: Class, subjects: list[Subject], periodsPerDay: list[int], breakTimePeriod: list[int], school: dict[Class, Any], schoolSubjectsList: list[Subject]) -> None:
         global global_subjectID
         
+        self.cls = cls
         self.school = school
         self.schoolSubjectsList = schoolSubjectsList
         
         self.periodsPerDay = periodsPerDay
         self.breakTimePeriod = breakTimePeriod
-        self.weekInfo = [[day, self.periodsPerDay[dayIndex], self.breakTimePeriod[dayIndex]] for dayIndex, day in enumerate(WEEKDAYS)]
+        self.weekInfo = [[day, self.periodsPerDay[dayIndex], self.breakTimePeriod[dayIndex]] for dayIndex, day in enumerate(self.cls.weekdays)]
         
         self.freePeriodAmt = max(sum(self.periodsPerDay) - (sum([subject.perWeek for subject in subjects]) + len(self.weekInfo)), 0)
         
@@ -111,8 +112,7 @@ class Timetable:
         self._maxPerfectTimetableTries = 30
         self._foundPerfectTimeTable = False
         
-        self.cls = cls
-        self.table: dict[str, list[Subject]] = {day: [] for day in WEEKDAYS}
+        self.table: dict[str, list[Subject]] = {day: [] for day in self.cls.weekdays}
         self.remainderContent = []
         
         self.reset()
@@ -150,7 +150,7 @@ class Timetable:
             if subject in self.schoolSubjectsList:
                 self.schoolSubjectsList.remove(subject)
         
-        self.table: dict[str, list[Subject]] = {day: [] for day in WEEKDAYS}
+        self.table: dict[str, list[Subject]] = {day: [] for day in self.cls.weekdays}
         self.remainderContent = []
     
     def switchExtras(self, day: str, subjects: list[Subject]):
@@ -215,7 +215,7 @@ class Timetable:
         nonClashingPeriodsMapping = {}
         for subject in subjectsCopy:
             nonClash = []
-            for nonClashingPeriod in range(self.periodsPerDay[WEEKDAYS.index(subjectDay)]):
+            for nonClashingPeriod in range(self.periodsPerDay[self.cls.weekdays.index(subjectDay)]):
                 condition = not (subject.lockedPeriod[0] <= nonClashingPeriod + 1 <= subject.lockedPeriod[0] + subject.lockedPeriod[1] - 1) if subject.lockedPeriod is not None else True
                 if condition:
                     if not findClashes(self.school, subject, subjectDay, nonClashingPeriod + 1, self.cls):
@@ -271,7 +271,7 @@ class Timetable:
                 subject.resetTotal()
             
             if dayIndex == len(self.weekInfo) - 1:
-                self.switchExtras(WEEKDAYS[dayIndex], self.subjects)
+                self.switchExtras(self.cls.weekdays[dayIndex], self.subjects)
             self.classSort(self.subjects, day)
             
             for subjectIndex, subject in enumerate(self.subjects):
@@ -294,11 +294,11 @@ class Timetable:
                     else:
                         subjectAmount = breakPeriod - period - 1
                 elif subject.total > subject.perWeek:
-                    subjectAmount =  subject.perWeek
+                    subjectAmount = subject.perWeek
                 elif period + subject.total > periods:
                     subjectAmount =  period + subject.total - periods
                 else:
-                    subjectAmount = subject.total
+                    subjectAmount = subject.total  # You might want to randomize the subject amount one day, make it a random number in the range of 1 and subject.total, but if you did that, then you might also want to make this part a code snippet and recurse on it, if it is not filled
                 
                 if not breakTime:
                     period += subjectAmount
@@ -311,14 +311,15 @@ class Timetable:
                     self.subjects.append(subject)
                     empties.append(subjectIndex)
             
+            rem_periods = periods - sum([s.total for s in subjects])
+            subjects.append(Subject("Free", rem_periods, rem_periods, None, self.schoolSubjectsList))
+            
             self.table[day] = subjects
             
             tempSubjects = []
             for subjectIndex, subject in enumerate(self.subjects):
                 if subjectIndex not in set(empties) and subject.perWeek > 0:
                     tempSubjects.append(subject)
-                # else:
-                #     self._subjects[([subj.id for subj in self.subjects]).index(subject.id)] = subject
             
             self.subjects = tempSubjects
         
@@ -506,7 +507,7 @@ class SeedSystem:
         timetable._subjects = []
         
         for sIs, subjectIndexesInfo in enumerate(list_timetable):
-            timetable.table[WEEKDAYS[sIs]] = []
+            timetable.table[self.school.weekdays[sIs]] = []
             
             for subjectInfo in subjectIndexesInfo.split(self._seedPartsSeperators[3]):
                 if subjectInfo:
@@ -517,9 +518,9 @@ class SeedSystem:
                     subject.total = int(perDay)
                     subject.perWeek = int(perWeek)
                     
-                    timetable.table[WEEKDAYS[sIs]].append(subject)
+                    timetable.table[self.school.weekdays[sIs]].append(subject)
             
-            timetable.subjects += timetable.table[WEEKDAYS[sIs]]
+            timetable.subjects += timetable.table[self.school.weekdays[sIs]]
         
         for subject in timetable.subjects:
             copy = subject.copy()

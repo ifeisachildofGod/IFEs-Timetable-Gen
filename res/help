@@ -1,8 +1,17 @@
 
 Project Framework
 
-"""
+
 {
+    "weekdays": *daysOfTheWeek,
+    
+    "breakTimePeriods": {
+        level1: *breakPeriod,
+        level2: *breakPeriod,
+        level3: *breakPeriod,
+        ...
+    },
+    
     "levels": {
         level1: [*classes, *periods],
         level2: [*classes, *periods],
@@ -48,4 +57,4 @@ Project Framework
         ...
     }
 }
-"""
+

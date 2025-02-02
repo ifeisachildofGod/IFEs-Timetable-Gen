@@ -1,3 +1,5 @@
+import math
+from typing import Callable
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,
@@ -5,14 +7,14 @@ from PyQt6.QtWidgets import (
     QComboBox, QLineEdit, QTableWidgetItem,
     QLayout, QGridLayout, QMenu
 )
-from PyQt6.QtGui import QFontMetrics, QFont, QIntValidator, QPainter, QDrag
-from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect, QMimeData
+from PyQt6.QtGui import QFontMetrics, QFont, QIntValidator, QPainter, QColor, QMouseEvent
+from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect
 from frontend.theme import *
 from frontend.theme import (
     _main_bg_color_1, _widgets_bg_color_2, _widgets_bg_color_1,
     _widget_border_radius_1, _widgets_bg_color_4, _border_color_2,
     _widgets_bg_color_5, _general_scrollbar_theme, _widgets_bg_color_6,
-    _widget_text_color_2
+    _widget_text_color_2, _hex_to_rgb
 )
 from middle.objects import Class, Subject
 
@@ -449,17 +451,15 @@ class SubjectSelection(QDialog):
         layout.addWidget(subjects)
         layout.addLayout(sub_layout)
         
-        per_day_edit = QLineEdit()
-        per_day_edit.setMaximumWidth(50)
-        per_day_edit.setPlaceholderText("Per day")
-        per_day_edit.setValidator(QIntValidator(0, 4))
-        per_day_edit.textChanged.connect(self.make_text_changed_func(subjects, 0, per_day_edit))
+        per_day_edit = NumberTextEdit(max_validatorAmt=1)
+        per_day_edit.edit.setFixedWidth(50)
+        per_day_edit.edit.setPlaceholderText("Per day")
+        per_day_edit.edit.textChanged.connect(self.make_text_changed_func(subjects, 0, per_day_edit))
         
-        per_week_edit = QLineEdit()
-        per_week_edit.setMaximumWidth(54)
-        per_week_edit.setPlaceholderText("Per week")
-        per_week_edit.setValidator(QIntValidator(0, 10))
-        per_week_edit.textChanged.connect(self.make_text_changed_func(subjects, 1, per_week_edit))
+        per_week_edit = NumberTextEdit()
+        per_week_edit.edit.setFixedWidth(54)
+        per_week_edit.edit.setPlaceholderText("Per week")
+        per_week_edit.edit.textChanged.connect(self.make_text_changed_func(subjects, 1, per_week_edit))
         
         teacher_button = QPushButton("Teachers")
         teacher_button.setMaximumWidth(60)
@@ -482,9 +482,9 @@ class SubjectSelection(QDialog):
             per_day_info, per_week_info, _ = info
             
             if per_day_info is not None:
-                per_day_edit.setText(per_day_info)
+                per_day_edit.edit.setText(per_day_info)
             if per_week_info is not None:
-                per_week_edit.setText(per_week_info)
+                per_week_edit.edit.setText(per_week_info)
         else:
             self._set_list_value(self.info, subjects, [None, None, self.teachers.copy()])
         
@@ -526,12 +526,12 @@ class SubjectSelection(QDialog):
         
         return temp_show_teacher_popup
     
-    def make_text_changed_func(self, widget: QWidget, index: int, input_edit: QLineEdit):
+    def make_text_changed_func(self, widget: QWidget, index: int, input_edit: 'NumberTextEdit'):
         def text_changed_func():
             curr_widget = self._get_list_value(self.info, widget, strict=False)
             if curr_widget is None:
                 self._set_list_value(self.info, widget, [None, None, []])
-            curr_widget[index] = input_edit.text()
+            curr_widget[index] = input_edit.edit.text()
         
         return text_changed_func
 
@@ -744,52 +744,51 @@ class ClassOptionSelection(QDialog):
 
 
 class TimeTableItem(QTableWidgetItem):
-    def __init__(self, subject: Subject = None):
+    def __init__(self, subject: Subject = None, break_time: bool = None):
         super().__init__()
         
         self.subject = subject
         
-        if subject is not None:
-            if subject.name.lower() == "break":
-                self.subject = None
+        self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsEnabled)
         
-        self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsEditable & (~Qt.ItemFlag.ItemIsEnabled if self.subject is None else Qt.ItemFlag.ItemIsEnabled) & (~Qt.ItemFlag.ItemIsDragEnabled if self.subject is None else Qt.ItemFlag.ItemIsDragEnabled) & (~Qt.ItemFlag.ItemIsDropEnabled if self.subject is None else Qt.ItemFlag.ItemIsDropEnabled))
+        if break_time:
+            self.subject = None
+            color = list(_hex_to_rgb(_widgets_bg_color_6))
+            color.pop()
+            self.setBackground(QColor(*[int(col_val * 255) for col_val in color]))
         
-        if self.subject is not None:
+        # I check if subject is None seperately bcos of when the break time is chacked
+        
+        if self.subject is None:
+            self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsDropEnabled)
+        else:
             self.setText(self.subject.name)
             self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.setToolTip(f"Teacher: {self.subject.teacher.name if self.subject.teacher else 'None'}")
 
 class DraggableSubjectLabel(QLabel):
+    clicked = pyqtSignal(QMouseEvent)
+    
     def __init__(self, subject: Subject, cls: Class):
         super().__init__(subject.name)
         self.subject = subject
-        self.cls = cls  # Store reference to class
+        self.cls = cls
+        
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setProperty('class', 'subject-item')
         self.setToolTip(f"Class: {cls.name}\nTeacher: {subject.teacher.name if subject.teacher else 'None'}")
         
+        self.setFixedSize(100, 35)
+        self.setStyleSheet("background-color:rgb(31, 31, 31);")
+        
         self.external_source_ref = None
-        # self.setFixedHeight(30)  # Make labels more compact
     
-    def mouseReleaseEvent(self, event):
+    # def mouseReleaseEvent(self, event):
+    #     self.clicked.emit(event, False)
+    
+    def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
-            self.external_source_ref = None
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.external_source_ref = self
-            
-            drag = QDrag(self)
-            mime_data = QMimeData()
-            mime_data.setText(self.subject.name)
-            drag.setMimeData(mime_data)
-            
-            # Create drag feedback
-            pixmap = self.grab()
-            drag.setPixmap(pixmap)
-            drag.setHotSpot(event.pos())
-            
-            drag.exec()
+            self.clicked.emit(event)
     
     def mouseDoubleClickEvent(self, event):
         # Allow double clicking to edit subject details
@@ -810,7 +809,55 @@ class DraggableSubjectLabel(QLabel):
         elif action and action.text() == "Unlock":
             self.subject.lockedPeriod = None
 
-
+class NumberTextEdit(QWidget):
+    def __init__(self, min_validatorAmt: int = 0, max_validatorAmt: int = 10):
+        super().__init__()
+        
+        self.min_num = min_validatorAmt
+        self.max_num = (len(str(max_validatorAmt)) * 10) - 1
+        
+        self.edit = QLineEdit()
+        
+        layout = QHBoxLayout()
+        self.setLayout(layout)
+        
+        buttons_layout = QVBoxLayout()
+        
+        layout.addWidget(self.edit, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignLeft)
+        layout.addLayout(buttons_layout)
+        
+        buttons_layout.setContentsMargins(0, 0, 0, 0)
+        
+        increment_button = _RotatedLabel("▽", 180)
+        increment_button.setContentsMargins(0, 0, 0, 0)
+        increment_button.setStyleSheet("border-top-left-radius: 2px; border-top-right-radius: 2px;")
+        increment_button.mouseclicked.connect(lambda: self._change_number(1))
+        
+        decrement_button = _RotatedLabel("▽", 0)
+        increment_button.setContentsMargins(0, 0, 0, 0)
+        decrement_button.setStyleSheet("border-bottom-left-radius: 2px; border-bottom-right-radius: 2px;")
+        decrement_button.mouseclicked.connect(lambda: self._change_number(-1))
+        
+        buttons_layout.addWidget(increment_button, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        buttons_layout.addWidget(decrement_button, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        
+        self.edit.setValidator(QIntValidator(0, max_validatorAmt))
+        
+        self.setFixedHeight(50)
+        self.edit.setFixedHeight(30)
+    
+    def _change_number(self, direction: int):
+        if not self.edit.text():
+            self.edit.setText("0")
+        elif not self.edit.text().strip('-').isnumeric():
+            text_list = [c for c in self.edit.text() if c.isnumeric()]
+            if text_list:
+                self.edit.setText("".join(text_list))
+            else:
+                self.edit.setText("0")
+        
+        self.edit.setText(str(min(max(int(self.edit.text()) + direction, self.min_num), self.max_num)))
+        
 
 class _OptionTag(QWidget):
     deleted = pyqtSignal()
@@ -912,9 +959,15 @@ class _OptionTag(QWidget):
         return self.text
 
 class _RotatedLabel(QLabel):
+    mouseclicked = pyqtSignal()
+    
     def __init__(self, text, angle, parent=None):
         super().__init__(text, parent)
         self.angle = angle  # Angle in degrees to rotate the text
+    
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            self.mouseclicked.emit()
     
     def setAngle(self, angle):
         self.angle = angle

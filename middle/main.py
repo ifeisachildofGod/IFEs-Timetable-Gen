@@ -14,6 +14,8 @@ class School:
         
         with open(projectPath) as file:
             self.project: dict[str, dict[str, list[list[str], list[int]] | dict[str, list[int] | dict[str, list[int, int] | list[int]]]] | list[dict[str, dict[str, list[int, int, dict[str, str]]]]]] = json.loads(file.read())
+        
+        self.setSchoolInfoFromProjectDict()
     
     def _getSubjects(self, levels: list[int], classOptions: list[str], classes: list[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
         totalInfo = {}
@@ -50,6 +52,9 @@ class School:
         return totalInfo
 
     def setSchoolInfoFromProjectDict(self):
+        self.weekdays = self.project["weekdays"]
+        self.breakTimePeriods = self.project["breakTimePeriods"]
+        
         levels = [int(level) for level in self.project['levels'].keys()]
         
         classOptions = sorted([levelInfo[0] for levelInfo in self.project['levels'].values()], key = lambda options: len(options), reverse = True)[0]
@@ -80,7 +85,7 @@ class School:
                         cls.subjects.append(subj)
                         cls.timetable.subjects.append(subj)
                     else:
-                        self.classes[fullClassName] = cls = Class(int(level), className, [subj], periods[level], levelNames, self.school, self.teachers, self.classes, self.subjects_list, self.classes_list)
+                        self.classes[fullClassName] = cls = Class(int(level), className, [subj], periods[level], levelNames, self.school, self.teachers, self.classes, self.subjects_list, self.classes_list, self.weekdays, self.breakTimePeriods[level])
                     
                     teacher.subjects[subj] = cls
 
@@ -138,7 +143,13 @@ class School:
         
         subjects = self._getSubjects(subjectLevels, subjectClassOptions, subjectClasses, subjectTeacherMapping)
         
-        self.project = {"levels": levels, "subjectTeacherMapping": subjectTeacherMapping, "subjects": subjects}
+        self.project = {
+            "weekdays": self.weekdays,
+            "breakTimePeriods": self.breakTimePeriods,
+            "levels": levels, 
+            "subjectTeacherMapping": subjectTeacherMapping,
+            "subjects": subjects
+        }
 
     def generateNewSchoolTimetables(self):
         for _, cls in self.classes.items():

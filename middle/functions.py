@@ -1,5 +1,4 @@
 import json
-from middle.constants import WEEKDAYS
 
 def findClashes(school, subject, day: str, period: int, cls):
     clashes = []
@@ -39,7 +38,7 @@ def display_school(school, drawType: int = 0):
             print("\n")
     
     elif drawType == 1:
-        for day in WEEKDAYS:
+        for day in school.weekdays:
             print()
             print(f"| {day} |")
             print()
@@ -52,7 +51,7 @@ def display_school(school, drawType: int = 0):
     
     elif drawType == 2:
         clashesDict = {}
-        for day in WEEKDAYS:
+        for day in school.weekdays:
             clashesDict[day] = {}
             for _, timetable in school.items():
                 for timetableDay, todaysSubjects in timetable.table.items():

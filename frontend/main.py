@@ -15,8 +15,6 @@ class Window(QMainWindow):
         
         # Initialize school data
         self.school = School("res/project.json")
-        self.school.setSchoolInfoFromProjectDict()
-        self.school.generateNewSchoolTimetables()
         
         # Set application style
         self.setStyleSheet(THEME[WINDOW])
