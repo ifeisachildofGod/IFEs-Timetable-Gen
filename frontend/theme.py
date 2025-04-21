@@ -6,10 +6,10 @@ _border_color_3 = "#808080"
 
 _widgets_bg_color_1 = "#2d2d2d"
 _widgets_bg_color_2 = "#252526"
-_widgets_bg_color_3 = "#ffffff"
-_widgets_bg_color_4 = "#d83842"
-_widgets_bg_color_5 = "#13a10e"  # green
-_widgets_bg_color_6 = "#0078d4"  # blue
+_widgets_bg_color_3 = "#d83842"  # red
+_widgets_bg_color_4 = "#13a10e"  # green
+_widgets_bg_color_5 = "#0078d4"  # blue
+_widgets_bg_color_6 = "#37373d"
 
 _widget_border_radius_1 = "8px"
 _widget_border_radius_2 = "100%"
@@ -37,14 +37,135 @@ def _hex_to_rgb(hex_color: str, brightness: int = 1) -> tuple[int, int, int]:
 # def _rgb_to_hex(rgb_color: tuple[int, int, int]) -> str:
 #     return "#" + "".join([("0" if len(hex(num).lstrip("0x")) != 2  else "") + hex(num).lstrip("0x") for num in rgb_color])
 
+def get_disabled_color(color: str | None) -> str:
+    brightness = 100
+    return f"rgba{_hex_to_rgb(color, brightness) if color is not None else (255, 255, 255, (255 - brightness)/255)}"
 
 def get_hover_color(color: str | None) -> str:
-    brightness = 240
+    brightness = 200
     return f"rgba{_hex_to_rgb(color, brightness) if color is not None else (255, 255, 255, (255 - brightness)/255)}"
 
 def get_pressed_color(color: str | None) -> str:
-    brightness = 200
+    brightness = 150
     return f"rgba{_hex_to_rgb(color, brightness) if color is not None else (255, 255, 255, (255 - brightness)/255)}"
+
+
+
+_general_dialog_theme = """
+    QDialog {
+        background-color: """ + _main_bg_color_1 + """;
+    }
+    QWidget {
+        color: """ + _widget_text_color_2 + """;
+    }
+"""
+
+_general_scrollbar_theme = """
+    QScrollArea {
+        border: 1px solid """ + _border_color_3 +""";
+        padding: 4px;
+    }
+    QScrollBar:vertical {
+        border: none;
+        background-color: transparent;
+        width: 14px;
+        margin: 0px;
+    }
+    QScrollBar::handle:vertical {
+        background-color: """ + _border_color_1 + """;
+        min-height: 30px;
+        border-radius: 7px;
+    }
+    QScrollBar::handle:vertical:hover {
+        background-color: """ + get_hover_color(_border_color_1) + """;
+    }
+    QScrollBar::handle:vertical:pressed {
+        background-color: """ + get_pressed_color(_border_color_1) + """;
+    }
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+        border: none;
+        background: none;
+        height: 0px;
+    }
+    QScrollBar:horizontal {
+        border: none;
+        background-color: """ + _widgets_bg_color_2 + """;
+        height: 14px;
+        margin: 0px;
+    }
+    QScrollBar::handle:horizontal {
+        background-color: """ + _border_color_1 + """;
+        min-width: 30px;
+        border-radius: 7px;
+    }
+    QScrollBar::handle:horizontal:hover {
+        background-color: """ + get_hover_color(_border_color_1) + """;
+    }
+    QScrollBar::handle:horizontal:pressed {
+        background-color: """ + get_pressed_color(_border_color_1) + """;
+    }
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+    QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+        border: none;
+        background: none;
+        width: 0px;
+    }
+"""
+
+_general_checkbox_theme = """
+    QCheckBox {
+        color: """ + _widget_text_color_2 + """;
+        spacing: 8px;
+        padding: 4px;
+    }
+    QCheckBox::indicator {
+        width: 18px;
+        height: 18px;
+        border-radius: 3px;
+        border: 1px solid """ + _border_color_1 + """;
+    }
+    QCheckBox::indicator:unchecked {
+        background-color: """ + _widgets_bg_color_1 + """;
+    }
+    QCheckBox::indicator:checked {
+        background-color: """ + _widget_fg_color + """;
+        border-color: """ + _widget_fg_color + """;
+    }
+    QCheckBox::indicator:hover {
+        border-color: """ + _widget_fg_color + """;
+    }
+"""
+
+_general_button = """
+    QPushButton {
+        background-color: """ + _widgets_bg_color_5 + """;
+        color: """ + _widget_text_color_2 + """;
+        border: none;
+        padding: 8px 16px;
+        border-radius: """ + _widget_border_radius_1 + """;
+        font-size: 15px;
+        min-width: 80px;
+    }
+    QPushButton:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_5) + """;
+    }
+    QPushButton:disabled {
+        background-color: """ + get_disabled_color(_widgets_bg_color_5) + """;
+    }
+    QPushButton.safety {
+        background-color: """ + _widgets_bg_color_4 + """;
+    }
+    QPushButton.safety:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_4) + """;
+    }
+    QPushButton.danger {
+        background-color: """ + _widgets_bg_color_3 + """;
+    }
+    QPushButton.danger:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_3) + """;
+    }
+"""
 
 
 _window_theme = """
@@ -100,68 +221,6 @@ _window_theme = """
     }
 """
 
-_general_dialog_theme = """
-    QDialog {
-        background-color: """ + _main_bg_color_1 + """;
-    }
-    QWidget {
-        color: """ + _widget_text_color_2 + """;
-    }
-"""
-
-_general_scrollbar_theme = """
-    QScrollArea {
-        border: 1px solid """ + _border_color_3 +""";
-        padding: 4px;
-    }
-    QScrollBar:vertical {
-        border: none;
-        background-color: """ + _widgets_bg_color_2 + """;
-        width: 14px;
-        margin: 0px;
-    }
-    QScrollBar::handle:vertical {
-        background-color: """ + _border_color_1 + """;
-        min-height: 30px;
-        border-radius: 7px;
-    }
-    QScrollBar::handle:vertical:hover {
-        background-color: """ + get_hover_color(_border_color_1) + """;
-    }
-    QScrollBar::handle:vertical:pressed {
-        background-color: """ + get_pressed_color(_border_color_1) + """;
-    }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-        border: none;
-        background: none;
-        height: 0px;
-    }
-    QScrollBar:horizontal {
-        border: none;
-        background-color: """ + _widgets_bg_color_2 + """;
-        height: 14px;
-        margin: 0px;
-    }
-    QScrollBar::handle:horizontal {
-        background-color: """ + _border_color_1 + """;
-        min-width: 30px;
-        border-radius: 7px;
-    }
-    QScrollBar::handle:horizontal:hover {
-        background-color: """ + get_hover_color(_border_color_1) + """;
-    }
-    QScrollBar::handle:horizontal:pressed {
-        background-color: """ + get_pressed_color(_border_color_1) + """;
-    }
-    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
-    QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-        border: none;
-        background: none;
-        width: 0px;
-    }
-"""
-
 
 _window_menubar_addition_theme = """
     QMenu {
@@ -184,9 +243,13 @@ _window_sidebar_theme = """
         padding: 12px 20px;
         margin: 2px 1px;
         border-radius: 0px;
+        background-color: """ + _widgets_bg_color_2 + """;
+    }
+    QPushButton:hover {
+        background-color: """ + get_hover_color(_widgets_bg_color_6) + """;
     }
     QPushButton:checked {
-        background-color: #37373d;
+        background-color: """+ _widgets_bg_color_6 +""";
         border-left: 4px solid """ + _widget_fg_color + """;
     }
 """
@@ -206,31 +269,7 @@ _dropDown_check_boxes_theme = _general_dialog_theme + """
         margin: 0px 8px 4px 8px;
         padding: 8px;
     }
-    QCheckBox {
-        color: """ + _widget_text_color_2 + """;
-        spacing: 8px;
-        padding: 4px;
-    }
-    QCheckBox:hover {
-        background-color: """ + get_hover_color(_widget_text_color_2) + """;
-        border-radius: """ + _widget_border_radius_1 + """;
-    }
-    QCheckBox::indicator {
-        width: 18px;
-        height: 18px;
-        border-radius: 3px;
-        border: 1px solid """ + _border_color_1 + """;
-    }
-    QCheckBox::indicator:unchecked {
-        background-color: """ + _widgets_bg_color_1 + """;
-    }
-    QCheckBox::indicator:checked {
-        background-color: """ + _widget_fg_color + """;
-        border-color: """ + _widget_fg_color + """;
-    }
-    QCheckBox::indicator:hover {
-        border-color: """ + _widget_fg_color + """;
-    }
+    """ + _general_checkbox_theme + """
     QLabel {
         font-size: 13px;
     }
@@ -261,18 +300,18 @@ _selection_list_theme = """
         min-width: 70px;
     }
     QPushButton.addBtn {
-        background-color: """ + _widgets_bg_color_5 + """;
+        background-color: """ + _widgets_bg_color_4 + """;
         font-weight: bold;
         padding: 4px;
     }
     QPushButton.addBtn:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_5) + """;
+        background-color: """ + get_hover_color(_widgets_bg_color_4) + """;
     }
     QPushButton.deleteBtn {
-        background-color: """ + _widgets_bg_color_4 + """;
+        background-color: """ + _widgets_bg_color_3 + """;
     }
     QPushButton.deleteBtn:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_4) + """;
+        background-color: """ + get_hover_color(_widgets_bg_color_3) + """;
     }
     QLabel {
         color: """ + _widget_text_color_2 + """;
@@ -290,17 +329,7 @@ _subject_selection_theme = _general_dialog_theme + """
         margin: 4px;
         padding: 8px;
     }
-    QPushButton {
-        min-width: 60px;
-        background-color: """ + _widgets_bg_color_6 + """;
-        border: none;
-        padding: 6px 12px;
-        border-radius: """ + _widget_border_radius_1 + """;
-        font-size: 13px;
-    }
-    QPushButton:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_6) + """;
-    }
+    """+ _general_button +"""
     QComboBox {
         background-color: """ + _widgets_bg_color_1 + """;
         border: 1px solid """ + _border_color_1 + """;
@@ -339,24 +368,14 @@ _subject_selection_theme = _general_dialog_theme + """
     }
     """+ _general_scrollbar_theme
 
-_class_option_selection_theme = """
+_option_selection_theme = """
     QDialog {
         background-color: """ + _main_bg_color_1 + """;
     }
-    QPushButton {
-        background-color: """ + _widgets_bg_color_6 + """;
-        color: """ + _widget_text_color_2 + """;
-        border: none;
-        padding: 8px 16px;
-        border-radius: """ + _widget_border_radius_1 + """;
-        font-size: 13px;
-    }
-    QPushButton:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_6) + """;
-    }
+    """+ _general_button +"""
     QPushButton#closeBtn {
         background: transparent;
-        color: """ + _widgets_bg_color_4 + """;
+        color: """ + _widgets_bg_color_3 + """;
         padding: 4px;
         min-width: 20px;
         font-weight: bold;
@@ -396,18 +415,7 @@ _subjects_teachers_classes_theme = """
     QWidget {
         background-color: """ + _main_bg_color_1 + """;
     }
-    QPushButton {
-        background-color: """ + _widgets_bg_color_6 + """;
-        color: """ + _widget_text_color_2 + """;
-        border: none;
-        padding: 8px 16px;
-        border-radius: """ + _widget_border_radius_1 + """;
-        font-size: 13px;
-        min-width: 80px;
-    }
-    QPushButton:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_6) + """;
-    }
+    """+ _general_button +"""
     QPushButton.warning {
         background-color: transparent;
         color: """ + _widget_text_color_2 + """;
@@ -422,12 +430,12 @@ _subjects_teachers_classes_theme = """
         color: """ + get_hover_color("#ffffff") + """;
     }
     QPushButton.action {
-        color: """ + _widget_text_color_1 + """;
-        background-color: """ + _widgets_bg_color_3 + """;
+        color: """ + _widget_text_color_2 + """;
+        background-color: """ + _widgets_bg_color_5 + """;
         margin-left: 4px;
     }
     QPushButton.action:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_3) + """;
+        background-color: """ + get_hover_color(_widgets_bg_color_5) + """;
     }
     QLineEdit {
         background-color: """ + _widgets_bg_color_1 + """;
@@ -454,18 +462,7 @@ _timetable_editor = """
         border-radius: """ + _widget_border_radius_1 + """;
         gridline-color: """ + _border_color_1 + """;
     }
-    QPushButton {
-        color: """ + _widget_text_color_2 + """;
-        background-color: """ + _widgets_bg_color_6 + """;
-        border: none;
-        padding: 8px 16px;
-        border-radius: """ + _widget_border_radius_1 + """;
-        font-size: 13px;
-        min-width: 80px;
-    }
-    QPushButton:hover {
-        background-color: """ + get_hover_color(_widgets_bg_color_6) + """;
-    }
+    """+ _general_button +"""
     QHeaderView::section {
         background-color: """ + _widgets_bg_color_2 + """;
         color: """ + _widget_text_color_2 + """;
@@ -484,6 +481,12 @@ _timetable_editor = """
     }
 """
 
+_timetable_settings_theme = """
+    QWidget {
+        background-color: """ + _widgets_bg_color_1 + """;
+        border-radius: 5px;
+    }
+""" + _general_button + _general_checkbox_theme
 
 
 WINDOW = "WINDOW"
@@ -492,10 +495,16 @@ WINDOW_SIDEBAR = "WINDOW_SIDEBAR"
 DROPDOWN_CHECK_BOXES_THEME = "DROPDOWN_CHECK_BOXES_THEME"
 SELECTION_LIST = "SELECTION_LIST"
 SUBJECT_SELECTION = "SUBJECT_SELECTION"
-CLASS_OPTION_SELECTION = "CLASS_OPTION_SELECTION"
+OPTION_SELECTION = "OPTION_SELECTION"
 SUBJECT_TEACHERS_CLASSES = "SUBJECT_TEACHERS_CLASSES"
 
+GENERAL_DIALOGS = "GENERAL_DIALOGS"
+GENERAL_SCROLLBARS = "GENERAL_SCROLLBARS"
+GENERAL_CHECKBOXES = "GENERAL_CHECKBOXES"
+GENERAL_BUTTON = "GENERAL_BUTTON"
+
 TIMETABLE_EDITOR = "TIMETABLE_EDITOR"
+TIMETABLE_SETTINGS = "TIMETABLE_SETTINGS"
 
 THEME = {WINDOW: _window_theme,
          WINDOW_MENUBAR_ADDITION: _window_menubar_addition_theme,
@@ -503,9 +512,15 @@ THEME = {WINDOW: _window_theme,
          DROPDOWN_CHECK_BOXES_THEME: _dropDown_check_boxes_theme,
          SELECTION_LIST: _selection_list_theme,
          SUBJECT_SELECTION: _subject_selection_theme,
-         CLASS_OPTION_SELECTION: _class_option_selection_theme,
+         OPTION_SELECTION: _option_selection_theme,
          SUBJECT_TEACHERS_CLASSES: _subjects_teachers_classes_theme,
-         TIMETABLE_EDITOR: _timetable_editor
+         TIMETABLE_EDITOR: _timetable_editor,
+         TIMETABLE_SETTINGS: _timetable_settings_theme,
+         
+         GENERAL_DIALOGS: _general_dialog_theme,
+         GENERAL_SCROLLBARS: _general_scrollbar_theme,
+         GENERAL_CHECKBOXES: _general_checkbox_theme,
+         GENERAL_BUTTON: _general_button
          }
 
 

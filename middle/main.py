@@ -1,27 +1,24 @@
-import json
 import random
+from typing import Union
 from middle.functions import nullCheck  #, display_school, get_clashes, get_schools_non_optimalism
 from middle.objects import Teacher, Class, Subject, Timetable
 
+PotentialOptionType = Union[dict[str, list[list[str], list[int]] | dict[str, list[int] | dict[str, list[int, int] | list[int]]]], list[dict[str, dict[str, list[int, int, dict[str, str]]]]], list[str], dict[str, list[int]], dict[str, list[list[str], list[str]]]]
+ProjectType = dict[str, PotentialOptionType]
+
 class School:
-    def __init__(self, projectPath: str):
+    def __init__(self, project: ProjectType):
         self.school: dict[Class, Timetable] = {}
         self.classes: dict[str, Class] = {}
         self.teachers: dict[str, Teacher] = {}
         
-        self.classes_list: list[Class] = []
-        self.subjects_list: list[Subject] = []
-        
-        with open(projectPath) as file:
-            self.project: dict[str, dict[str, list[list[str], list[int]] | dict[str, list[int] | dict[str, list[int, int] | list[int]]]] | list[dict[str, dict[str, list[int, int, dict[str, str]]]]]] = json.loads(file.read())
-        
-        self.setSchoolInfoFromProjectDict()
+        self.setProject(project)
     
-    def _getSubjects(self, levels: list[int], classOptions: list[str], classes: list[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
-        totalInfo = {}
+    def _getSubjects(self, levels: list[int], classOptions: dict[str, list[str]], classes: list[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
+        subjects = {}
         
         for subjectName, info in mappings.items():
-            totalInfo[subjectName] = {}
+            subjects[subjectName] = {}
             
             for level in levels:
                 teachersMapping = {}
@@ -39,31 +36,35 @@ class School:
                     if options is not None:
                         options = options.get(str(level))
                     
-                    timings = info.get("&timings")
-                    
                     optionIndex = 0
-                    for option in nullCheck(options, classOptions):
+                    for option in nullCheck(options, classOptions[str(level)]):
                         if option in classes[str(level)]:
                             teachersMapping[option] = availableTeachers[optionIndex % len(availableTeachers)]
                             optionIndex += 1
                     
-                    totalInfo[subjectName][str(level)] = [timings[str(level)][0], timings[str(level)][1], teachersMapping]
+                    timings = info.get("&timings")[str(level)]
+                    
+                    subjects[subjectName][str(level)] = [timings[0], timings[1], teachersMapping]
 
-        return totalInfo
-
+        return subjects
+    
+    def generateTimetable(self, cls: Class):
+        cls.timetable.__init__(cls, cls.timetable.subjects, cls.timetable.periodsPerDay, cls.timetable.breakTimePeriods, self.school)
+        cls.timetable.addFreePeriods()
+        cls.timetable.generate()
+    
     def setSchoolInfoFromProjectDict(self):
-        self.weekdays = self.project["weekdays"]
-        self.breakTimePeriods = self.project["breakTimePeriods"]
-        
         levels = [int(level) for level in self.project['levels'].keys()]
         
-        classOptions = sorted([levelInfo[0] for levelInfo in self.project['levels'].values()], key = lambda options: len(options), reverse = True)[0]
+        classOptions = {level: list(levelInfo[0].keys()) for level, levelInfo in self.project['levels'].items()}
+        # print(classOptions)
+        classes = {level : list(levelInfo[0].keys()) for level, levelInfo in self.project['levels'].items()}
+        periods = {level : {name: info[0] for name, info in levelInfo[0].items()} for level, levelInfo in self.project['levels'].items()}
+        breakperiods = {level : {name: info[1] for name, info in levelInfo[0].items()} for level, levelInfo in self.project['levels'].items()}
+        weekdays = {level : {name: info[2] for name, info in levelInfo[0].items()} for level, levelInfo in self.project['levels'].items()}
+        levelNames = [levelInfo[1] for levelInfo in self.project['levels'].values()]
         
-        classes = {level : levelInfo[0] for level, levelInfo in self.project['levels'].items()}
-        periods = {level : levelInfo[1] for level, levelInfo in self.project['levels'].items()}
-        levelNames = [levelInfo[2] for _, levelInfo in self.project['levels'].items()]
-        
-        subjects = self.project["subjects"] = nullCheck(self.project.get('subjects'), self._getSubjects(levels, classOptions, classes, self.project["subjectTeacherMapping"]))
+        subjects = self.project["subjects"] = nullCheck(self.project.get("subjects"), self._getSubjects(levels, classOptions, classes, self.project["subjectTeacherMapping"]))
         
         for subjectName, subjectInfo in subjects.items():
             for level, levelInfo in subjectInfo.items():
@@ -72,7 +73,7 @@ class School:
                 for className, teachersName in classTeacherMapping.items():
                     fullClassName = levelNames[int(level) - 1] + " " + className
                     
-                    subj = Subject(subjectName, perDay, perWeek, None, self.subjects_list)
+                    subj = Subject(subjectName, perDay, perWeek, None)
                     
                     teacher = self.teachers.get(teachersName)
                     if teacher is not None:
@@ -85,7 +86,7 @@ class School:
                         cls.subjects.append(subj)
                         cls.timetable.subjects.append(subj)
                     else:
-                        self.classes[fullClassName] = cls = Class(int(level), className, [subj], periods[level], levelNames, self.school, self.teachers, self.classes, self.subjects_list, self.classes_list, self.weekdays, self.breakTimePeriods[level])
+                        self.classes[fullClassName] = cls = Class(int(level), className, [subj], periods[level][className], levelNames, self.school, self.teachers, self.classes, weekdays[level][className], breakperiods[level][className])
                     
                     teacher.subjects[subj] = cls
 
@@ -95,16 +96,15 @@ class School:
             level = str(cls.level)
             
             if levels.get(level) is None:
-                levels[level] = [[cls.className], cls.periodsPerDay, cls.namingConvention[cls.level - 1]]
+                levels[level] = [{cls.className: [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]}, cls.namingConvention[cls.level - 1]]
             else:
-                levels[level][0].append(cls.className)
-        
+                levels[level][0][cls.className] = [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]
         
         subjectTeacherMapping = {}
         for t_name, teacher in self.teachers.items():
             for subject, cls in teacher.subjects.items():
                 if subjectTeacherMapping.get(subject.name) is None:
-                    subjectTeacherMapping[subject.name] = {"&timing": {}, "&classes": {}}
+                    subjectTeacherMapping[subject.name] = {"&timings": {}, "&classes": {}}
                 
                 if subjectTeacherMapping[subject.name].get(t_name) is None:
                     subjectTeacherMapping[subject.name][t_name] = [cls.level]
@@ -120,8 +120,8 @@ class School:
                 
                 subjectTeacherMapping[subject.name]["&classes"][str(cls.level)] = list(set(subjectTeacherMapping[subject.name]["&classes"][str(cls.level)]))
                 
-                if subjectTeacherMapping[subject.name]["&timing"].get(str(cls.level)) is None:
-                    subjectTeacherMapping[subject.name]["&timing"][str(cls.level)] = [subject.TOTAL, subject.PERWEEK]
+                if subjectTeacherMapping[subject.name]["&timings"].get(str(cls.level)) is None:
+                    subjectTeacherMapping[subject.name]["&timings"][str(cls.level)] = [subject.TOTAL, subject.PERWEEK]
         
         for subjectName, subjectInfo in subjectTeacherMapping.items():
             toBePopped = []
@@ -136,7 +136,6 @@ class School:
             if not subjectInfo["&classes"]:
                 subjectTeacherMapping[subjectName].pop("&classes")
         
-        
         subjectLevels = [int(level) for level in levels.keys()]
         subjectClassOptions = sorted([levelInfo[0] for levelInfo in levels.values()], key = lambda options: len(options), reverse = True)[0]
         subjectClasses = {level : levelInfo[0] for level, levelInfo in levels.items()}
@@ -144,18 +143,19 @@ class School:
         subjects = self._getSubjects(subjectLevels, subjectClassOptions, subjectClasses, subjectTeacherMapping)
         
         self.project = {
-            "weekdays": self.weekdays,
-            "breakTimePeriods": self.breakTimePeriods,
             "levels": levels, 
             "subjectTeacherMapping": subjectTeacherMapping,
             "subjects": subjects
         }
 
+    def setProject(self, project: ProjectType):
+        self.project = project
+        
+        self.setSchoolInfoFromProjectDict()
+    
     def generateNewSchoolTimetables(self):
         for _, cls in self.classes.items():
-            cls.timetable.__init__(cls, cls.timetable.subjects, cls.timetable.periodsPerDay, cls.timetable.breakTimePeriod, self.school, self.subjects_list)
-            cls.timetable.addFreePeriods()
-            cls.timetable.generate()
+            self.generateTimetable(cls)
 
     def updateSubject(self, className: str, day: str, subjectIndex: int, s_name: str, s_total: int, s_lockedPeriod: list[int, int] | None, s_teacher_name: int):
         subject = self.classes[className].timetable.table[day][subjectIndex]

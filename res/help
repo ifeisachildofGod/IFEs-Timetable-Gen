@@ -3,19 +3,14 @@ Project Framework
 
 
 {
-    "weekdays": *daysOfTheWeek,
-    
-    "breakTimePeriods": {
-        level1: *breakPeriod,
-        level2: *breakPeriod,
-        level3: *breakPeriod,
-        ...
-    },
-    
     "levels": {
-        level1: [*classes, *periods],
-        level2: [*classes, *periods],
-        level3: [*classes, *periods],
+        level: [
+            {
+                class1: [*breakPeriod, *periodsPerDay, *daysOfTheWeek],
+                class2: [*breakPeriod, *periodsPerDay, *daysOfTheWeek],
+                class3: [*breakPeriod, *periodsPerDay, *daysOfTheWeek],
+                ...
+            }, levelName],
         ...
     }
     
@@ -57,4 +52,211 @@ Project Framework
         ...
     }
 }
+
+
+class SeedSystem:
+    def __init__(self, school: dict[Class, Timetable], schoolClasses: dict[str, Class], schoolSubjectsList: list, schoolClassesList: list):
+        self.school = school
+        self.schoolClasses = schoolClasses
+        self.schoolSubjectsList = schoolSubjectsList
+        self.schoolClassesList = schoolClassesList
+        
+        seedNumberOptions = ["(", "@", "*", "#", "/", "\\", ">", "["]
+        self._seedNumberSep = random.choice(seedNumberOptions)
+        
+        self._seedSeperators = [chr(c) for c in range(65, 123) if chr(c).isalpha()] + ["|", "`", "%", "&", "!", ""]
+        self._seedPartsSeperators = ["$", ")", "<", "?", ".", "+", "]", "~", "}"]
+        
+        assert len(self._seedSeperators) == len(set(self._seedSeperators)), f"One or more values in the general seed seperator is repeated: {sorted(self._seedSeperators)}"
+        assert len(self._seedPartsSeperators) == len(set(self._seedPartsSeperators)), "One or more values in the seed part seperators is repeated: {sorted(self._seedPartsSeperators)}"
+        assert len(self._seedPartsSeperators + self._seedSeperators) == len(set(self._seedPartsSeperators + self._seedSeperators)), f"One or more values in the seed part seperators is also in the general seed seperator: {sorted(self._seedPartsSeperators + self._seedSeperators)}"
+        assert len(seedNumberOptions + self._seedSeperators) == len(set(seedNumberOptions + self._seedSeperators)), f"One or more values in the seed number seperators is repeated in the general seed seperator: {sorted(seedNumberOptions + self._seedSeperators)}"
+        assert len(seedNumberOptions + self._seedPartsSeperators) == len(set(seedNumberOptions + self._seedPartsSeperators)), f"One or more values in the seed number seperators is repeated in the seed parts seperators: {sorted(seedNumberOptions + self._seedPartsSeperators)}"
+    
+    def _convertNumberToSeedString(self, number: int):
+        num = str(number)
+        
+        firstChr = str(len(num))
+        secondChr = num[-1]
+        
+        if len(num) == 1:
+            return firstChr + secondChr
+        
+        nextChr = str(int(num[-1]) + int(num[-2]))
+        thirdChr = nextChr if int(nextChr) < 10 else self._seedNumberSep + nextChr[-1]
+        
+        if len(num) == 2:
+            return firstChr + secondChr + thirdChr
+        
+        fourthChr = num[-3]
+        
+        if len(num) == 3:
+            return firstChr + secondChr + thirdChr + fourthChr
+        
+        fifthChr = self._convertNumberToSeedString(num[-4])
+        
+        if len(num) == 4:
+            return firstChr + secondChr + thirdChr + fourthChr + fifthChr
+        else:
+            raise ValueError(f"{number} is an inappropriate value")
+    
+    def _convertSeedStringToNumber(self, seedNumber: str):
+        length = int(seedNumber[0])
+        
+        firstChr = seedNumber[1]
+        
+        if length == 1:
+            return int(firstChr)
+        
+        secondChr = str(int(seedNumber[2] if seedNumber[2] != self._seedNumberSep else ("1" + seedNumber[3])) - int(firstChr))
+        
+        if length == 2:
+            return int(secondChr + firstChr)
+        
+        thirdChr = seedNumber[3 + seedNumber.count(self._seedNumberSep)]
+        
+        if length == 3:
+            return int(thirdChr + secondChr + firstChr)
+        
+        fourthChr = str(self._convertSeedStringToNumber(seedNumber[3 + seedNumber.count(self._seedNumberSep) + 1:]))
+        
+        if length == 4:
+            return int(fourthChr + thirdChr + secondChr + firstChr)
+        else:
+            raise ValueError(f"{seedNumber} is an inappropriate value")
+    
+    def _convertStringToSeedString(self, string: str):
+        stringList = []
+        for s in string:
+            stringList.append(self._convertNumberToSeedString(ord(s)))
+        
+        seed = self._seedPartsSeperators[7].join(stringList)
+        
+        return seed
+    
+    def _convertSeedStringToString(self, seed: str):
+        string = "".join([chr(self._convertSeedStringToNumber(s)) for s in seed.split(self._seedPartsSeperators[7])])
+        
+        return string
+    
+    def _convertListToSeedString(self, lst: list[int | str], sep: str):
+        for value in lst:
+            assert isinstance(value, (int, str))
+        return sep.join([(self._convertStringToSeedString(value) if isinstance(value, str) else self._convertNumberToSeedString(value)) +  + ("i" if isinstance(value, str) else "s") for value in lst]) + self._seedPartsSeperators[8]
+    
+    def _convertSeedStringToList(self, seed: str, sep: str):
+        seed, status = seed.split(self._seedPartsSeperators[8])
+        
+        return [self._convertSeedStringToString(value) if status == "i" else self._convertSeedStringToNumber(value) for value in seed.split(sep)]
+    
+    def generateTimetableSeed(self, timetable: Timetable):
+        classIndex = self.generateClassSeed(timetable.cls) + self._seedPartsSeperators[0] + random.choice(self._seedSeperators)
+        
+        timetablesList = []
+        for subjects in timetable.table.values():
+            timetablesList.append(random.choice(self._seedSeperators) + self._seedPartsSeperators[3].join([random.choice(self._seedSeperators) + self._convertNumberToSeedString([subj.id for subj in self.schoolSubjectsList].index(subject.id)) + random.choice(self._seedSeperators) + self._seedPartsSeperators[4] + random.choice(self._seedSeperators) + str(self.schoolSubjectsList[[subj.id for subj in self.schoolSubjectsList].index(subject.id)].total) + random.choice(self._seedSeperators) + self._seedPartsSeperators[4] + random.choice(self._seedSeperators) + str(self.schoolSubjectsList[[subj.id for subj in self.schoolSubjectsList].index(subject.id)].perWeek) + random.choice(self._seedSeperators) for subject in subjects]) + random.choice(self._seedSeperators))
+        
+        list_timetable = random.choice(self._seedSeperators) + self._seedPartsSeperators[1].join(timetablesList) + random.choice(self._seedSeperators) + self._seedPartsSeperators[1] + random.choice(self._seedSeperators)
+        
+        list_remainderContent = []
+        for subject in timetable.remainderContent:
+            if subject not in self.schoolSubjectsList:
+                self.schoolSubjectsList.append(subject)
+            
+            list_remainderContent.append(random.choice(self._seedSeperators) + self._convertNumberToSeedString(self.schoolSubjectsList.index(subject)) + random.choice(self._seedSeperators) + self._seedPartsSeperators[5] + random.choice(self._seedSeperators) + str(subject.total) + random.choice(self._seedSeperators) + self._seedPartsSeperators[5] + random.choice(self._seedSeperators) + str(subject.perWeek) + random.choice(self._seedSeperators))
+        
+        list_remainderContent = random.choice(self._seedSeperators) + self._seedPartsSeperators[2].join(list_remainderContent) + random.choice(self._seedSeperators) + self._seedPartsSeperators[2] + random.choice(self._seedSeperators)
+        
+        seed = classIndex + list_timetable + list_remainderContent
+        
+        return seed
+    
+    def generateClassSeed(self, cls: Class):
+        return random.choice(self._seedSeperators) + self._convertNumberToSeedString(self.schoolClassesList.index(cls)) + random.choice(self._seedSeperators)
+    
+    def generateSchoolSeed(self, school: dict[Class, Timetable]):
+        return self._seedPartsSeperators[6].join([random.choice(self._seedSeperators) + self.generateTimetableSeed(timetable) + random.choice(self._seedSeperators) for timetable in school.values()])
+    
+    def getTimetableFromSeed(self, seed: str):
+        global global_subjectID
+        
+        for seperators in self._seedSeperators:
+            if seperators:
+                seed = ", ".join(seed.split(seperators))
+        
+        seedInfo: list[list[str], list[str]] = []
+        
+        sortedSeed = "".join([val for val in seed.split(", ") if val])
+        
+        for seperator in self._seedPartsSeperators[:2]:
+            fullList = sortedSeed.split(seperator)
+            sortedSeed = fullList[-1]
+            fullList.remove(sortedSeed)
+            seedInfo.append(fullList)
+        
+        classIndex, list_timetable, list_remainderContent = seedInfo
+        
+        cls = self.schoolClassesList[self._convertSeedStringToNumber("".join(classIndex))]
+        timetable = Timetable(cls, cls.subjects, cls.periodsPerDay, cls.breakTimePeriods)
+        
+        refClass = list(self.schoolClasses.values())[[cls.level for cls in list(self.schoolClasses.values())].index(timetable.cls.level)]
+        
+        timetable.periodsPerDay = refClass.periodsPerDay.copy()
+        timetable.breakTimePeriods = refClass.breakTimePeriods.copy()
+        
+        timetable.remainderContent = []
+        for subjectIndexInfo in list_remainderContent:
+            index, perDay, perWeek = subjectIndexInfo.split(self._seedPartsSeperators[5])
+            
+            subject = self.schoolSubjectsList[self._convertSeedStringToNumber(index)]
+            subject.total = perDay
+            subject.perWeek = perWeek
+            
+            timetable.remainderContent.append(subject)
+        
+        timetable.subjects = []
+        timetable._subjects = []
+        
+        for sIs, subjectIndexesInfo in enumerate(list_timetable):
+            timetable.table[self.school.weekdays[sIs]] = []
+            
+            for subjectInfo in subjectIndexesInfo.split(self._seedPartsSeperators[3]):
+                if subjectInfo:
+                    index, perDay, perWeek = subjectInfo.split(self._seedPartsSeperators[4])
+                    
+                    subject = self.schoolSubjectsList[self._convertSeedStringToNumber(index)]
+                    
+                    subject.total = int(perDay)
+                    subject.perWeek = int(perWeek)
+                    
+                    timetable.table[self.school.weekdays[sIs]].append(subject)
+            
+            timetable.subjects += timetable.table[self.school.weekdays[sIs]]
+        
+        for subject in timetable.subjects:
+            copy = subject.copy()
+            
+            copy.id = subject.id
+            
+            self.schoolSubjectsList.remove(copy)
+            timetable._subjects.append(copy)
+        
+        global_subjectID -= len(timetable._subjects)
+        
+        return timetable
+    
+    def getClassFromSeed(self, seed: str):
+        for seperators in self._seedSeperators:
+            if seperators:
+                seed = ", ".join(seed.split(seperators))
+        
+        return self.schoolClassesList[int("".join([val for val in seed.split(", ") if val]))]
+    
+    def getSchoolFromSeed(self, seed: str):
+        self.school.clear()
+        
+        for timetableSeed in seed.split(self._seedPartsSeperators[6]):
+            cls = self.getClassFromSeed(timetableSeed)
+            timetable = self.getTimetableFromSeed(timetableSeed)
+            self.school[cls] = timetable
 

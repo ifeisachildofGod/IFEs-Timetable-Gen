@@ -1,22 +1,84 @@
 {
-    "weekdays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-    
-    "breakTimePeriods": {
-        "1": [7, 7, 7, 7, 7],
-        "2": [7, 7, 7, 7, 7],
-        "3": [7, 7, 7, 7, 7],
-        "4": [7, 7, 7, 7, 7],
-        "5": [7, 7, 7, 7, 7],
-        "6": [7, 7, 7, 7, 7]
-    },
-    
     "levels": {
-        "1": [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], [10, 10, 10, 10, 10], "JS1"],
-        "2": [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], [10, 10, 10, 10, 10], "JS2"],
-        "3": [["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"], [10, 10, 10, 10, 10], "JS3"],
-        "4": [["A", "B", "C", "D", "E", "F", "G", "H", "I"], [10, 10, 10, 10, 9], "SS1"],
-        "5": [["A", "B", "C", "D", "E", "F", "G", "H"], [10, 10, 10, 10, 9], "SS2"],
-        "6": [["A", "B", "C", "D", "E", "F", "G", "H"], [10, 10, 10, 10, 9], "SS3"]
+        "1": [
+            {
+                "A": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "B": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "C": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "D": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "E": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "F": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "G": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "H": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "I": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "J": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
+            }, "JS1"
+        ],
+        "2": [
+            {
+                "A": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "B": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "C": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "D": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "E": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "F": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "G": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "H": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "I": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "J": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
+            }, "JS2"
+        ],
+        "3": [
+            {
+                "A": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "B": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "C": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "D": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "E": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "F": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "G": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "H": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "I": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "J": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
+            }, "JS3"
+        ],
+        "4": [
+            {
+                "A": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "B": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "C": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "D": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "E": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "F": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "G": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "H": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "I": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
+            }, "SS1"
+        ],
+        "5": [
+            {
+                "A": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "B": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "C": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "D": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "E": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "F": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "G": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "H": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
+            }, "SS2"
+        ],
+        "6": [
+            {
+                "A": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "B": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "C": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "D": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "E": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "F": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "G": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
+                "H": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
+            }, "SS3"
+        ]
     },
 
     "subjectTeacherMapping": {

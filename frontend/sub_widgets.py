@@ -1,5 +1,3 @@
-import math
-from typing import Callable
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,
@@ -12,8 +10,8 @@ from PyQt6.QtCore import Qt, pyqtSignal, QSize, QRect
 from frontend.theme import *
 from frontend.theme import (
     _main_bg_color_1, _widgets_bg_color_2, _widgets_bg_color_1,
-    _widget_border_radius_1, _widgets_bg_color_4, _border_color_2,
-    _widgets_bg_color_5, _general_scrollbar_theme, _widgets_bg_color_6,
+    _widget_border_radius_1, _widgets_bg_color_3, _border_color_2,
+    _widgets_bg_color_4, _general_scrollbar_theme, _widgets_bg_color_5,
     _widget_text_color_2, _hex_to_rgb
 )
 from middle.objects import Class, Subject
@@ -164,7 +162,6 @@ class SelectionList(QDialog):
             unselected_positions = [p + 1 if p > unselected_positions[i] else p 
                                   for p in unselected_positions]
 
-
 class DropDownCheckBoxes(QDialog):
     def __init__(self, window_title: str, options: dict[str, list[str]], setting_dict: dict[str, list[bool]] | None = None):
         super().__init__()
@@ -177,8 +174,8 @@ class DropDownCheckBoxes(QDialog):
         self.options = options
         self.setting_dict = setting_dict if setting_dict else {}
         
-        self.main_checkboxes = []
-        self.dropdowns = []
+        self.main_checkboxes: list[QCheckBox] = []
+        self.dropdowns: list[QComboBox] = []
         self.dp_icons = []
         
         self.main_guy_is_clicked = False
@@ -200,21 +197,32 @@ class DropDownCheckBoxes(QDialog):
         self.setLayout(main_layout)
         
         for classIndex, (className, classOptions) in enumerate(self.options.items()):
+            main_widget = QWidget()
+            
             widget_wrapper_layout = QVBoxLayout()
             widget_wrapper_layout.setSpacing(0)
+            main_widget.setLayout(widget_wrapper_layout)
+            
+            open_dp_func = self.make_open_dp_func(len(self.dropdowns), classIndex, widget_wrapper_layout, classOptions)
+            
+            def make_open_dp_func(event):
+                if event.button() == Qt.MouseButton.LeftButton:
+                    open_dp_func()
             
             header = QWidget()
             header.setObjectName("dropdownHeader")
             header.setFixedHeight(50)
-            header.mousePressEvent = self.make_open_dp_func(len(self.dropdowns), classIndex, widget_wrapper_layout, classOptions)
+            header.mousePressEvent = make_open_dp_func
             
             widget_wrapper_layout.addWidget(header)
             
             header_layout = QHBoxLayout(header)
             header_layout.setContentsMargins(12, 0, 12, 0)
             
-            dp_icon = _RotatedLabel("▼", 270)
+            dp_icon = CustomLabel("▼", 270)
             dp_icon.setObjectName("arrow")
+            dp_icon.mouseclicked.connect(open_dp_func)
+            dp_icon.setContentsMargins(0, 0, 10, 0)
             
             title = QLabel(className)
             check_box = QCheckBox()
@@ -228,9 +236,11 @@ class DropDownCheckBoxes(QDialog):
             
             self.dp_icons.append(dp_icon)
             
-            container_layout.addLayout(widget_wrapper_layout)
+            container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
             
             self.dropdowns.append([self.make_dp_widget(classOptions, classIndex), (self.setting_dict[className] if self.setting_dict.get(className) is not None else []) if self.setting_dict is not None else []])
+        
+        container_layout.addStretch()
         
         for classIndex, (className, classOptions) in enumerate(self.options.items()):
             # Initialize setting_dict for new classes
@@ -241,12 +251,15 @@ class DropDownCheckBoxes(QDialog):
                 self.setting_dict[className].extend([False] * (len(classOptions) - len(self.setting_dict[className])))
 
         for key, values in self.setting_dict.items():
-            optionIndex = list(self.options.keys()).index(key)
-            checkboxes = self.dropdowns[optionIndex][0].findChildren(QCheckBox)
+            options_names = list(self.options.keys())
             
-            for checkboxIndex, checkbox in enumerate(checkboxes):
-                if values[checkboxIndex] and not checkbox.isChecked():
-                    checkbox.click()
+            if key in options_names:
+                optionIndex = options_names.index(key)
+                checkboxes = self.dropdowns[optionIndex][0].findChildren(QCheckBox)
+                
+                for checkboxIndex, checkbox in enumerate(checkboxes):
+                    if values[checkboxIndex] and not checkbox.isChecked():
+                        checkbox.click()
         
         for classIndex, (className, classOptions) in enumerate(self.options.items()):
             check_box = self.main_checkboxes[classIndex]
@@ -265,30 +278,29 @@ class DropDownCheckBoxes(QDialog):
         return info
     
     def make_open_dp_func(self, index: int, dp_index: int, parent_layout: QVBoxLayout, options: list[str]):
-        def open_dp(event):
-            if event.button() == Qt.MouseButton.LeftButton:
-                widget, check_box_states = self.dropdowns[dp_index]
+        def open_dp():
+            widget, check_box_states = self.dropdowns[dp_index]
+            
+            self.dp_icons[index].setAngle(0 if self.dp_icons[index].angle != 0 else 270)
+            
+            if parent_layout.itemAt(1) is None:
+                checkBoxes = widget.findChildren(QCheckBox)
+                for cb_index, state in enumerate(check_box_states):
+                    checkBox = checkBoxes[cb_index]
+                    if (state and not checkBox.isChecked()) or (not state and checkBox.isChecked()):
+                        checkBox.click()
                 
-                self.dp_icons[index].setAngle(0 if self.dp_icons[index].angle != 0 else 270)
+                parent_layout.addWidget(widget)
+            else:
+                checkBoxValues = []
+                checkBoxes = widget.findChildren(QCheckBox)
+                for checkBox in checkBoxes:
+                    checkBoxValues.append(checkBox.isChecked())
                 
-                if parent_layout.itemAt(1) is None:
-                    checkBoxes = widget.findChildren(QCheckBox)
-                    for cb_index, state in enumerate(check_box_states):
-                        checkBox = checkBoxes[cb_index]
-                        if (state and not checkBox.isChecked()) or (not state and checkBox.isChecked()):
-                            checkBox.click()
-                    
-                    parent_layout.addWidget(widget)
-                else:
-                    checkBoxValues = []
-                    checkBoxes = widget.findChildren(QCheckBox)
-                    for checkBox in checkBoxes:
-                        checkBoxValues.append(checkBox.isChecked())
-                    
-                    parent_layout.removeWidget(widget)
-                    widget.deleteLater()
-                    
-                    self.dropdowns[index] = [self.make_dp_widget(options, index), checkBoxValues]
+                parent_layout.removeWidget(widget)
+                widget.deleteLater()
+                
+                self.dropdowns[index] = [self.make_dp_widget(options, index), checkBoxValues]
         
         return open_dp
     
@@ -362,20 +374,20 @@ class DropDownCheckBoxes(QDialog):
         
         return checkbox_func
 
-
 class SubjectSelection(QDialog):
-    def __init__(self, title: str, subjects: list[str], teachers: list[str], settings: list[list[str, list[str | None, str | None, list]]]):
+    def __init__(self, title: str, subjects: list[str], teachers: list[str], subject_teacher: dict[str, str], settings: list[list[str, list[str | None, str | None, list]]]):
         super().__init__()
         
         self.setStyleSheet(THEME[SUBJECT_SELECTION])
         
         self.setWindowTitle(title)
-        self.setFixedSize(500, 400)
+        self.setFixedSize(600, 400)
         
         self.settings = settings
         
         self.subjects = subjects
         self.teachers = teachers
+        self.subject_teacher = subject_teacher
         
         self.dp_tracker = []
         self.teacher_buttons: list[QPushButton] = []
@@ -393,6 +405,8 @@ class SubjectSelection(QDialog):
         
         self.container_layout = QVBoxLayout(self.container)
         self.scroll_area.setWidget(self.container)
+        
+        self.container_layout.addStretch()
         
         self.add_button = QPushButton("Add Subject")
         self.add_button.clicked.connect(lambda: self.add_subject())
@@ -432,38 +446,42 @@ class SubjectSelection(QDialog):
         
         if name is not None:
             nameIndex = self.subjects.index(name)
-            available_indexes.remove(nameIndex)
+            if nameIndex in available_indexes:
+                available_indexes.remove(nameIndex)
             available_indexes = [nameIndex] + available_indexes
         
         name = self.subjects[available_indexes[0]]
         
-        subjects = QComboBox()
+        subjects_dp = QComboBox()
         if self.subjects:
-            subjects.addItems(self.subjects)
+            subjects_dp.addItems(self.subjects)
         else:
-            subjects.setDisabled(True)
-        subjects.setCurrentIndex(available_indexes[0])
-        subjects.currentIndexChanged.connect(self.make_dp_clicked_func(subjects))
-        self.dp_tracker.append(subjects)
+            subjects_dp.setDisabled(True)
+        subjects_dp.setCurrentIndex(available_indexes[0])
+        subjects_dp.currentIndexChanged.connect(self.make_dp_clicked_func(subjects_dp))
+        # subjects_dp.currentIndexChanged.connect(self.make_dp_destroy_func(subjects_dp))
+        self.dp_tracker.append(subjects_dp)
         
         sub_layout = QHBoxLayout()
         
-        layout.addWidget(subjects)
+        layout.addWidget(subjects_dp)
         layout.addLayout(sub_layout)
         
-        per_day_edit = NumberTextEdit(max_validatorAmt=1)
+        per_day_edit = NumberTextEdit()
         per_day_edit.edit.setFixedWidth(50)
         per_day_edit.edit.setPlaceholderText("Per day")
-        per_day_edit.edit.textChanged.connect(self.make_text_changed_func(subjects, 0, per_day_edit))
+        per_day_edit.edit.setText("2")
+        per_day_edit.edit.textChanged.connect(self.make_text_changed_func(subjects_dp, 0, per_day_edit))
         
         per_week_edit = NumberTextEdit()
         per_week_edit.edit.setFixedWidth(54)
         per_week_edit.edit.setPlaceholderText("Per week")
-        per_week_edit.edit.textChanged.connect(self.make_text_changed_func(subjects, 1, per_week_edit))
+        per_week_edit.edit.setText("4")
+        per_week_edit.edit.textChanged.connect(self.make_text_changed_func(subjects_dp, 1, per_week_edit))
         
         teacher_button = QPushButton("Teachers")
         teacher_button.setMaximumWidth(60)
-        teacher_button.clicked.connect(self.make_temp_show_teacher_popup_func(subjects))
+        teacher_button.clicked.connect(self.make_temp_show_teacher_popup_func(subjects_dp))
         
         self.teacher_buttons.append(teacher_button)
         
@@ -473,11 +491,12 @@ class SubjectSelection(QDialog):
         
         widget = _SelectedWidget(selection_widget, self.container_layout)
         widget.setFixedHeight(100)
-        widget.delete_button.pressed.connect(self.make_dp_destroy_func(subjects))
-        self.container_layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignTop)
+        widget.delete_button.clicked.connect(self.make_dp_destroy_func(subjects_dp))
+        
+        self.container_layout.insertWidget(0, widget, alignment=Qt.AlignmentFlag.AlignTop)
         
         if info is not None:
-            self._set_list_value(self.info, subjects, info)
+            self._set_list_value(self.info, subjects_dp, info)
             
             per_day_info, per_week_info, _ = info
             
@@ -486,7 +505,7 @@ class SubjectSelection(QDialog):
             if per_week_info is not None:
                 per_week_edit.edit.setText(per_week_info)
         else:
-            self._set_list_value(self.info, subjects, [None, None, self.teachers.copy()])
+            self._set_list_value(self.info, subjects_dp, ["2", "4", self.subject_teacher[subjects_dp.currentText()]])
         
         available_indexes = [index for index in range(len(self.subjects)) if index not in [dp.currentIndex() for dp in self.dp_tracker]]
         if not available_indexes:
@@ -520,7 +539,7 @@ class SubjectSelection(QDialog):
         def temp_show_teacher_popup():
             values = self._get_list_value(self.info, dp)
             
-            teachers = SelectionList("Teachers", values[2] if values is not None else self.teachers.copy())
+            teachers = SelectionList("Teachers", values[2])
             teachers.exec()
             values[2] = teachers.get()
         
@@ -531,7 +550,8 @@ class SubjectSelection(QDialog):
             curr_widget = self._get_list_value(self.info, widget, strict=False)
             if curr_widget is None:
                 self._set_list_value(self.info, widget, [None, None, []])
-            curr_widget[index] = input_edit.edit.text()
+            else:
+                curr_widget[index] = input_edit.edit.text()
         
         return text_changed_func
 
@@ -549,6 +569,7 @@ class SubjectSelection(QDialog):
                     
                     if self._get_list_value(self.info, odp, strict=False) is not None:
                         self._pop_list_value(self.info, odp)
+                        self.add_button.setDisabled(False)
             
             # Update the info dictionary with the new key
             if self._get_list_value(self.info, old_text, strict=False) is not None:
@@ -563,7 +584,6 @@ class SubjectSelection(QDialog):
             self._pop_list_value(self.info, dp)
         
         return dp_destroy_func
-
 
 class FlowLayout(QLayout):
     def __init__(self, parent=None):
@@ -639,8 +659,7 @@ class FlowLayout(QLayout):
         
         return y + line_height - rect.y()
 
-
-class ClassOptionSelection(QDialog):
+class OptionSelection(QDialog):
     def __init__(self, title: str, setting_list: list[str]):
         super().__init__()
         
@@ -684,7 +703,7 @@ class ClassOptionSelection(QDialog):
                 background-color: """ + _widgets_bg_color_2 + """;
             }
             QPushButton {
-                background-color: """ + _widgets_bg_color_6 + """;
+                background-color: """ + _widgets_bg_color_5 + """;
                 color: """ + _widget_text_color_2 + """;
                 border: none;
                 border-radius: """ + _widget_border_radius_1 + """;
@@ -693,7 +712,7 @@ class ClassOptionSelection(QDialog):
                 font-size: 13px;
             }
             QPushButton:hover {
-                background-color: """ + get_hover_color(_widgets_bg_color_6) + """;
+                background-color: """ + get_hover_color(_widgets_bg_color_5) + """;
             }
             QWidget #optionselectorcontainer {
                 background-color: """ + _main_bg_color_1 + """
@@ -748,18 +767,18 @@ class TimeTableItem(QTableWidgetItem):
         super().__init__()
         
         self.subject = subject
+        self.break_time = break_time
         
         self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsEnabled)
         
-        if break_time:
-            self.subject = None
-            color = list(_hex_to_rgb(_widgets_bg_color_6))
+        if self.break_time:
+            color = list(_hex_to_rgb(_widgets_bg_color_5))
             color.pop()
             self.setBackground(QColor(*[int(col_val * 255) for col_val in color]))
         
         # I check if subject is None seperately bcos of when the break time is chacked
         
-        if self.subject is None:
+        if self.subject is None or self.break_time:
             self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsDropEnabled)
         else:
             self.setText(self.subject.name)
@@ -776,15 +795,12 @@ class DraggableSubjectLabel(QLabel):
         
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setProperty('class', 'subject-item')
-        self.setToolTip(f"Class: {cls.name}\nTeacher: {subject.teacher.name if subject.teacher else 'None'}")
+        self.setToolTip(f"Teacher: {str(subject.teacher.name)}")
         
-        self.setFixedSize(100, 35)
-        self.setStyleSheet("background-color:rgb(31, 31, 31);")
+        self.setFixedSize(150, 40)
+        self.setStyleSheet("QLabel{background-color: " + _widgets_bg_color_2 + "; border-radius: 10px;} QLabel:hover{background-color: " + get_hover_color(_widgets_bg_color_2) + ";}")
         
         self.external_source_ref = None
-    
-    # def mouseReleaseEvent(self, event):
-    #     self.clicked.emit(event, False)
     
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -814,28 +830,28 @@ class NumberTextEdit(QWidget):
         super().__init__()
         
         self.min_num = min_validatorAmt
-        self.max_num = (len(str(max_validatorAmt)) * 10) - 1
+        self.max_num = max_validatorAmt
         
         self.edit = QLineEdit()
         
         layout = QHBoxLayout()
         self.setLayout(layout)
         
+        buttons_widget = QWidget()
         buttons_layout = QVBoxLayout()
+        buttons_widget.setLayout(buttons_layout)
         
         layout.addWidget(self.edit, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignLeft)
-        layout.addLayout(buttons_layout)
+        layout.addWidget(buttons_widget, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignLeft)
         
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         
-        increment_button = _RotatedLabel("▽", 180)
+        increment_button = CustomLabel("▽", 180)
         increment_button.setContentsMargins(0, 0, 0, 0)
-        increment_button.setStyleSheet("border-top-left-radius: 2px; border-top-right-radius: 2px;")
         increment_button.mouseclicked.connect(lambda: self._change_number(1))
         
-        decrement_button = _RotatedLabel("▽", 0)
+        decrement_button = CustomLabel("▽", 0)
         increment_button.setContentsMargins(0, 0, 0, 0)
-        decrement_button.setStyleSheet("border-bottom-left-radius: 2px; border-bottom-right-radius: 2px;")
         decrement_button.mouseclicked.connect(lambda: self._change_number(-1))
         
         buttons_layout.addWidget(increment_button, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
@@ -857,6 +873,101 @@ class NumberTextEdit(QWidget):
                 self.edit.setText("0")
         
         self.edit.setText(str(min(max(int(self.edit.text()) + direction, self.min_num), self.max_num)))
+
+class CustomLabel(QLabel):
+    mouseclicked = pyqtSignal()
+    
+    def __init__(self, text, angle: int = 0, parent=None):
+        super().__init__(text, parent)
+        self.angle = angle  # Angle in degrees to rotate the text
+    
+    def mousePressEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            self.mouseclicked.emit()
+    
+    def setAngle(self, angle):
+        self.angle = angle
+        self.update()  # Trigger a repaint
+    
+    def paintEvent(self, _):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Save the painter's current state
+        painter.save()
+
+        # Translate to the center of the label
+        center = self.rect().center()
+        painter.translate(center)
+
+        # Rotate the painter
+        painter.rotate(self.angle)
+
+        # Translate back and draw the text
+        center.setX(center.x() + (2 if self.angle >= 180 else -1))
+        painter.translate(-center)
+        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.text())
+
+        # Restore the painter's state
+        painter.restore()
+
+class WarningDialog(QDialog):
+    button_clicked = pyqtSignal([bool])
+    checkbox_on = pyqtSignal()
+    
+    def __init__(self, title: str, warning: str):
+        super().__init__()
+        
+        self.ok_clicked = False
+        
+        self.setStyleSheet(THEME[GENERAL_DIALOGS] + THEME[GENERAL_BUTTON] + THEME[GENERAL_CHECKBOXES] + "QLabel{color: white; font-size: 25px; margin: 10px;}")
+        
+        self.title = title
+        self.warning = warning
+        
+        self.setWindowTitle(self.title)
+        
+        self.main_layout = QVBoxLayout()
+        self.setLayout(self.main_layout)
+        
+        self.button_widget = QWidget()
+        
+        self.button_layout = QHBoxLayout()
+        self.button_widget.setLayout(self.button_layout)
+        
+        self.label = QLabel(self.warning)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.setWordWrap(True)
+        
+        self.ok_button = QPushButton("Ok")
+        self.ok_button.clicked.connect(lambda: self.on_clicked(True))
+        self.ok_button.setProperty("class", "safety")
+        
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.clicked.connect(lambda: self.on_clicked(False))
+        self.cancel_button.setProperty("class", "danger")
+        
+        self.dont_ask_again_cb = QCheckBox("Don't ask again")
+        self.dont_ask_again_cb.clicked.connect(self.checkbox_on.emit)
+        
+        self.button_layout.addWidget(self.ok_button)
+        self.button_layout.addWidget(self.cancel_button)
+        self.button_layout.addStretch()
+        self.button_layout.addWidget(self.dont_ask_again_cb)
+        
+        self.main_layout.addWidget(self.label)
+        self.main_layout.addWidget(self.button_widget)
+    
+    def on_clicked(self, ok_clicked: bool):
+        self.button_clicked.emit(ok_clicked)
+        self.ok_clicked = ok_clicked
+        self.close()
+    
+    def closeEvent(self, _):
+        if not self.ok_clicked:
+            self.button_clicked.emit(False)
+        self.ok_clicked = False
+        
         
 
 class _OptionTag(QWidget):
@@ -870,20 +981,19 @@ class _OptionTag(QWidget):
             QLabel {
                 color: """ + _border_color_2 + """;
                 background-color: """+ _widgets_bg_color_1 +""";
-                border-radius: """+ _widget_border_radius_1 +"""
+                border-radius: """+ _widget_border_radius_1 +""";
             }
             QPushButton {
                 background-color: transparent;
                 color: #ffffff;
                 border-radius: 10px;
+                width: 20px;
             }
             QPushButton:hover {
                 background-color: """ + get_hover_color(None) + """;
-                color: """ + get_hover_color("#ffffff") + """;
             }
             QPushButton:pressed {
                 background-color: """ + get_pressed_color(None) + """;
-                color: """ + get_pressed_color("#ffffff") + """;
             }
             """)
         
@@ -911,7 +1021,7 @@ class _OptionTag(QWidget):
         self.label = QLabel(self.text)
         self.label.setMinimumWidth(80)
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.mousePressEvent = lambda e: self.start_editing()
+        self.label.mousePressEvent = lambda _: self.start_editing()
         
         # Initialize both widgets but hide input initially
         self.main_layout.addWidget(self.label)
@@ -958,41 +1068,6 @@ class _OptionTag(QWidget):
     def get_text(self):
         return self.text
 
-class _RotatedLabel(QLabel):
-    mouseclicked = pyqtSignal()
-    
-    def __init__(self, text, angle, parent=None):
-        super().__init__(text, parent)
-        self.angle = angle  # Angle in degrees to rotate the text
-    
-    def mousePressEvent(self, ev):
-        if ev.button() == Qt.MouseButton.LeftButton:
-            self.mouseclicked.emit()
-    
-    def setAngle(self, angle):
-        self.angle = angle
-        self.update()  # Trigger a repaint
-    
-    def paintEvent(self, _):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Save the painter's current state
-        painter.save()
-
-        # Translate to the center of the label
-        center = self.rect().center()
-        painter.translate(center)
-
-        # Rotate the painter
-        painter.rotate(self.angle)
-
-        # Translate back and draw the text
-        painter.translate(-center)
-        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.text())
-
-        # Restore the painter's state
-        painter.restore()
 
 class _SelectedWidget(QWidget):
     def __init__(self, text_or_widget: str | QWidget, host: SelectionList | QVBoxLayout):
@@ -1029,7 +1104,7 @@ class _SelectedWidget(QWidget):
         self.delete_button = QPushButton("Delete")
         self.delete_button.setProperty('class', 'deleteBtn')
         self.delete_button.clicked.connect(self.delete_self)
-        self.delete_button.setStyleSheet("QPushButton{background-color: " + _widgets_bg_color_4 + "} QPushButton:hover{background-color: " + get_hover_color(_widgets_bg_color_4) + "}")
+        self.delete_button.setStyleSheet("QPushButton{background-color: " + _widgets_bg_color_3 + "} QPushButton:hover{background-color: " + get_hover_color(_widgets_bg_color_3) + "}")
         main_layout.addWidget(self.delete_button)
         
         main_layout.setContentsMargins(10, 0, 0, 0)
@@ -1082,7 +1157,7 @@ class _UnselectedWidget(QWidget):
         self.button = QPushButton("Add")
         self.button.setProperty('class', 'addBtn')
         self.button.setFixedSize(24, 24)
-        self.button.setStyleSheet("QPushButton{background-color: "+ _widgets_bg_color_5 +"} QPushButton:hover{background-color: "+ get_hover_color(_widgets_bg_color_5) +"}")
+        self.button.setStyleSheet("QPushButton{background-color: "+ _widgets_bg_color_4 +"} QPushButton:hover{background-color: "+ get_hover_color(_widgets_bg_color_4) +"}")
         self.button.clicked.connect(self.add_self)
         
         
