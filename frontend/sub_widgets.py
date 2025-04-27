@@ -17,7 +17,7 @@ from frontend.theme import (
 from middle.objects import Class, Subject
 
 class SelectionList(QDialog):
-    def __init__(self, window_title: str, contents: list):
+    def __init__(self, window_title: str, content_info: dict):
         super().__init__()
         
         self.setStyleSheet(THEME[SELECTION_LIST])
@@ -31,7 +31,10 @@ class SelectionList(QDialog):
         self.selected_widgets = []
         self.unselected_widgets = []
         self.separators = []
-        self.contents = contents
+        
+        self.content_info = content_info
+        self.contents = self.content_info["content"]
+        self.id_mappings = self.content_info["id_mapping"]
         
         main_layout = QVBoxLayout(self)
         
@@ -54,8 +57,8 @@ class SelectionList(QDialog):
         unselected_items = self.contents[split_index+1:]
         
         # Add selected items
-        for item in selected_items:
-            widget = _SelectedWidget(item, self)
+        for index, item in enumerate(selected_items):
+            widget = _SelectedWidget(item, self, self.id_mappings, index)
             self.add_item(widget)
             self.selected_widgets.append(widget)
             if item != selected_items[-1]:
@@ -66,8 +69,8 @@ class SelectionList(QDialog):
             self.add_separator(self.middle_line_thickness)
         
         # Add unselected items
-        for item in unselected_items:
-            widget = _UnselectedWidget(item, self)
+        for index, item in enumerate(unselected_items):
+            widget = _UnselectedWidget(item, self, self.id_mappings, index + len(self.selected_widgets) + 1)
             self.add_item(widget)
             self.unselected_widgets.append(widget)
             if item != unselected_items[-1]:
@@ -85,7 +88,7 @@ class SelectionList(QDialog):
             if isinstance(widget, _UnselectedWidget):
                 unselected.append(widget.label.text())
         
-        return selected + [None] + unselected
+        return {"content": selected + [None] + unselected, "id_mapping": self.id_mappings}
     
     def add_item(self, custom_widget, index: int = None):
         if index is not None:
@@ -163,7 +166,7 @@ class SelectionList(QDialog):
                                   for p in unselected_positions]
 
 class DropDownCheckBoxes(QDialog):
-    def __init__(self, window_title: str, options: dict[str, list[str]], setting_dict: dict[str, list[bool]] | None = None):
+    def __init__(self, window_title: str, options: dict[str, list[str]], content_info: dict[str, dict[str, list[bool]] | dict]):
         super().__init__()
         
         self.setStyleSheet(THEME[DROPDOWN_CHECK_BOXES_THEME])
@@ -172,7 +175,8 @@ class DropDownCheckBoxes(QDialog):
         self.setFixedSize(400, 300)
         
         self.options = options
-        self.setting_dict = setting_dict if setting_dict else {}
+        
+        self.content = content_info["content"]
         
         self.main_checkboxes: list[QCheckBox] = []
         self.dropdowns: list[QComboBox] = []
@@ -238,19 +242,19 @@ class DropDownCheckBoxes(QDialog):
             
             container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
             
-            self.dropdowns.append([self.make_dp_widget(classOptions, classIndex), (self.setting_dict[className] if self.setting_dict.get(className) is not None else []) if self.setting_dict is not None else []])
+            self.dropdowns.append([self.make_dp_widget(classOptions, classIndex), (self.content[className] if self.content.get(className) is not None else []) if self.content is not None else []])
         
         container_layout.addStretch()
         
         for classIndex, (className, classOptions) in enumerate(self.options.items()):
-            # Initialize setting_dict for new classes
-            if className not in self.setting_dict:
-                self.setting_dict[className] = [False] * len(classOptions)
-            elif len(self.setting_dict[className]) < len(classOptions):
+            # Initialize content for new classes
+            if className not in self.content:
+                self.content[className] = [False] * len(classOptions)
+            elif len(self.content[className]) < len(classOptions):
                 # Extend existing settings if needed
-                self.setting_dict[className].extend([False] * (len(classOptions) - len(self.setting_dict[className])))
+                self.content[className].extend([False] * (len(classOptions) - len(self.content[className])))
 
-        for key, values in self.setting_dict.items():
+        for key, values in self.content.items():
             options_names = list(self.options.keys())
             
             if key in options_names:
@@ -264,14 +268,15 @@ class DropDownCheckBoxes(QDialog):
         for classIndex, (className, classOptions) in enumerate(self.options.items()):
             check_box = self.main_checkboxes[classIndex]
             check_box.clicked.connect(self.make_main_checkbox_func(classIndex))
-            if self.setting_dict.get(className):
-                if sum(self.setting_dict[className]) == len(self.setting_dict[className]) and not check_box.isChecked():
+            if self.content.get(className):
+                if sum(self.content[className]) == len(self.content[className]) and not check_box.isChecked():
                     check_box.click()
             else:
-                self.setting_dict[className] = [False for _ in range(len(classOptions))]
+                self.content[className] = [False for _ in range(len(classOptions))]
     
     def get(self):
         info = {}
+        
         for index, (_, dp_states) in enumerate(self.dropdowns):
             info[list(self.options.keys())[index]] = dp_states if dp_states else [False for _ in range(len(self.options[list(self.options.keys())[index]]))]
         
@@ -375,7 +380,7 @@ class DropDownCheckBoxes(QDialog):
         return checkbox_func
 
 class SubjectSelection(QDialog):
-    def __init__(self, title: str, subjects: list[str], teachers: list[str], subject_teacher: dict[str, str], settings: list[list[str, list[str | None, str | None, list]]]):
+    def __init__(self, title: str, available_subject_teachers: dict[str, list[str | None]], settings: dict[str, dict[str, str | None | list[str | None]] | dict[int, str]]):
         super().__init__()
         
         self.setStyleSheet(THEME[SUBJECT_SELECTION])
@@ -383,11 +388,11 @@ class SubjectSelection(QDialog):
         self.setWindowTitle(title)
         self.setFixedSize(600, 400)
         
-        self.settings = settings
+        self.content = settings["content"]
+        self.id_mapping = settings["id_mapping"]
         
-        self.subjects = subjects
-        self.teachers = teachers
-        self.subject_teacher = subject_teacher
+        self.available_subject_teachers = available_subject_teachers
+        self.subjects = [subject_info["name"] for _, subject_info in self.available_subject_teachers.items()]
         
         self.dp_tracker = []
         self.teacher_buttons: list[QPushButton] = []
@@ -409,7 +414,8 @@ class SubjectSelection(QDialog):
         self.container_layout.addStretch()
         
         self.add_button = QPushButton("Add Subject")
-        self.add_button.clicked.connect(lambda: self.add_subject())
+        
+        self.add_button.clicked.connect(self._add_new_subject)
         
         self.main_layout.addWidget(self.scroll_area)
         self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
@@ -417,50 +423,42 @@ class SubjectSelection(QDialog):
         if not self.subjects:
             self.add_button.setDisabled(True)
         
-        self.info = []
-        for className, settingInfo in self.settings:
-            self.add_subject(className, settingInfo)
+        self.info = {}
+        
+        for subject_id, subject_info in self.content.items():
+            self.add_subject(subject_id, subject_info)
     
     def get(self):
-        result = []
-        
-        for widget, info in self.info:
-            if isinstance(widget, QComboBox):
-                result.append([widget.currentText(), info])
-            else:
-                result.append([widget, info])
-        
-        return result
+        return {"content": self.info, "id_mapping": self.id_mapping}
     
-    def _get(self):
-        return self.info.copy()
-
-    def add_subject(self, name: str = None, info: list = None):
+    def _add_new_subject(self):
+        subject_id = next(
+            (
+                index_id
+                for index, (index_id, _) in enumerate(self.available_subject_teachers.items())
+                if index not in [dp.currentIndex() for _, dp in self.dp_tracker]
+            )
+        )
+        
+        self.add_subject(subject_id, {"per_day": "2", "per_week": "4", "teachers": self.available_subject_teachers[subject_id]["teachers"]})
+    
+    def add_subject(self, subject_id: str, info: dict):
         selection_widget = QWidget()
         selection_widget.setObjectName("subjectItem")
         
         layout = QVBoxLayout()
         selection_widget.setLayout(layout)
         
-        available_indexes = [index for index in range(len(self.subjects)) if index not in [dp.currentIndex() for dp in self.dp_tracker]]
-        
-        if name is not None:
-            nameIndex = self.subjects.index(name)
-            if nameIndex in available_indexes:
-                available_indexes.remove(nameIndex)
-            available_indexes = [nameIndex] + available_indexes
-        
-        name = self.subjects[available_indexes[0]]
-        
         subjects_dp = QComboBox()
         if self.subjects:
             subjects_dp.addItems(self.subjects)
         else:
             subjects_dp.setDisabled(True)
-        subjects_dp.setCurrentIndex(available_indexes[0])
-        subjects_dp.currentIndexChanged.connect(self.make_dp_clicked_func(subjects_dp))
+        
+        subjects_dp.setCurrentIndex(next((s_i for s_i, s_id in self.id_mapping.items() if s_id == subject_id)))
+        subjects_dp.currentIndexChanged.connect(self.make_dp_clicked_func(len(self.dp_tracker)))
         # subjects_dp.currentIndexChanged.connect(self.make_dp_destroy_func(subjects_dp))
-        self.dp_tracker.append(subjects_dp)
+        self.dp_tracker.append((subject_id, subjects_dp))
         
         sub_layout = QHBoxLayout()
         
@@ -471,17 +469,17 @@ class SubjectSelection(QDialog):
         per_day_edit.edit.setFixedWidth(50)
         per_day_edit.edit.setPlaceholderText("Per day")
         per_day_edit.edit.setText("2")
-        per_day_edit.edit.textChanged.connect(self.make_text_changed_func(subjects_dp, 0, per_day_edit))
+        per_day_edit.edit.textChanged.connect(self.make_text_changed_func(subject_id, "per_day", per_day_edit))
         
         per_week_edit = NumberTextEdit()
         per_week_edit.edit.setFixedWidth(54)
         per_week_edit.edit.setPlaceholderText("Per week")
         per_week_edit.edit.setText("4")
-        per_week_edit.edit.textChanged.connect(self.make_text_changed_func(subjects_dp, 1, per_week_edit))
+        per_week_edit.edit.textChanged.connect(self.make_text_changed_func(subject_id, "per_week", per_week_edit))
         
         teacher_button = QPushButton("Teachers")
         teacher_button.setMaximumWidth(60)
-        teacher_button.clicked.connect(self.make_temp_show_teacher_popup_func(subjects_dp))
+        teacher_button.clicked.connect(self.make_temp_show_teacher_popup_func(subject_id))
         
         self.teacher_buttons.append(teacher_button)
         
@@ -489,99 +487,99 @@ class SubjectSelection(QDialog):
         sub_layout.addWidget(per_week_edit, alignment=Qt.AlignmentFlag.AlignLeft)
         sub_layout.addWidget(teacher_button, alignment=Qt.AlignmentFlag.AlignLeft)
         
-        widget = _SelectedWidget(selection_widget, self.container_layout)
+        widget = _SelectedWidget(selection_widget, self.container_layout, {}, len(self.dp_tracker) - 1)
         widget.setFixedHeight(100)
-        widget.delete_button.clicked.connect(self.make_dp_destroy_func(subjects_dp))
+        widget.delete_button.clicked.connect(self.make_dp_destroy_func(len(self.dp_tracker) - 1))
         
         self.container_layout.insertWidget(0, widget, alignment=Qt.AlignmentFlag.AlignTop)
         
-        if info is not None:
-            self._set_list_value(self.info, subjects_dp, info)
-            
-            per_day_info, per_week_info, _ = info
-            
-            if per_day_info is not None:
-                per_day_edit.edit.setText(per_day_info)
-            if per_week_info is not None:
-                per_week_edit.edit.setText(per_week_info)
-        else:
-            self._set_list_value(self.info, subjects_dp, ["2", "4", self.subject_teacher[subjects_dp.currentText()]])
+        if info["per_day"] is not None:
+            per_day_edit.edit.setText(info["per_day"])
+        if info["per_week"] is not None:
+            per_week_edit.edit.setText(info["per_week"])
         
-        available_indexes = [index for index in range(len(self.subjects)) if index not in [dp.currentIndex() for dp in self.dp_tracker]]
-        if not available_indexes:
+        self.info[subject_id] = info
+        # self._set_list_value(self.info, subjects_dp, ["2", "4", self.available_subject_teachers[subjects_dp.currentText()]])
+        
+        if len(self.dp_tracker) >= len(self.subjects):
             self.add_button.setDisabled(True)
     
-    def _get_list_value(self, l: list, key, * , strict = True):
-        for i, (k, _) in enumerate(l):
-            if k == key:
-                return l[i][1]
+    # def _get_list_value(self, l: list, key, * , strict = True):
+    #     for i, (k, _) in enumerate(l):
+    #         if k == key:
+    #             return l[i][1]
         
-        if strict:
-            raise KeyError(f"Invalid key '{k}'")
+    #     if strict:
+    #         raise KeyError(f"Invalid key '{k}'")
     
-    def _set_list_value(self, l: list, key, value):
-        for i, (k, _) in enumerate(l):
-            if k == key:
-                l[i] = [key, value]
-                break
-        else:
-            l.append([key, value])
+    # def _set_list_value(self, l: list, key, value):
+    #     for i, (k, _) in enumerate(l):
+    #         if k == key:
+    #             l[i] = [key, value]
+    #             break
+    #     else:
+    #         l.append([key, value])
     
-    def _pop_list_value(self, l: list, key):
-        for i, (k, v) in enumerate(l):
-            if k == key:
-                l.pop(i)
-                return v
+    # def _pop_list_value(self, l: list, key):
+    #     for i, (k, v) in enumerate(l):
+    #         if k == key:
+    #             l.pop(i)
+    #             return v
         
-        raise IndexError(f'Key "{key}" not in list')
+    #     raise IndexError(f'Key "{key}" not in list')
     
-    def make_temp_show_teacher_popup_func(self, dp: QComboBox):
+    def make_temp_show_teacher_popup_func(self, subject_id: str):
         def temp_show_teacher_popup():
-            values = self._get_list_value(self.info, dp)
+            info = self.info[subject_id]
             
-            teachers = SelectionList("Teachers", values[2])
+            teachers = SelectionList("Teachers", info["teachers"])
             teachers.exec()
-            values[2] = teachers.get()
+            info["teachers"] = teachers.get()
         
         return temp_show_teacher_popup
     
-    def make_text_changed_func(self, widget: QWidget, index: int, input_edit: 'NumberTextEdit'):
+    def make_text_changed_func(self, subject_id: str, key: str, input_edit: 'NumberTextEdit'):
         def text_changed_func():
-            curr_widget = self._get_list_value(self.info, widget, strict=False)
-            if curr_widget is None:
-                self._set_list_value(self.info, widget, [None, None, []])
+            subject_info = self.info.get(subject_id)
+            if subject_info is None:
+                self.info[subject_id] = [None, None, []]
             else:
-                curr_widget[index] = input_edit.edit.text()
+                subject_info[key] = input_edit.edit.text()
         
         return text_changed_func
 
-    def make_dp_clicked_func(self, dp: QComboBox):
+    def make_dp_clicked_func(self, dp_tracker_index: int):
         def dp_clicked_func(index):
             # Store the current text before changing
-            old_text = dp.currentText()
             
-            for odp in self.dp_tracker:
-                if odp != dp and odp.currentIndex() == index:
+            subject_id, _ = self.dp_tracker[dp_tracker_index]
+            
+            for odp_index, (old_subject_id, odp) in self.dp_tracker:
+                if old_subject_id != subject_id and odp.currentIndex() == index:
                     widget = odp.parent().parent()
                     self.container_layout.removeWidget(widget)
                     widget.deleteLater()
-                    self.dp_tracker.remove(odp)
+                    self.dp_tracker.pop(odp_index)
                     
-                    if self._get_list_value(self.info, odp, strict=False) is not None:
-                        self._pop_list_value(self.info, odp)
+                    if self.info.get(old_subject_id) is not None:
+                        self.info.pop(old_subject_id)
                         self.add_button.setDisabled(False)
-            
-            # Update the info dictionary with the new key
-            if self._get_list_value(self.info, old_text, strict=False) is not None:
-                self._set_list_value(self.info, dp, self._pop_list_value(self.info, old_text))
+                        self.dp_tracker[dp_tracker_index][0] = old_subject_id
+                    
+                    self.info[old_subject_id] = self.info.pop(subject_id)
+                    # self._set_list_value(self.info, dp, self._pop_list_value(self.info, old_text))
+                    break
+            else:
+                self.dp_tracker[dp_tracker_index][0] = self.id_mapping[index]
+                self.info[self.id_mapping[index]] = self.info.pop(subject_id)
         
         return dp_clicked_func
 
-    def make_dp_destroy_func(self, dp: QComboBox):
+    def make_dp_destroy_func(self, dp_tracker_index: int):
         def dp_destroy_func():
             self.add_button.setDisabled(False)
-            self.dp_tracker.remove(dp)
-            self._pop_list_value(self.info, dp)
+            self.info.pop(self.dp_tracker[dp_tracker_index][0])
+            self.dp_tracker.pop(dp_tracker_index)
         
         return dp_destroy_func
 
@@ -721,7 +719,7 @@ class OptionSelection(QDialog):
             )
     
     def get(self):
-        return [option.get_text() for option in self.options if option.get_text()]
+        return [option.get_text() for option in self.options]
     
     def add_option(self, text: str = ""):
         option = _OptionTag(text)
@@ -1070,12 +1068,15 @@ class _OptionTag(QWidget):
 
 
 class _SelectedWidget(QWidget):
-    def __init__(self, text_or_widget: str | QWidget, host: SelectionList | QVBoxLayout):
+    def __init__(self, text_or_widget: str | QWidget, host: SelectionList | QVBoxLayout, id_mapping: dict, index: int):
         super().__init__()
         self.setObjectName("listItem")
         
         self.text_or_widget = text_or_widget
         self.host = host
+        
+        self.id_mappings = id_mapping
+        self.index = index
         
         main_layout = QHBoxLayout()
         main_layout.setSpacing(8)
@@ -1115,7 +1116,7 @@ class _SelectedWidget(QWidget):
             self.host.selected_widgets.remove(self)
             self.host.container_layout.removeWidget(self)
             
-            widget = _UnselectedWidget(self.text_or_widget, self.host)
+            widget = _UnselectedWidget(self.text_or_widget, self.host, self.id_mappings, len(self.host.selected_widgets) + len(self.host.unselected_widgets) + 1)
             # Find the last unselected widget or append at the end
             insert_index = -1
             for i in range(self.host.container_layout.count()-1, -1, -1):
@@ -1124,17 +1125,24 @@ class _SelectedWidget(QWidget):
                     break
             
             self.host.add_item(widget, insert_index if insert_index != -1 else self.host.container_layout.count())
+            if isinstance(self.host, SelectionList):
+                self.id_mappings[len(self.host.selected_widgets) + len(self.host.unselected_widgets) + 1] = self.id_mappings.pop(self.index)
             self.host.unselected_widgets.append(widget)
             
-            self.host.update_separators()
+            if isinstance(self.host, SelectionList):
+                self.host.update_separators()
             self.deleteLater()
         else:
             self.host.removeWidget(self)
             self.deleteLater()
 
 class _UnselectedWidget(QWidget):
-    def __init__(self, text, host: SelectionList):
+    def __init__(self, text, host: SelectionList, id_mappings: dict, index: int):
         super().__init__()
+        
+        self.index = index
+        self.id_mappings = id_mappings
+        
         self.setObjectName("listItem")
         
         layout = QHBoxLayout()
@@ -1146,20 +1154,17 @@ class _UnselectedWidget(QWidget):
         self.text = text
         self.host = host
         
-        
         font = QFont("Sans Serif", 13)
         metrics = QFontMetrics(font)
         self.label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
         self.label.setFont(font)
         self.label.setToolTip(text)
         
-        
         self.button = QPushButton("Add")
         self.button.setProperty('class', 'addBtn')
         self.button.setFixedSize(24, 24)
         self.button.setStyleSheet("QPushButton{background-color: "+ _widgets_bg_color_4 +"} QPushButton:hover{background-color: "+ get_hover_color(_widgets_bg_color_4) +"}")
         self.button.clicked.connect(self.add_self)
-        
         
         layout.addWidget(self.label)
         layout.addStretch()
@@ -1174,7 +1179,7 @@ class _UnselectedWidget(QWidget):
         self.host.unselected_widgets.remove(self)
         self.host.container_layout.removeWidget(self)
         
-        widget = _SelectedWidget(self.text, self.host)
+        widget = _SelectedWidget(self.text, self.host, self.id_mappings, len(self.host.selected_widgets))
         # Find the last selected widget or insert at beginning
         insert_index = 0
         for i in range(self.host.container_layout.count()):
@@ -1182,6 +1187,8 @@ class _UnselectedWidget(QWidget):
                 insert_index = i + 1
         
         self.host.add_item(widget, insert_index)
+        
+        self.id_mappings[len(self.host.selected_widgets)] = self.id_mappings.pop(self.index)
         self.host.selected_widgets.append(widget)
         
         self.host.update_separators()

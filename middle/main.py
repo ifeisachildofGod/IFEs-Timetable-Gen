@@ -1,6 +1,7 @@
+# import json
 import random
 from typing import Union
-from middle.functions import nullCheck  #, display_school, get_clashes, get_schools_non_optimalism
+from middle.functions import nullCheck#, display_school, get_clashes#, get_schools_non_optimalism
 from middle.objects import Teacher, Class, Subject, Timetable
 
 PotentialOptionType = Union[dict[str, list[list[str], list[int]] | dict[str, list[int] | dict[str, list[int, int] | list[int]]]], list[dict[str, dict[str, list[int, int, dict[str, str]]]]], list[str], dict[str, list[int]], dict[str, list[list[str], list[str]]]]
@@ -12,7 +13,9 @@ class School:
         self.classes: dict[str, Class] = {}
         self.teachers: dict[str, Teacher] = {}
         
-        self.setProject(project)
+        self.project = project
+        
+        self.setSchoolInfoFromProjectDict()
     
     def _getSubjects(self, levels: list[int], classOptions: dict[str, list[str]], classes: list[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
         subjects = {}
@@ -57,7 +60,7 @@ class School:
         levels = [int(level) for level in self.project['levels'].keys()]
         
         classOptions = {level: list(levelInfo[0].keys()) for level, levelInfo in self.project['levels'].items()}
-        # print(classOptions)
+        
         classes = {level : list(levelInfo[0].keys()) for level, levelInfo in self.project['levels'].items()}
         periods = {level : {name: info[0] for name, info in levelInfo[0].items()} for level, levelInfo in self.project['levels'].items()}
         breakperiods = {level : {name: info[1] for name, info in levelInfo[0].items()} for level, levelInfo in self.project['levels'].items()}
@@ -89,7 +92,7 @@ class School:
                         self.classes[fullClassName] = cls = Class(int(level), className, [subj], periods[level][className], levelNames, self.school, self.teachers, self.classes, weekdays[level][className], breakperiods[level][className])
                     
                     teacher.subjects[subj] = cls
-
+    
     def setProjectDictFromSchoolInfo(self):
         levels = {}
         for _, cls in self.classes.items():
@@ -137,7 +140,7 @@ class School:
                 subjectTeacherMapping[subjectName].pop("&classes")
         
         subjectLevels = [int(level) for level in levels.keys()]
-        subjectClassOptions = sorted([levelInfo[0] for levelInfo in levels.values()], key = lambda options: len(options), reverse = True)[0]
+        subjectClassOptions = {level: list(level_info.keys()) for level, (level_info, _) in levels.items()}
         subjectClasses = {level : levelInfo[0] for level, levelInfo in levels.items()}
         
         subjects = self._getSubjects(subjectLevels, subjectClassOptions, subjectClasses, subjectTeacherMapping)
@@ -147,16 +150,11 @@ class School:
             "subjectTeacherMapping": subjectTeacherMapping,
             "subjects": subjects
         }
-
-    def setProject(self, project: ProjectType):
-        self.project = project
-        
-        self.setSchoolInfoFromProjectDict()
     
     def generateNewSchoolTimetables(self):
         for _, cls in self.classes.items():
             self.generateTimetable(cls)
-
+    
     def updateSubject(self, className: str, day: str, subjectIndex: int, s_name: str, s_total: int, s_lockedPeriod: list[int, int] | None, s_teacher_name: int):
         subject = self.classes[className].timetable.table[day][subjectIndex]
         teacher = subject.teacher
@@ -168,23 +166,27 @@ class School:
         if teacher.name != s_teacher_name:
             self.classes[teacher.subjects.pop(subject).name].teachers.pop(teacher)
             teacher = self.teachers[s_teacher_name]
-
+    
     def updateTeacher(self, teacherName: str, t_name: str):
         teacher = self.teachers[teacherName]
         
         teacher.name = t_name
-
+    
     def updateClass(self, className: str, c_name: str):
         cls = self.classes[className]
         
         cls.name = c_name
 
+# with open("res/project.json") as file:
+#     project = json.load(file)
 
-# school = School("backend/project.json")
+# school = School(project)
 
 # school.setSchoolInfoFromProjectDict()
 
 # school.generateNewSchoolTimetables()
 
-# display_school(school.school)
+# school.setProjectDictFromSchoolInfo()
+
 # get_clashes(school.school)
+# display_school(school.school)

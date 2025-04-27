@@ -15,10 +15,13 @@ class Subjects(QWidget):
         super().__init__()
         self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
         
+        self.widget_id_mapping = {}
+        
         self.info = {}
-        self.teacher_assignments = {}  # Track teacher assignments
         
         self.teachers = [None]
+        self.id_mapping = {}
+        
         self.classesInfo = {}
         
         self.main_layout = QVBoxLayout(self)
@@ -45,7 +48,7 @@ class Subjects(QWidget):
         self.setStyleSheet(THEME[SUBJECT_TEACHERS_CLASSES])
     
     def get(self):
-        return list(self.info.values())
+        return self.info
     
     def add(self):
         widget = QWidget()
@@ -83,7 +86,8 @@ class Subjects(QWidget):
         name_edit.setFocus()
     
     def set_info(self, widget: QWidget):
-        self.info[widget] = {"text": "", "classes": {}, "teachers": self.teachers}
+        self.widget_id_mapping[widget] = "--" + str(len(self.info) * 1000) + "--"
+        self.info[self.widget_id_mapping[widget]] = {"text": "", "classes": {"content": {}, "id_mapping": {}}, "teachers": {"content": self.teachers.copy(), "id_mapping": self.id_mapping.copy()}}
     
     def make_delete_func(self, widget: QWidget):
         def del_widget():
@@ -91,7 +95,7 @@ class Subjects(QWidget):
             delete_button.setProperty('class', 'warning')
             self.container_layout.removeWidget(widget)
             widget.deleteLater()
-            self.info.pop(widget)
+            self.info.pop(self.widget_id_mapping[widget])
         
         return del_widget
     
@@ -102,7 +106,7 @@ class Subjects(QWidget):
         name_edit.setStyleSheet("font-size: 40px;")
         
         def clicked():
-            self.info[widget]["text"] = name_edit.text()
+            self.info[self.widget_id_mapping[widget]]["text"] = name_edit.text()
         
         name_edit.textChanged.connect(clicked)
         
@@ -126,18 +130,18 @@ class Subjects(QWidget):
     
     def make_show_popup_1(self, widget: QWidget):
         def show_popup_1():
-            classes_list = DropDownCheckBoxes("Classes", self.classesInfo, self.info[widget]["classes"])
+            classes_list = DropDownCheckBoxes("Classes", self.classesInfo, self.info[self.widget_id_mapping[widget]]["classes"])
             classes_list.exec()
-            self.info[widget]["classes"] = classes_list.get()
+            self.info[self.widget_id_mapping[widget]]["classes"] = classes_list.get()
         
         return show_popup_1
-
+    
     def make_show_popup_2(self, widget: QWidget):
         def show_popup_2():
-            teachers_list = SelectionList("Teachers", self.info[widget]["teachers"])
+            teachers_list = SelectionList("Teachers", self.info[self.widget_id_mapping[widget]]["teachers"])
             teachers_list.exec()
             
-            self.info[widget]["teachers"] = self.teachers = self.teacher_assignments[self.info[widget]["text"]] = teachers_list.get()
+            self.info[self.widget_id_mapping[widget]]["teachers"] = teachers_list.get()
         
         return show_popup_2
 
@@ -145,8 +149,9 @@ class Subjects(QWidget):
 class Teachers(Subjects):
     def __init__(self):
         super().__init__()
+        
+        self.subject = [None]
         self.setObjectName("teacher")
-        self.subjects = [None]
     
     def make_action_buttons(self, widget: QWidget, layout: QHBoxLayout):
         subjects_button = QPushButton("Subjects")
@@ -161,24 +166,24 @@ class Teachers(Subjects):
     
     def make_show_popup_1(self, widget: QWidget):
         def show_popup_1():
-            subjects_list = SelectionList("Subjects", self.info[widget]["subjects"])
+            subjects_list = SelectionList("Subjects", self.info[self.widget_id_mapping[widget]]["subjects"])
             subjects_list.exec()
             
-            self.subjects = self.info[widget]["subjects"] = subjects_list.get()
+            self.info[self.widget_id_mapping[widget]]["subjects"] = subjects_list.get()
         
         return show_popup_1
     
     def set_info(self, widget: QWidget):
-        self.info[widget] = {"text": "", "subjects": self.subjects}
+        self.widget_id_mapping[widget] = ".." + str(len(self.info) * 1000) + ".."
+        self.info[self.widget_id_mapping[widget]] = {"text": "", "subjects": {"content": self.subject.copy(), "id_mapping": self.id_mapping.copy()}}
 
 
 class Classes(QWidget):
     def __init__(self):
         super().__init__()
+        self.widget_id_mapping = {}
         
-        self.teachers = [None]
-        self.subjects = []
-        self.subject_teacher = {}
+        self.subject_teachers_mapping = {}
         
         self.main_layout = QVBoxLayout(self)
         
@@ -196,20 +201,14 @@ class Classes(QWidget):
         self.main_layout.addWidget(self.scroll_area)
         self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
         
-        self.info = []
+        self.info = {}
         
         self.setLayout(self.main_layout)
         
         self.setStyleSheet(THEME[SUBJECT_TEACHERS_CLASSES])
     
     def get(self):
-        info = [{k: v for k, v in val.items()} for val in self.info]
-        
-        for value in info:
-            value["text"] = value["widget"].findChild(QLineEdit).text()
-            value.pop("widget")
-        
-        return info
+        return dict(self.info)
     
     def make_delete_func(self, widget: QWidget):
         def del_widget():
@@ -217,10 +216,16 @@ class Classes(QWidget):
             delete_button.setProperty('class', 'warning')
             self.container_layout.removeWidget(widget)
             widget.deleteLater()
-            if widget in self.info:
-                self.info.remove(widget)
+            self.info.pop(self.widget_id_mapping[widget])
         
         return del_widget
+    
+    def make_clicked_func(self, widget: QWidget, name_edit: QLineEdit):
+        def clicked():
+            info_entry = self.info[self.widget_id_mapping[widget]]
+            info_entry["text"] = name_edit.text()
+        
+        return clicked
     
     def add(self):
         widget = QWidget()
@@ -237,13 +242,7 @@ class Classes(QWidget):
         name_edit.setFixedHeight(80)
         name_edit.setStyleSheet("font-size: 40px;")
         
-        def make_clicked_func(index):
-            def clicked():
-                self.info[index]["text"] = name_edit.text()
-            
-            return clicked
-        
-        name_edit.textChanged.connect(make_clicked_func(len(self.info)))
+        name_edit.textChanged.connect(self.make_clicked_func(widget, name_edit))
         
         delete_button = QPushButton("×")
         delete_button.setProperty('class', 'warning')
@@ -279,28 +278,32 @@ class Classes(QWidget):
         
         self.container_layout.insertWidget(self.container_layout.count() - 1, widget, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignVCenter)
         
-        self.info.append({"widget": widget, "options": {}, "subjects": {}})
+        self.set_info(widget)
         
         name_edit.show()
         name_edit.setFocus()
     
+    def set_info(self, widget: QWidget):
+        self.widget_id_mapping[widget] = "<<" + str(len(self.info) * 1000) + "<<"
+        self.info[self.widget_id_mapping[widget]] = {"text": "", "options": {}, "subjects": {"content": {}, "id_mapping": {index : index_id for index, (index_id, _) in enumerate(self.subject_teachers_mapping.items())}}}
+    
     def make_show_subjects_popup_func(self, widget: QWidget):
         def show_subjects_popup():
-            info_entry = next((item for item in self.info if item["widget"] == widget), None)
-            if info_entry:
-                subjects = SubjectSelection("Subjects", self.subjects, self.teachers, self.subject_teacher, info_entry["subjects"])
-                subjects.exec()
-                info_entry["subjects"] = subjects.get()
+            info_entry = self.info[self.widget_id_mapping[widget]]
+            
+            subjects = SubjectSelection("Subjects", self.subject_teachers_mapping, info_entry["subjects"])
+            subjects.exec()
+            info_entry["subjects"] = subjects.get()
         
         return show_subjects_popup
-
+    
     def make_show_options_popup_func(self, widget: QWidget):
         def show_options_popup():
-            info_entry = next((item for item in self.info if item["widget"] == widget), None)
-            if info_entry:
-                option_selector = OptionSelection("Options Selection", info_entry["options"])
-                option_selector.exec()
-                info_entry["options"] = option_selector.get()
+            info_entry = self.info[self.widget_id_mapping[widget]]
+            
+            option_selector = OptionSelection("Options Selection", info_entry["options"])
+            option_selector.exec()
+            info_entry["options"] = option_selector.get()
         
         return show_options_popup
 
