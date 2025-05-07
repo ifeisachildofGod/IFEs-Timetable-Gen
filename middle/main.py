@@ -17,6 +17,18 @@ class School:
         
         self.setSchoolInfoFromProjectDict()
     
+    def _findClashes(self, subject: Subject, day: str, period: int, cls: Class):
+        clashes = []
+        
+        for ttCls, timetable in self.school.items():
+            subjPeriod = 1
+            for subj in timetable.table[day]:
+                if  period <= subjPeriod <= period + subject.total - 1 and subject.teacher == subj.teacher and subject.teacher is not None and subj.teacher is not None and cls.name != ttCls.name:
+                    clashes.append([subj, ttCls])
+                subjPeriod += subj.total
+        
+        return clashes
+    
     def _getSubjects(self, levels: list[int], classOptions: dict[str, list[str]], classes: list[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
         subjects = {}
         
@@ -50,6 +62,27 @@ class School:
                     subjects[subjectName][str(level)] = [timings[0], timings[1], teachersMapping]
 
         return subjects
+    
+    def get_clashes(self):
+        clashes = {}
+        
+        for cls, timetable in self.school.items():
+            for day, subjects in timetable.table.items():
+                for subjectIndex, subject in enumerate(subjects):
+                    if subject.teacher is not None:
+                        period = sum([subj.total for subj in subjects[:subjectIndex]]) + 1
+                        clash = self._findClashes(subject, day, period, cls)
+                        if clash:
+                            if clashes.get(subject) is None:
+                                clashes[subject] = []
+                            clashes[subject].append(clash)
+                            # print()
+                            # print(f"{subject.name} in {cls.name} clashes with")
+                            # for clashSubject, clashCls in clash:
+                            #     print(f"{clashSubject.name} in {clashCls.name}")
+                            # print(f"in period {period} on {day}")
+        
+        return clashes
     
     def generateTimetable(self, cls: Class):
         cls.timetable.__init__(cls, cls.timetable.subjects, cls.timetable.periodsPerDay, cls.timetable.breakTimePeriods, self.school)

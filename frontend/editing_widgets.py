@@ -1,8 +1,9 @@
 from typing import Callable
 from matplotlib.cbook import flatten
+from frontend.base_widgets import DraggableSubjectLabel, TimeTableItem
 from frontend.sub_widgets import (
-    CustomLabel, OptionSelection, DraggableSubjectLabel,
-    TimeTableItem, NumberTextEdit, WarningDialog
+    CustomLabel, OptionSelection, NumberTextEdit,
+    WarningDialog
     )
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
