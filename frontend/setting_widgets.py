@@ -16,10 +16,11 @@ class SettingWidget(QWidget):
     def __init__(self, name: str, input_placeholders: list[str]):
         super().__init__()
         self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
-
+        
         self.info = {}
         self.id_mapping = {}
         self.info_framework = {}
+        self.input_placeholders = input_placeholders
         
         self.main_layout = QVBoxLayout(self)
         
@@ -32,7 +33,7 @@ class SettingWidget(QWidget):
         self.scroll_area.setWidget(self.container)
         
         self.add_button = QPushButton()
-        self.add_button.clicked.connect(lambda: self.add(input_placeholders))
+        self.add_button.clicked.connect(lambda: self.add(self.input_placeholders))
         
         self.main_layout.addWidget(self.scroll_area)
         self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
@@ -43,7 +44,7 @@ class SettingWidget(QWidget):
     
     def keyPressEvent(self, a0):
         if a0.key() == 16777220:
-            self.add()
+            self.add(self.input_placeholders)
         return super().keyPressEvent(a0)
     
     def get(self):
