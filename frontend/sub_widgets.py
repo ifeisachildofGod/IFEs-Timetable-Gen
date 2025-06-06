@@ -1,3 +1,4 @@
+from copy import deepcopy
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,
@@ -30,7 +31,7 @@ class SelectionList(QDialog):
         self.separators = []
         
         self.contents = info["content"]
-        self.id_mappings = info["id_mapping"]
+        self.id_mappings = deepcopy(info["id_mapping"])
         
         main_layout = QVBoxLayout(self)
         

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any
+from typing import Any, Callable
 from frontend.sub_widgets import (
     SelectionList, DropDownCheckBoxes, SubjectSelection,
     OptionSelection
@@ -41,6 +41,14 @@ class SettingWidget(QWidget):
         self.setLayout(self.main_layout)
         self.setObjectName(name)
         self.setStyleSheet(THEME[SUBJECT_TEACHERS_CLASSES])
+    
+    def _wrapper_function_dec(func: Callable):
+        def wrapper(*args, **kwargs):
+            def sub_wrapper():
+                return func(*args, **kwargs)
+            return sub_wrapper
+        
+        return wrapper
     
     def keyPressEvent(self, a0):
         if a0.key() == 16777220:
@@ -149,6 +157,8 @@ class SettingWidget(QWidget):
         
         return show_popup
 
+
+
 class Subjects(SettingWidget):
     def __init__(self):
         super().__init__("Subject", ["Enter the subject name"])
@@ -209,6 +219,9 @@ class Classes(SettingWidget):
     def make_popups(self, _id, layout):
         self._make_popup(_id, "Option Selector", layout, OptionSelection, "options", button_name="Options")
         self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, kwargs={"available_subject_teachers": self.subject_teachers_mapping})
+
+
+
 
 # class Subjects(QWidget):
 #     def __init__(self):

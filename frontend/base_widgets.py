@@ -327,8 +327,8 @@ class SelectedWidget(QWidget):
                         index -= 1
                     new_id_mapping[index] = _id
                 # self.id_mappings[len(prev_selected) + 1] = self.id_mappings.pop(self.index)
-                self.id_mappings = new_id_mapping
-                self.id_mappings[len(prev_selected) + len(prev_unselected) + 1] = self.id_mappings.pop(self.index)
+                new_id_mapping[len(prev_selected) + len(prev_unselected) + 1] = new_id_mapping.pop(self.index)
+                self.host.id_mappings = self.id_mappings = new_id_mapping
             
             widget = UnselectedWidget(self.text_or_widget, self.host, self.id_mappings, len(prev_selected) + len(prev_unselected) + 1)
             
@@ -340,7 +340,9 @@ class SelectedWidget(QWidget):
                     break
             # insert_index = len(prev_selected) + 1
             self.host.add_item(widget, insert_index)
-            
+            for widg in self.host.selected_widgets + self.host.unselected_widgets:
+                if isinstance(widg, SelectedWidget) or isinstance(widg, UnselectedWidget):
+                    widg.id_mappings = self.id_mappings
             # self.host.unselected_widgets.insert(0, widget)
             self.host.unselected_widgets.append(widget)
             
@@ -414,7 +416,8 @@ class UnselectedWidget(QWidget):
                     index += 1
                 new_id_mapping[index] = _id
         
-        self.id_mappings = new_id_mapping
+        self.host.id_mappings = self.id_mappings = new_id_mapping
+        print(self.id_mappings)
         
         widget = SelectedWidget(self.text, self.host, self.id_mappings, len(prev_selected))
         # Find the last selected widget or insert at beginning
@@ -424,6 +427,10 @@ class UnselectedWidget(QWidget):
                 insert_index = i + 1
         
         self.host.add_item(widget, insert_index)
+        
+        for widg in self.host.selected_widgets + self.host.unselected_widgets:
+            if isinstance(widg, SelectedWidget) or isinstance(widg, UnselectedWidget):
+                widg.id_mappings = self.id_mappings
         
         self.host.selected_widgets.append(widget)
         self.host.update_separators()

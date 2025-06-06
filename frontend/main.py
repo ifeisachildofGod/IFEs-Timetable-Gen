@@ -177,8 +177,6 @@ class Window(QMainWindow):
         teacher_info = self.teachers_widget.get()
         class_info = self.classes_widget.get()
         
-        a = teacher_info["Subject: 0"]["subjects"]["id_mapping"]
-        
         if comming_from_teacher:
             # Update Teachers
             teachers = [None]
@@ -200,9 +198,6 @@ class Window(QMainWindow):
                     subject_teacher_index_id_mapping = dict(zip(list(subject_info_entry["teachers"]["id_mapping"].values()), list(subject_info_entry["teachers"]["id_mapping"].keys())))
                     
                     teacher_index_in_subject = subject_teacher_index_id_mapping.get(teacher_id)
-                    if subject_id not in teacher_subject_index_id_mapping:
-                        print(subject_info_entry["teachers"]["id_mapping"])
-                        print(a)
                     subject_index_in_teacher = teacher_subject_index_id_mapping[subject_id]  # The teaacher must always be in the teacher list, if not there is a problem
                     
                     if teacher_index_in_subject is None:
