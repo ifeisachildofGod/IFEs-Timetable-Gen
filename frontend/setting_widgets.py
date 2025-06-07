@@ -70,7 +70,7 @@ class SettingWidget(QWidget):
         buttons_layout = QHBoxLayout()
         
         # _id = widget.__repr__()
-        _id = self.objectName() + ": " + str(len(self.info))
+        _id = self.objectName() + ": " + str(len(self.info) + 1)
         
         self.set_info(_id)
         
