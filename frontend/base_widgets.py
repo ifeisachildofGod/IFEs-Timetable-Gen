@@ -417,7 +417,6 @@ class UnselectedWidget(QWidget):
                 new_id_mapping[index] = _id
         
         self.host.id_mappings = self.id_mappings = new_id_mapping
-        print(self.id_mappings)
         
         widget = SelectedWidget(self.text, self.host, self.id_mappings, len(prev_selected))
         # Find the last selected widget or insert at beginning
