@@ -342,7 +342,7 @@ class DropDownCheckBoxes(QDialog):
         return checkbox_func
 
 class SubjectSelection(QDialog):
-    def __init__(self, title: str, available_subject_teachers: dict[str, list[str | None]], info: dict[str, dict[str, str | None | list[str | None]] | dict[int, str]]):
+    def __init__(self, title: str, info: dict[str, dict[str, str | None | list[str | None]] | dict[int, str]], available_subject_teachers: dict[str, list[str | None]]):
         super().__init__()
         
         self.setStyleSheet(THEME[SUBJECT_SELECTION])
@@ -461,7 +461,6 @@ class SubjectSelection(QDialog):
             per_week_edit.edit.setText(info["per_week"])
         
         self.info[subject_id] = info
-        # self._set_list_value(self.info, subjects_dp, ["2", "4", self.available_subject_teachers[subjects_dp.currentText()]])
         
         if len(self.dp_tracker) >= len(self.subjects):
             self.add_button.setDisabled(True)
@@ -492,7 +491,7 @@ class SubjectSelection(QDialog):
             
             subject_id, _ = self.dp_tracker[dp_tracker_index]
             
-            for odp_index, (old_subject_id, odp) in self.dp_tracker:
+            for odp_index, (old_subject_id, odp) in enumerate(self.dp_tracker):
                 if old_subject_id != subject_id and odp.currentIndex() == index:
                     widget = odp.parent().parent()
                     self.container_layout.removeWidget(widget)

@@ -27,6 +27,7 @@ class Window(QMainWindow):
                     [7, 7, 7, 7, 7],
                     ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
                 ]
+        
         with open("res/project.json") as file:
             self.project = json.loads(file.read())
         
@@ -114,17 +115,6 @@ class Window(QMainWindow):
             thread.quit()
         
         return super().closeEvent(a0)
-    
-    def keyPressEvent(self, a0):
-        if a0.text() == "1":
-            print(self.subjects_widget.get())
-            print()
-            print(self.teachers_widget.get())
-            print()
-            print(self.classes_widget.get())
-            print()
-            print()
-        return super().keyPressEvent(a0)
     
     def make_option_button_func(self, index: int):
         def func():
@@ -529,8 +519,10 @@ class Window(QMainWindow):
             case 2: # Classes view
                 if prev_index == 0:
                     self._update_teachers()
+                    self._update_subjects(True, True)
                 elif prev_index == 1:
                     self._update_subjects(True, True)
+                    self._update_teachers()
                 self._update_classes()
             case 3:  # Timetable view
                 if prev_index == 0:

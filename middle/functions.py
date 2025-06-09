@@ -1,5 +1,7 @@
 import json
 
+from matplotlib.cbook import flatten
+
 def findClashes(school, subject, day: str, period: int, cls):
     clashes = []
     
@@ -26,7 +28,8 @@ def display_school(school, drawType: int = 0):
             
             for day, todaysSubjects in timetable.table.items():
                 subjectsContent = [subjs.get() for subjs in todaysSubjects]
-                print(day, ":", f'{subjectsContent}'.replace('[', '').replace(']', '').replace("'", ''))
+                
+                print(day, ":", ", ".join(list(flatten(subjectsContent))))
             
             for subject in timetable.remainderContent:
                 index = timetable.remainderContent.index(subject)

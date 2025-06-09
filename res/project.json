@@ -1,304 +1,397 @@
 {
     "levels": {
         "1": [
+            "JS1",
             {
-                "A": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "B": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "C": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "D": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "E": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "F": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "G": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "H": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "I": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "J": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
-            }, "JS1"
+                "Class JS1 ID: A": ["A", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: B": ["B", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: C": ["C", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: D": ["D", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: E": ["E", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: F": ["F", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: G": ["G", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: H": ["H", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: I": ["I", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS1 ID: J": ["J", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]]
+            }
         ],
         "2": [
+            "JS2",
             {
-                "A": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "B": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "C": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "D": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "E": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "F": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "G": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "H": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "I": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "J": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
-            }, "JS2"
+                "Class JS2 ID: A": ["A", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: B": ["B", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: C": ["C", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: D": ["D", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: E": ["E", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: F": ["F", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: G": ["G", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: H": ["H", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: I": ["I", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS2 ID: J": ["J", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]]
+            }
         ],
         "3": [
+            "JS3",
             {
-                "A": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "B": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "C": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "D": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "E": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "F": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "G": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "H": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "I": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "J": [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
-            }, "JS3"
+                "Class JS3 ID: A": ["A", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: B": ["B", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: C": ["C", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: D": ["D", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: E": ["E", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: F": ["F", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: G": ["G", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: H": ["H", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: I": ["I", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class JS3 ID: J": ["J", [[10, 10, 10, 10, 10], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]]
+            }
         ],
         "4": [
+            "SS1",
             {
-                "A": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "B": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "C": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "D": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "E": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "F": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "G": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "H": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "I": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
-            }, "SS1"
+                "Class SS1 ID: A": ["A", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: B": ["B", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: C": ["C", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: D": ["D", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: E": ["E", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: F": ["F", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: G": ["G", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: H": ["H", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS1 ID: I": ["I", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]]
+            }
         ],
         "5": [
+            "SS2",
             {
-                "A": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "B": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "C": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "D": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "E": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "F": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "G": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "H": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
-            }, "SS2"
+                "Class SS2 ID: A": ["A", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS2 ID: B": ["B", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS2 ID: C": ["C", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS2 ID: D": ["D", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS2 ID: E": ["E", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS2 ID: F": ["F", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS2 ID: G": ["G", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS2 ID: H": ["H", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]]
+            }
         ],
         "6": [
+            "SS3",
             {
-                "A": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "B": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "C": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "D": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "E": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "F": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "G": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
-                "H": [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]
-            }, "SS3"
+                "Class SS3 ID: A": ["A", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS3 ID: B": ["B", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS3 ID: C": ["C", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS3 ID: D": ["D", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS3 ID: E": ["E", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS3 ID: F": ["F", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS3 ID: G": ["G", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]],
+                "Class SS3 ID: H": ["H", [[10, 10, 10, 10, 9], [7, 7, 7, 7, 7], ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]]]
+            }
         ]
     },
 
     "subjectTeacherMapping": {
-        "Mathematics": {
-            "Mary Seymore": [1, 2, 3],
-            "Charles Fuggerton": [4, 5, 6],
-            "Jack Green": [1, 2, 3],
-            "Lexy Hamillton": [1, 2, 3],
-            "Trevor Nolan": [1, 2, 3],
-            "Fredrick Loggermouth": [4, 5, 6],
-            "James Naismith": [4, 5, 6],
-            "Greg Sanchez": [4, 5, 6],
-            "&timings": {
-                "1": [2, 5],
-                "2": [2, 5],
-                "3": [2, 5],
-                "4": [2, 5],
-                "5": [2, 5],
-                "6": [2, 5]
+        "Subject ID: Mathematics": [
+            "Mathematics",
+            {
+                "Teacher ID: Mary Seymore": ["Mary Seymore", [1, 2, 3]],
+                "Teacher ID: Charles Fuggerton": ["Charles Fuggerton", [4, 5, 6]],
+                "Teacher ID: Jack Green": ["Jack Green", [1, 2, 3]],
+                "Teacher ID: Lexy Hamillton": ["Lexy Hamillton", [1, 2, 3]],
+                "Teacher ID: Trevor Nolan": ["Trevor Nolan", [1, 2, 3]],
+                "Teacher ID: Fredrick Loggermouth": ["Fredrick Loggermouth", [4, 5, 6]],
+                "Teacher ID: James Naismith": ["James Naismith", [4, 5, 6]],
+                "Teacher ID: Greg Sanchez": ["Greg Sanchez", [4, 5, 6]],
+                "&timings": {
+                    "1": [2, 5],
+                    "2": [2, 5],
+                    "3": [2, 5],
+                    "4": [2, 5],
+                    "5": [2, 5],
+                    "6": [2, 5]
+                }
             }
-        },
-        "English": {
-            "Dana White": [1, 2, 3],
-            "Brolin Thomas": [1, 2, 3],
-            "Mary Kendrick": [1, 2, 3],
-            "Cassie Shroud": [4, 5, 6],
-            "Casper Paul": [4, 5, 6],
-            "Leonard Fuggerton": [4, 5, 6],
-            "&timings": {
-                "1": [2, 5],
-                "2": [2, 5],
-                "3": [2, 5],
-                "4": [2, 5],
-                "5": [2, 5],
-                "6": [2, 5]
+        ],
+        "Subject ID: English": [
+            "English",
+            {
+                "Teacher ID: Dana White": ["Dana White", [1, 2, 3]],
+                "Teacher ID: Brolin Thomas": ["Brolin Thomas", [1, 2, 3]],
+                "Teacher ID: Mary Kendrick": ["Mary Kendrick", [1, 2, 3]],
+                "Teacher ID: Cassie Shroud": ["Cassie Shroud", [4, 5, 6]],
+                "Teacher ID: Casper Paul": ["Casper Paul", [4, 5, 6]],
+                "Teacher ID: Leonard Fuggerton": ["Leonard Fuggerton", [4, 5, 6]],
+                "&timings": {
+                    "1": [2, 5],
+                    "2": [2, 5],
+                    "3": [2, 5],
+                    "4": [2, 5],
+                    "5": [2, 5],
+                    "6": [2, 5]
+                }
             }
-        },
-        "Civic Education": {
-            "Leo Deo": [1, 2, 3, 4, 5, 6],
-            "Bah Rain": [1, 2, 3, 4, 5, 6],
-            "Jesse Smollet": [1, 2, 3],
-            "Iker Cassilas": [1, 2, 3],
-            "Micheal Phelps": [4, 5, 6],
-            "Masson Thomas": [4, 5, 6],
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4],
-                "4": [2, 3],
-                "5": [2, 3],
-                "6": [2, 3]
+        ],
+        "Subject ID: Civic Education": [
+            "Civic Education",
+            {
+                "Teacher ID: Leo Deo": ["Leo Deo", [1, 2, 3, 4, 5, 6]],
+                "Teacher ID: Bah Rain": ["Bah Rain", [1, 2, 3, 4, 5, 6]],
+                "Teacher ID: Jesse Smollet": ["Jesse Smollet", [1, 2, 3]],
+                "Teacher ID: Iker Cassilas": ["Iker Cassilas", [1, 2, 3]],
+                "Teacher ID: Micheal Phelps": ["Micheal Phelps", [4, 5, 6]],
+                "Teacher ID: Masson Thomas": ["Masson Thomas", [4, 5, 6]],
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4],
+                    "4": [2, 3],
+                    "5": [2, 3],
+                    "6": [2, 3]
+                }
             }
-        },
-        "Cisco": {
-            "Brandon Marlin": [1, 2, 3, 4, 5, 6],
-            "Jesse Rain": [1, 2, 3, 4, 5, 6],
-            "Carbary Tuska": [1, 2, 3, 4, 5, 6],
-            "Creg Joseph": [1, 2, 3, 4, 5, 6],
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4],
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Cisco": [
+            "Cisco",
+            {
+                "Teacher ID: Brandon Marlin": ["Brandon Marlin", [1, 2, 3, 4, 5, 6]],
+                "Teacher ID: Jesse Rain": ["Jesse Rain", [1, 2, 3, 4, 5, 6]],
+                "Teacher ID: Carbary Tuska": ["Carbary Tuska", [1, 2, 3, 4, 5, 6]],
+                "Teacher ID: Creg Joseph": ["Creg Joseph", [1, 2, 3, 4, 5, 6]],
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4],
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Chemistry": {
-            "Jeffery Dahmer": [4, 5, 6],
-            "Caitlin Jenner": [4, 5, 6],
-            "&classes": {"4": ["C", "D", "E", "F", "G", "H", "I"], "5": ["C", "D", "E", "F", "G", "H", "I"], "6": ["C", "D", "E", "F", "G", "H", "I"]},
-            "&timings": {
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Chemistry": [
+            "Chemistry",
+            {
+                "Teacher ID: Jeffery Dahmer": ["Jeffery Dahmer", [4, 5, 6]],
+                "Teacher ID: Caitlin Jenner": ["Caitlin Jenner", [4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: C", "Class SS1 ID: D", "Class SS1 ID: E", "Class SS1 ID: F", "Class SS1 ID: G", "Class SS1 ID: H", "Class SS1 ID: I"],
+                    "5": ["Class SS2 ID: C", "Class SS2 ID: D", "Class SS2 ID: E", "Class SS2 ID: F", "Class SS2 ID: G", "Class SS2 ID: H"],
+                    "6": ["Class SS3 ID: C", "Class SS3 ID: D", "Class SS3 ID: E", "Class SS3 ID: F", "Class SS3 ID: G", "Class SS3 ID: H"]
+                },
+                "&timings": {
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Physics": {
-            "Mao Tse Tong": [4, 5, 6],
-            "Heinrich Himler": [4, 5, 6],
-            "&classes": {"4": ["C", "D", "E", "F", "G", "H", "I"], "5": ["C", "D", "E", "F", "G", "H", "I"], "6": ["C", "D", "E", "F", "G", "H", "I"]},
-            "&timings": {
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Physics": [
+            "Physics",
+            {
+                "Teacher ID: Mao Tse Tong": ["Mao Tse Tong", [4, 5, 6]],
+                "Teacher ID: Heinrich Himler": ["Heinrich Himler", [4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: C", "Class SS1 ID: D", "Class SS1 ID: E", "Class SS1 ID: F", "Class SS1 ID: G", "Class SS1 ID: H", "Class SS1 ID: I"],
+                    "5": ["Class SS2 ID: C", "Class SS2 ID: D", "Class SS2 ID: E", "Class SS2 ID: F", "Class SS2 ID: G", "Class SS2 ID: H"],
+                    "6": ["Class SS3 ID: C", "Class SS3 ID: D", "Class SS3 ID: E", "Class SS3 ID: F", "Class SS3 ID: G", "Class SS3 ID: H"]
+                },
+                "&timings": {
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Biology": {
-            "John Wayne Gacy": [4, 5, 6],
-            "Drew BaryMore": [4, 5, 6],
-            "&timings": {
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Biology": [
+            "Biology",
+            {
+                "Teacher ID: John Wayne Gacy": ["John Wayne Gacy", [4, 5, 6]],
+                "Teacher ID: Drew BaryMore": ["Drew BaryMore", [4, 5, 6]],
+                "&timings": {
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Further Mathematics": {
-            "Olden Days": [4, 5, 6],
-            "Mantissa": [4, 5, 6],
-            "&classes": {"4": ["F", "G", "H", "I"], "5": ["F", "G", "H", "I"], "6": ["F", "G", "H", "I"]},
-            "&timings": {
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Further Mathematics": [
+            "Further Mathematics",
+            {
+                "Teacher ID: Olden Days": ["Olden Days", [4, 5, 6]],
+                "Teacher ID: Mantissa": ["Mantissa", [4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: F", "Class SS1 ID: G", "Class SS1 ID: H", "Class SS1 ID: I"],
+                    "5": ["Class SS2 ID: F", "Class SS2 ID: G", "Class SS2 ID: H"],
+                    "6": ["Class SS3 ID: F", "Class SS3 ID: G", "Class SS3 ID: H"]
+                },
+                "&timings": {
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Computer": {
-            "Amanda Davies": [4, 5, 6],
-            "Josh Carol Lewis": [4, 5, 6],
-            "Cardy B": [1, 2, 3, 4, 5, 6],
-            "Kevin Browlin": [1, 2, 3, 4, 5, 6],
-            "&classes": {"4": ["C", "D", "E", "F", "G", "H", "I"], "5": ["C", "D", "E", "F", "G", "H", "I"], "6": ["C", "D", "E", "F", "G", "H", "I"]},
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4],
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Computer": [
+            "Computer",
+            {
+                "Teacher ID: Amanda Davies": ["Amanda Davies", [4, 5, 6]],
+                "Teacher ID: Josh Carol Lewis": ["Josh Carol Lewis", [4, 5, 6]],
+                "Teacher ID: Cardy B": ["Cardy B", [1, 2, 3, 4, 5, 6]],
+                "Teacher ID: Kevin Browlin": ["Kevin Browlin", [1, 2, 3, 4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: C", "Class SS1 ID: D", "Class SS1 ID: E", "Class SS1 ID: F", "Class SS1 ID: G", "Class SS1 ID: H", "Class SS1 ID: I"],
+                    "5": ["Class SS2 ID: C", "Class SS2 ID: D", "Class SS2 ID: E", "Class SS2 ID: F", "Class SS2 ID: G", "Class SS2 ID: H"],
+                    "6": ["Class SS3 ID: C", "Class SS3 ID: D", "Class SS3 ID: E", "Class SS3 ID: F", "Class SS3 ID: G", "Class SS3 ID: H"]
+                },
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4],
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Food and Nut": {
-            "Mary Kelly": [4, 5, 6],
-            "Tyler Fischer": [4, 5, 6],
-            "Robert Stewart": [4, 5, 6],
-            "Kennedy Robert": [4, 5, 6],
-            "John Lackner": [4, 5, 6],
-            "&classes": {"4": ["A", "B", "C", "D", "E", "F"], "5": ["A", "B", "C", "D", "E", "F"], "6": ["A", "B", "C", "D", "E", "F"]},
-            "&timings": {
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Food and Nut": [
+            "Food and Nut",
+            {
+                "Teacher ID: Mary Kelly": ["Mary Kelly", [4, 5, 6]],
+                "Teacher ID: Tyler Fischer": ["Tyler Fischer", [4, 5, 6]],
+                "Teacher ID: Robert Stewart": ["Robert Stewart", [4, 5, 6]],
+                "Teacher ID: Kennedy Robert": ["Kennedy Robert", [4, 5, 6]],
+                "Teacher ID: John Lackner": ["John Lackner", [4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: A", "Class SS1 ID: B", "Class SS1 ID: C", "Class SS1 ID: D", "Class SS1 ID: E", "Class SS1 ID: F"], 
+                    "5": ["Class SS2 ID: A", "Class SS2 ID: B", "Class SS2 ID: C", "Class SS2 ID: D", "Class SS2 ID: E", "Class SS2 ID: F"], 
+                    "6": ["Class SS3 ID: A", "Class SS3 ID: B", "Class SS3 ID: C", "Class SS3 ID: D", "Class SS3 ID: E", "Class SS3 ID: F"]
+                },
+                "&timings": {
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Basic Elect": {
-            "Barry Sleuth": [4, 5, 6],
-            "Fisher Eggburt": [4, 5, 6],
-            "&classes": {"4": ["H", "I"], "5": ["H", "I"], "6": ["H", "I"]},
-            "&timings": {
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Basic Elect": [
+            "Basic Elect",
+            {
+                "Teacher ID: Barry Sleuth": ["Barry Sleuth", [4, 5, 6]],
+                "Teacher ID: Fisher Eggburt": ["Fisher Eggburt", [4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: H", "Class SS1 ID: I"], 
+                    "5": ["Class SS2 ID: H"], 
+                    "6": ["Class SS3 ID: H"]
+                },
+              "&timings": {
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Electrical Inst": {
-            "Barry Sessil": [4, 5, 6],
-            "Lewis Carol": [4, 5, 6],
-            "&classes": {"4": ["G", "H", "I"], "5": ["G", "H", "I"], "6": ["G", "H", "I"]},
-            "&timings": {
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
+        ],
+        "Subject ID: Electrical Inst": [
+            "Electrical Inst",
+            {
+                "Teacher ID: Barry Sessil": ["Barry Sessil", [4, 5, 6]],
+                "Teacher ID: Lewis Carol": ["Lewis Carol", [4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: G", "Class SS1 ID: H", "Class SS1 ID: I"], 
+                    "5": ["Class SS2 ID: G", "Class SS2 ID: H"], 
+                    "6": ["Class SS3 ID: G", "Class SS3 ID: H"]
+                },
+                "&timings": {
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
             }
-        },
-        "Basic Tech": {
-            "Laury Trevor": [1, 2, 3],
-            "Chapman Gold": [1, 2, 3],
-            "Garry Tailburn": [1, 2, 3],
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4]
+        ],
+        "Subject ID: Basic Tech": [
+            "Basic Tech",
+            {
+                "Teacher ID: Laury Trevor": ["Laury Trevor", [1, 2, 3]],
+                "Teacher ID: Chapman Gold": ["Chapman Gold", [1, 2, 3]],
+                "Teacher ID: Garry Tailburn": ["Garry Tailburn", [1, 2, 3]],
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4]
+                }
             }
-        },
-        "Basic Science": {
-            "Joseph Stalin": [1, 2, 3],
-            "R Kelly": [1, 2, 3],
-            "Hikaru Nakamura": [1, 2, 3],
-            "Mary Tallburner": [1, 2, 3],
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4]
+        ],
+        "Subject ID: Basic Science": [
+            "Basic Science",
+            {
+                "Teacher ID: Joseph Stalin": ["Joseph Stalin", [1, 2, 3]],
+                "Teacher ID: R Kelly": ["R Kelly", [1, 2, 3]],
+                "Teacher ID: Hikaru Nakamura": ["Hikaru Nakamura", [1, 2, 3]],
+                "Teacher ID: Mary Tallburner": ["Mary Tallburner", [1, 2, 3]],
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4]
+                }
             }
-        },
-        "Social Studies": {
-            "Jesse Smollet": [1, 2, 3],
-            "Iker Cassilas": [1, 2, 3],
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4]
+        ],
+        "Subject ID: Social Studies": [
+            "Social Studies",
+            {
+                "Teacher ID: Jesse Smollet": ["Jesse Smollet", [1, 2, 3]],
+                "Teacher ID: Iker Cassilas": ["Iker Cassilas", [1, 2, 3]],
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4]
+                }
             }
-        },
-        "Home Economics": {
-            "Mary Kelly": [1, 2, 3],
-            "Tyler Fischer": [1, 2, 3],
-            "Robert Stewart": [1, 2, 3],
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4]
+        ],
+        "Subject ID: Home Economics": [
+            "Home Economics",
+            {
+                "Teacher ID: Mary Kelly": ["Mary Kelly", [1, 2, 3]],
+                "Teacher ID: Tyler Fischer": ["Tyler Fischer", [1, 2, 3]],
+                "Teacher ID: Robert Stewart": ["Robert Stewart", [1, 2, 3]],
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4]
+                }
             }
-        },
-        "CCA": {
-            "Johnny Dep": [1, 2, 3],
-            "Kevin Stewart": [1, 2, 3],
-            "Ravi Sachs": [1, 2, 3],
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4]
+        ],
+        "Subject ID: CCA": [
+            "CCA",
+            {
+                "Teacher ID: Johnny Dep": ["Johnny Dep", [1, 2, 3]],
+                "Teacher ID: Kevin Stewart": ["Kevin Stewart", [1, 2, 3]],
+                "Teacher ID: Ravi Sachs": ["Ravi Sachs", [1, 2, 3]],
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4]
+                }
             }
-        },
-        "Music": {
-            "Michell Graham": [1, 2, 3],
-            "Tyler Morgan": [1, 2, 3],
-            "Mary Felcher": [1, 2, 3],
-            "Gary Lenner": [1, 2, 3, 4, 5, 6],
-            "Margaret Thatcher": [1, 2, 3, 4, 5, 6],
-            "&classes": {"4": ["A", "B"], "5": ["A", "B"], "6": ["A", "B"]},
-            "&timings": {
-                "1": [2, 4],
-                "2": [2, 4],
-                "3": [2, 4],
-                "4": [2, 4],
-                "5": [2, 4],
-                "6": [2, 4]
-            }
-        }
+        ],
+        "Subject ID: Music": [
+            "Music",
+            {
+                "Teacher ID: Michell Graham": ["Michell Graham", [1, 2, 3]],
+                "Teacher ID: Tyler Morgan": ["Tyler Morgan", [1, 2, 3]],
+                "Teacher ID: Mary Felcher": ["Mary Felcher", [1, 2, 3]],
+                "Teacher ID: Gary Lenner": ["Gary Lenner", [1, 2, 3, 4, 5, 6]],
+                "Teacher ID: Margaret Thatcher": ["Margaret Thatcher", [1, 2, 3, 4, 5, 6]],
+                "&classes": {
+                    "4": ["Class SS1 ID: A", "Class SS1 ID: B"], 
+                    "5": ["Class SS2 ID: A", "Class SS2 ID: B"],
+                    "6": ["Class SS3 ID: A", "Class SS3 ID: B"]
+                },
+                "&timings": {
+                    "1": [2, 4],
+                    "2": [2, 4],
+                    "3": [2, 4],
+                    "4": [2, 4],
+                    "5": [2, 4],
+                    "6": [2, 4]
+                }
+            
+                }
+        ]
     }
 
 }
