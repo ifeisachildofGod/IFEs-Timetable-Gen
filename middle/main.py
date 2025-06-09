@@ -2,8 +2,8 @@
 # import time
 import random
 from typing import Union
-from functions import nullCheck#, display_school#, get_clashes#, get_schools_non_optimalism
-from objects import Teacher, Class, Subject, Timetable
+from middle.functions import nullCheck#, display_school#, get_clashes#, get_schools_non_optimalism
+from middle.objects import Teacher, Class, Subject, Timetable
 
 PotentialOptionType = Union[
     dict[str,

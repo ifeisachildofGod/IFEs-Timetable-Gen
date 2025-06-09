@@ -1,3 +1,4 @@
+import random
 import sys
 
 from copy import deepcopy
@@ -268,14 +269,14 @@ class Window(QMainWindow):
                 for subject_id, _ in class_info_entry["subjects"]["content"].items():
                     subject_info[subject_id]["classes"]["id_mapping"]["main"][class_id] = class_info_entry["text"][0]
                     subject_info[subject_id]["classes"]["id_mapping"]["sub"][class_id] = class_info_entry["options"]
-                    subject_info[subject_id]["classes"]["content"][class_id] = {state_id : (
+                    subject_info[subject_id]["classes"]["content"][class_id] = {option_id : (
                         (
-                            subject_info[subject_id]["classes"]["content"][class_id][state_id]
-                            if subject_info[subject_id]["classes"]["content"][class_id].get(state_id) is None else
+                            subject_info[subject_id]["classes"]["content"][class_id][option_id]
+                            if subject_info[subject_id]["classes"]["content"][class_id].get(option_id) is None else
                             False
                         ) if subject_info[subject_id]["classes"]["content"].get(class_id) is not None else
                         False
-                    ) for state_id, _ in class_info_entry["options"].items()}
+                    ) for option_id, _ in class_info_entry["options"].items()}
         
         self.subjects_widget.info = subject_info
     
@@ -423,86 +424,163 @@ class Window(QMainWindow):
     
     def _update_timetable_editor(self):
         subjects_info = self.subjects_widget.get()
+        teachers_info = self.teachers_widget.get()
         classes_info = self.classes_widget.get()
         
         levels = {}
-        for class_index, (_, class_info) in enumerate(classes_info.items()):
+        for class_index, (class_id, class_info) in enumerate(classes_info.items()):
             level = str(class_index + 1)
-            level_info = {option: (self.school.project["levels"][level][0][option] if self._certify_level_info(level, option) else self.default_settings) for option in class_info["options"]}
-            levels[level] = [level_info, class_info["text"][0]]
+            level_info = {class_id + option_id: [option_text, (self.school.project["levels"][level][1][class_id + option_id] if self._certify_level_info(level, option_id) else self.default_settings)] for option_id, option_text in class_info["options"].items()}
+            levels[level] = [class_info["text"][0], level_info]
         
         subjectTeacherMapping = {}
-        for _, class_info in classes_info.items():
-            cls = subjectTeacherMapping[class_info["text"][0]] = {}
-            
-            for subj_id, subj_info in class_info["subjects"]["content"].items():
-                per_day = int(subj_info["per_day"])
-                per_week = int(subj_info["per_week"])
-                teachers_info = subj_info["teachers"]["content"]
+        for subject_id, subject_info in subjects_info.items():
+            teacher_subject_info = {}
+            for class_index, (class_id, class_info) in enumerate(subject_info["classes"].items()):
+                class_subject_info = class_info["content"].get(subject_id)
                 
-                subject_name = subjects_info[subj_id]["text"][0]
-                
-                subject = cls[subject_name] = {}
-                
-                for teacher_name in teachers_info[:teachers_info.index(None)]:
-                    subject[teacher_name] = []
-                
-                subject["&timings"] = {}
-                subject["&classes"] = {}
-                
-                subject_info = {}
-                for _, subject_info in subjects_info.items():
-                    if subject_info["text"][0] == subject_name:
-                        break
-                
-                for cls_id, cls_options in subject_info["classes"]["content"].items():
-                    cls_name = classes_info[cls_id]["text"][0][0]
-                    teachables = list(cls_options.values())
+                if class_subject_info is not None:
+                    level = class_index + 1
                     
-                    if sum(teachables):
-                        for level, (_, level_cls_name) in levels.items():
-                            if level_cls_name == cls_name:
-                                for teacher_name in teachers_info[:teachers_info.index(None)]:
-                                    subject[teacher_name].append(int(level))
-                                subject["&timings"][level] = [per_day, per_week]
-                                if sum(teachables) != len(teachables):
-                                    valid_options = [class_info["options"][class_name_index] for class_name_index, selected in enumerate(teachables) if selected]
-                                    subject["&classes"][level] = valid_options
-                                
-                                break
+                    teacher_none_index = class_info["subjects"]["teachers"]["content"].index(None)
+                    available_teachers = [
+                        (index_id, teachers_info[index_id])
+                        for index, index_id in
+                            class_info["subjects"]["teachers"]["id_mapping"].items()
+                        if index < teacher_none_index
+                    ]
+                    
+                    for teacher_id, teacher_info in available_teachers:
+                        if teacher_id not in teacher_subject_info:
+                            teacher_subject_info[teacher_id] = [teacher_info["text"][0], [level]]
+                        else:
+                            teacher_subject_info[teacher_id][1].append(level)
+                    
+                    if "&timings" not in teacher_subject_info:
+                        teacher_subject_info["&timings"] = {str(level): [int(class_subject_info["per_day"]), int(class_subject_info["per_week"])]}
+                    else:
+                        teacher_subject_info["&timings"][str(level)] = [int(class_subject_info["per_day"]), int(class_subject_info["per_week"])]
+                    valid_options = [option_id for option_id, option_state in subject_info["classes"]["content"][class_id] if option_state]
+                    if len(valid_options) != len(subject_info["classes"]["content"][class_id]):
+                        if "&classes" not in teacher_subject_info:
+                            teacher_subject_info["&classes"] = {str(level): valid_options}
+                        else:
+                            teacher_subject_info["&classes"][str(level)] = valid_options
+            
+            subjectTeacherMapping[subject_id] = (subject_info["text"][0], teacher_subject_info)
+        
+        # subjectTeacherMapping = {}
+        # for _, class_info in classes_info.items():
+        #     cls = subjectTeacherMapping[class_info["text"][0]] = {}
+            
+        #     for subj_id, subj_info in class_info["subjects"]["content"].items():
+        #         per_day = int(subj_info["per_day"])
+        #         per_week = int(subj_info["per_week"])
+        #         teachers_info = subj_info["teachers"]["content"]
                 
-                if not subject["&classes"]:
-                    subject.pop("&classes")
+        #         subject_name = subjects_info[subj_id]["text"][0]
+                
+        #         subject = cls[subject_name] = {}
+                
+        #         for teacher_name in teachers_info[:teachers_info.index(None)]:
+        #             subject[teacher_name] = []
+                
+        #         subject["&timings"] = {}
+        #         subject["&classes"] = {}
+                
+        #         subject_info = {}
+        #         for _, subject_info in subjects_info.items():
+        #             if subject_info["text"][0] == subject_name:
+        #                 break
+                
+        #         for cls_id, cls_options in subject_info["classes"]["content"].items():
+        #             cls_name = classes_info[cls_id]["text"][0][0]
+        #             teachables = list(cls_options.values())
+                    
+        #             if sum(teachables):
+        #                 for level, (_, level_cls_name) in levels.items():
+        #                     if level_cls_name == cls_name:
+        #                         for teacher_name in teachers_info[:teachers_info.index(None)]:
+        #                             subject[teacher_name].append(int(level))
+        #                         subject["&timings"][level] = [per_day, per_week]
+        #                         if sum(teachables) != len(teachables):
+        #                             valid_options = [class_info["options"][class_name_index] for class_name_index, selected in enumerate(teachables) if selected]
+        #                             subject["&classes"][level] = valid_options
+                                
+        #                         break
+                
+        #         if not subject["&classes"]:
+        #             subject.pop("&classes")
         
         subjects = {}
-        for index, (cls_id, class_info) in enumerate(classes_info.items()):
-            level = str(index + 1)
+        school_project_subjects_dict = self.school.project.get("subjects")
+        if school_project_subjects_dict is not None:
+            for subject_id, (subject_name, subject_info) in subjectTeacherMapping.items():
+                subject_level_info = {}
+                classes_taught = {
+                    str(class_index + 1): list(class_info["options"].keys())
+                    for class_index, (_, class_info)
+                    in classes_info
+                } if subject_info.get("&classes") is None else subject_info["&classes"]
+                
+                for level, class_ids in classes_taught:
+                    class_teacher_mapping = {}
+                    for class_id in class_ids:
+                        teacher_info_from_project = school_project_subjects_dict[subject_id][1][level][2].get(class_id)
+                        if teacher_info_from_project is not None:
+                            class_teacher_mapping[class_id] = teacher_info_from_project
+                        else:
+                            all_available_class_teachers = classes_info[class_id]["subjects"]["content"][subject_id]["teachers"]
+                            available_teachers_none_index = all_available_class_teachers["content"].index(None)
+                            all_available_teacher_indexes = [
+                                index
+                                for index
+                                in list(all_available_class_teachers["id_mapping"].keys())
+                                if index < available_teachers_none_index
+                            ]
+                            if random.choice([True, False, False, False, False]):
+                                random.shuffle(all_available_teacher_indexes)
+                            
+                            teacher_name = all_available_class_teachers["content"][all_available_teacher_indexes[0]]
+                            teacher_id = all_available_class_teachers["id_mapping"][all_available_teacher_indexes[0]]
+                            
+                            class_teacher_mapping[class_id] = [[teacher_name, teacher_id], []]
+                        
+                    per_day, per_week = subject_info["&timings"][level]
+                    subject_level_info[level] = (per_day, per_week, class_teacher_mapping)
+                
+                subjects[subject_id] = [subject_name, subject_level_info]
             
-            for subj_id, subj_info in class_info["subjects"]["content"].items():
-                per_day = subj_info["per_day"]
-                per_week = subj_info["per_week"]
-                teachers_info = subj_info["teachers"]["content"]
+            # subjects = {}
+            # for index, (cls_id, class_info) in enumerate(classes_info.items()):
+            #     level = str(index + 1)
                 
-                subject_name = subjects_info[subj_id]["text"][0]
-                
-                valid_teachers = []
-                option_teacher_mapping = {}
-                for optionIndex, (option_id, option) in enumerate(class_info["options"].items()):
-                    for _, subject_info in subjects_info.items():
-                        if subject_name == subject_info["text"][0] and subject_info["classes"]["content"][cls_id][option_id]:
-                            if not valid_teachers:
-                                valid_teachers = [t for t in teachers_info[:teachers_info.index(None)]]
-                            option_teacher_mapping[option] = valid_teachers.pop()
-                            break
-                
-                subjects[subject_name] = {}
-                subjects[subject_name][level] = [int(per_day), int(per_week), option_teacher_mapping]
-        
+            #     for subj_id, subj_info in class_info["subjects"]["content"].items():
+            #         per_day = subj_info["per_day"]
+            #         per_week = subj_info["per_week"]
+            #         teachers_info = subj_info["teachers"]["content"]
+                    
+            #         subject_name = subjects_info[subj_id]["text"][0]
+                    
+            #         valid_teachers = []
+            #         option_teacher_mapping = {}
+            #         for optionIndex, (option_id, option) in enumerate(class_info["options"].items()):
+            #             for _, subject_info in subjects_info.items():
+            #                 if subject_name == subject_info["text"][0] and subject_info["classes"]["content"][cls_id][option_id]:
+            #                     if not valid_teachers:
+            #                         valid_teachers = [t for t in teachers_info[:teachers_info.index(None)]]
+            #                     option_teacher_mapping[option] = valid_teachers.pop()
+            #                     break
+                    
+            #         subjects[subject_name] = {}
+            #         subjects[subject_name][level] = [int(per_day), int(per_week), option_teacher_mapping]
+            
         self.project = {
             "levels": levels,
-            "subjectTeacherMapping": subjectTeacherMapping,
-            "subjects": subjects
+            "subjectTeacherMapping": subjectTeacherMapping
         }
+        if subjects:
+            self.project["subjects"] = subjects
         
         self.school = School(self.project)
         self.timetable_widget.set_editor_from_school(self.school)

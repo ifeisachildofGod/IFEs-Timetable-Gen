@@ -2,7 +2,7 @@ import random
 from typing import Any
 
 from matplotlib.cbook import flatten
-from functions import findClashes
+from middle.functions import findClashes
 
 class Subject:
     def __init__(self, _id: str, name: str, total: int, perWeek: int, teacher: 'Teacher') -> None:
