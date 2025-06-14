@@ -129,6 +129,9 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# Editor
+.vscode/
+
 # Miscelaneous:
 testing_code_im_not_sure_of.py
 style_testing.css
