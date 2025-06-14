@@ -1,10 +1,10 @@
-# import json
-# import time
+import time
+import json
 import random
 from typing import Union
-from middle.functions import nullCheck#, display_school#, get_clashes#, get_schools_non_optimalism
+from matplotlib.cbook import flatten
 from middle.objects import Teacher, Class, Subject, Timetable
-
+# 
 PotentialOptionType = Union[
     dict[str,
          tuple[str, dict[str,
@@ -41,7 +41,57 @@ class School:
         
         self.setSchoolInfoFromProjectDict()
     
-    def _findClashes(self, subject: Subject, day: str, period: int, cls: Class):
+    def _nullCheck(self, value, null_replacement):
+        if value is None:
+            return null_replacement
+        return value
+    
+    def _getSubjects(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]], classTimetableSubjectMappingCoords: dict[int, dict[str, tuple[int, int]]]):
+        subjects = {}
+        
+        for subjectID, (subjectName, subjectInfo) in mappings.items():
+            subjects[subjectID] = [subjectName, {}]
+            
+            for index in range(len(classOptions)):
+                teachersMapping = {}
+                availableTeachers = []
+                for potAvailableTeacherID, potAvailableTeacherData in subjectInfo.items():
+                    if not potAvailableTeacherID.startswith("&"):
+                        potAvailableTeacherName, indexOfClassLevelsTaught = potAvailableTeacherData
+                        if index in indexOfClassLevelsTaught:
+                            availableTeachers.append((potAvailableTeacherID, potAvailableTeacherName))
+                
+                if len(availableTeachers):
+                    if random.choice([True, False, False, False, False]):
+                        random.shuffle(availableTeachers)
+                    
+                    options = classOptions[index]
+                    classesOptions = subjectInfo.get("&classes")
+                    if classesOptions is not None:
+                        options = classesOptions.get(str(index))
+                    
+                    optionIndex = 0
+                    for optionID in self._nullCheck(options, classOptions[index]):
+                        if optionID in classOptions[index]:
+                            teacherData = availableTeachers[optionIndex % len(availableTeachers)]
+                            
+                            coords = []
+                            coordsSubjectsView = classTimetableSubjectMappingCoords.get(index)
+                            if coordsSubjectsView is not None:
+                                coordsSubjectTeacherView = coordsSubjectsView.get(subjectID)
+                                if coordsSubjectTeacherView is not None:
+                                    coords = coordsSubjectTeacherView.get(teacherData[0])
+                            
+                            teachersMapping[optionID] = [teacherData, coords]
+                            optionIndex += 1
+                    
+                    timings = subjectInfo.get("&timings")[str(index)]
+                    
+                    subjects[subjectID][1][str(index)] = [timings[0], timings[1], teachersMapping]
+
+        return subjects
+    
+    def findClashes(self, subject: Subject, day: str, period: int, cls: Class):
         clashes = []
         
         for ttCls, timetable in self.schoolDict.items():
@@ -53,52 +103,7 @@ class School:
         
         return clashes
     
-    def _getSubjects(self, levels: list[int], classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]], classTimetableSubjectMappingCoords: dict[int, dict[str, tuple[int, int]]]):
-        subjects = {}
-        
-        for subjectID, (subjectName, subjectInfo) in mappings.items():
-            subjects[subjectID] = [subjectName, {}]
-            
-            for level in levels:
-                teachersMapping = {}
-                availableTeachers = []
-                for potAvailableTeacherID, potAvailableTeacherData in subjectInfo.items():
-                    if not potAvailableTeacherID.startswith("&"):
-                        potAvailableTeacherName, levelsTaught = potAvailableTeacherData
-                        if level in levelsTaught:
-                            availableTeachers.append((potAvailableTeacherID, potAvailableTeacherName))
-                
-                if len(availableTeachers):
-                    if random.choice([True, False, False, False, False]):
-                        random.shuffle(availableTeachers)
-                    
-                    options = classOptions[str(level)]
-                    classesOptions = subjectInfo.get("&classes")
-                    if classesOptions is not None:
-                        options = classesOptions.get(str(level))
-                    
-                    optionIndex = 0
-                    for optionID in nullCheck(options, classOptions[str(level)]):
-                        if optionID in classOptions[str(level)]:
-                            teacherData = availableTeachers[optionIndex % len(availableTeachers)]
-                            
-                            coords = []
-                            coordsSubjectsView = classTimetableSubjectMappingCoords.get(level)
-                            if coordsSubjectsView is not None:
-                                coordsSubjectTeacherView = coordsSubjectsView.get(subjectID)
-                                if coordsSubjectTeacherView is not None:
-                                    coords = coordsSubjectTeacherView.get(teacherData[0])
-                            
-                            teachersMapping[optionID] = [teacherData, coords]
-                            optionIndex += 1
-                    
-                    timings = subjectInfo.get("&timings")[str(level)]
-                    
-                    subjects[subjectID][1][str(level)] = [timings[0], timings[1], teachersMapping]
-
-        return subjects
-    
-    def get_clashes(self):
+    def getClashes(self):
         clashes = {}
         
         for cls, timetable in self.schoolDict.items():
@@ -106,7 +111,7 @@ class School:
                 for subjectIndex, subject in enumerate(subjects):
                     if subject.teacher is not None:
                         period = sum([subj.total for subj in subjects[:subjectIndex]]) + 1
-                        clash = self._findClashes(subject, day, period, cls)
+                        clash = self.findClashes(subject, day, period, cls)
                         if clash:
                             if clashes.get(subject) is None:
                                 clashes[subject] = []
@@ -129,40 +134,40 @@ class School:
             self.generateTimetable(cls)
     
     def setSchoolInfoFromProjectDict(self):
-        levels = [int(level) for level in self.project['levels'].keys()]
-        
         classIDNameMapping = {}
-        for _, (_, levelInfo) in self.project["levels"].items():
+        for _, levelInfo in self.project['levels']:
             for classID, (className, _) in levelInfo.items():
                 classIDNameMapping[classID] = className
         
-        classOptions = {level : [_id for _id, _ in classInfo.items()] for level, (_, classInfo) in self.project['levels'].items()}
-        periods = {level : {_id: p for _id, (_, (p, _, _)) in classInfo.items()} for level, (_, classInfo) in self.project['levels'].items()}
-        breakperiods = {level : {_id: b for _id, (_, (_, b, _))  in classInfo.items()} for level, (_, classInfo) in self.project['levels'].items()}
-        weekdays = {level : {_id: w for _id, (_, (_, _, w))  in classInfo.items()} for level, (_, classInfo) in self.project['levels'].items()}
-        levelNames = [name for name, _ in self.project['levels'].values()]
+        classOptions = [[_id for _id, _ in classInfo.items()] for _, classInfo in self.project['levels']]
+        periods = [{_id: p for _id, (_, (p, _, _)) in classInfo.items()} for _, classInfo in self.project['levels']]
+        breakperiods = [{_id: b for _id, (_, (_, b, _))  in classInfo.items()} for _, classInfo in self.project['levels']]
+        weekdays = [{_id: w for _id, (_, (_, _, w))  in classInfo.items()} for _, classInfo in self.project['levels']]
+        levelNames = [name for name, _ in self.project['levels']]
+        
         classTimetableSubjectMappingCoords = {}
         
         subject = self.project.get("subjects")
-        
         if subject is not None:
             for subjectID, (subjectName, subjectInfo) in subject.items():
-                for level, (_, _, subjectLevelInfo) in subjectInfo.items():
+                for index, (_, _, subjectLevelInfo) in subjectInfo.items():
                     for classID, ((teacherID, _), coords) in subjectLevelInfo.items():
-                        if level not in classTimetableSubjectMappingCoords:
-                            classTimetableSubjectMappingCoords[level] = {}
+                        if index not in classTimetableSubjectMappingCoords:
+                            classTimetableSubjectMappingCoords[index] = {}
                         else:
-                            if subjectID not in classTimetableSubjectMappingCoords[level]:
-                                classTimetableSubjectMappingCoords[level][subjectID] = {}
+                            if subjectID not in classTimetableSubjectMappingCoords[index]:
+                                classTimetableSubjectMappingCoords[index][subjectID] = {}
                             else:
-                                classTimetableSubjectMappingCoords[level][subjectID][teacherID] = coords
+                                classTimetableSubjectMappingCoords[index][subjectID][teacherID] = coords
         
-        subjects = self.project["subjects"] = nullCheck(subject, self._getSubjects(levels, classOptions, self.project["subjectTeacherMapping"], classTimetableSubjectMappingCoords))
+        subjects = self.project["subjects"] = self._nullCheck(subject, self._getSubjects(classOptions, self.project["subjectTeacherMapping"], classTimetableSubjectMappingCoords))
         
         for subjectID, (subjectName, subjectInfo) in subjects.items():
-            for level, (perDay, perWeek, classTeacherMapping) in subjectInfo.items():
+            for index, (perDay, perWeek, classTeacherMapping) in subjectInfo.items():
                 for classID, ((teacherID, teachersName), _) in classTeacherMapping.items():
-                    uniqueClassID = classID + level
+                    index = int(index)
+                    
+                    uniqueClassID = classID + str(index + 1)
                     
                     subj = Subject(subjectID, subjectName, perDay, perWeek, None)
                     
@@ -177,17 +182,15 @@ class School:
                         cls.subjects.append(subj)
                         cls.timetable.subjects.append(subj)
                     else:
-                        self.classes[uniqueClassID] = cls = Class(int(level), classID, classIDNameMapping[classID], [subj], periods[level][classID], levelNames, self, self.schoolDict, self.teachers, self.classes, weekdays[level][classID], breakperiods[level][classID])
+                        self.classes[uniqueClassID] = cls = Class(index, classID, classIDNameMapping[classID], [subj], periods[index][classID], levelNames, self, self.schoolDict, self.teachers, weekdays[index][classID], breakperiods[index][classID])
                     
                     teacher.subjects[subj] = cls
     
     def setProjectDictFromSchoolInfo(self):
-        levels = {}
+        classLevels = []
         
         class_timetable_subject_teacher_mapping_coords = {}
-        for _, cls in self.classes.items():
-            level = str(cls.level)
-            
+        for _, cls in sorted(self.classes.items(), key=(lambda c: self.classes[c[0]].index)):
             timetable_subject_mapping_coords = {}
             for day_index, (_, table) in enumerate(cls.timetable.table.items()):
                 period = 1
@@ -202,12 +205,12 @@ class School:
                             
                             period += 1
                 
-            class_timetable_subject_teacher_mapping_coords[cls.level] = timetable_subject_mapping_coords
+            class_timetable_subject_teacher_mapping_coords[cls.index] = timetable_subject_mapping_coords
             
-            if levels.get(level) is None:
-                levels[level] = [cls.namingConvention[cls.level - 1], {cls.classID: [cls.className, [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]]}]
+            if cls.index != len(classLevels):
+                classLevels[cls.index][1][cls.classID] = [cls.className, [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]]
             else:
-                levels[level][1][cls.classID] = [cls.className, [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]]
+                classLevels.append([cls.namingConvention[cls.index], {cls.classID: [cls.className, [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]]}])
         
         subjectTeacherMapping = {}
         for t_id, teacher in self.teachers.items():
@@ -216,26 +219,26 @@ class School:
                     subjectTeacherMapping[subject.id] = [subject.name, {"&timings": {}, "&classes": {}}]
                 
                 if subjectTeacherMapping[subject.id][1].get(t_id) is None:
-                    subjectTeacherMapping[subject.id][1][t_id] = [teacher.name, [cls.level]]
+                    subjectTeacherMapping[subject.id][1][t_id] = [teacher.name, [cls.index]]
                 else:
-                    subjectTeacherMapping[subject.id][1][t_id][1].append(cls.level)
+                    subjectTeacherMapping[subject.id][1][t_id][1].append(cls.index)
                 
                 subjectTeacherMapping[subject.id][1][t_id][1] = list(set(subjectTeacherMapping[subject.id][1][t_id][1]))
                 
-                if subjectTeacherMapping[subject.id][1]["&classes"].get(str(cls.level)) is None:
-                    subjectTeacherMapping[subject.id][1]["&classes"][str(cls.level)] = [cls.classID]
+                if subjectTeacherMapping[subject.id][1]["&classes"].get(str(cls.index)) is None:
+                    subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)] = [cls.classID]
                 else:
-                    subjectTeacherMapping[subject.id][1]["&classes"][str(cls.level)].append(cls.classID)
+                    subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)].append(cls.classID)
                 
-                subjectTeacherMapping[subject.id][1]["&classes"][str(cls.level)] = list(set(subjectTeacherMapping[subject.id][1]["&classes"][str(cls.level)]))
+                subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)] = list(set(subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)]))
                 
-                if subjectTeacherMapping[subject.id][1]["&timings"].get(str(cls.level)) is None:
-                    subjectTeacherMapping[subject.id][1]["&timings"][str(cls.level)] = [subject.TOTAL, subject.PERWEEK]
+                if subjectTeacherMapping[subject.id][1]["&timings"].get(str(cls.index)) is None:
+                    subjectTeacherMapping[subject.id][1]["&timings"][str(cls.index)] = [subject.TOTAL, subject.PERWEEK]
         
         for subjectID, (_, subjectInfo) in subjectTeacherMapping.items():
-            for level, validClasses in {k: v for k, v in subjectInfo["&classes"].items()}.items():
-                if len(validClasses) == len(levels[level][1]):
-                    subjectInfo["&classes"].pop(level)
+            for index, validClasses in subjectInfo["&classes"].copy().items():
+                if len(validClasses) == len(classLevels[int(index)][1]):
+                    subjectInfo["&classes"].pop(index)
             
             if not subjectInfo["&classes"]:
                 subjectInfo.pop("&classes")
@@ -257,22 +260,22 @@ class School:
                     subjectLevelInfo = [subject.TOTAL, subject.PERWEEK, {cls.classID: subjectLevelClassInfo}]
                     
                     if subject.id not in subjects:
-                        subjects[subject.id] = [subject.name, {str(cls.level): subjectLevelInfo}]
+                        subjects[subject.id] = [subject.name, {str(cls.index): subjectLevelInfo}]
                     else:
-                        if str(cls.level) not in subjects[subject.id][1]:
-                            subjects[subject.id][1][str(cls.level)] = subjectLevelInfo
+                        if str(cls.index) not in subjects[subject.id][1]:
+                            subjects[subject.id][1][str(cls.index)] = subjectLevelInfo
                         else:
-                            subjects[subject.id][1][str(cls.level)][2][cls.classID] = subjectLevelClassInfo
+                            subjects[subject.id][1][str(cls.index)][2][cls.classID] = subjectLevelClassInfo
         
         self.project = {
-            "levels": levels, 
+            'levels': classLevels, 
             "subjectTeacherMapping": subjectTeacherMapping,
             "subjects": subjects
         }
     
     def setTimetableFromProjectDict(self):
         for subjectID, (subjectName, subjectInfo) in self.project["subjects"].items():
-            for level, (perDay, perWeek, classTeacherCoordsMapping) in subjectInfo.items():
+            for _, (perDay, perWeek, classTeacherCoordsMapping) in subjectInfo.items():
                 for classID, ((teacherID, _), coords) in classTeacherCoordsMapping.items():
                     for _, cls in self.classes.items():
                         teacherInClass = {teacher for teacher in cls.teachers if teacher.id == teacherID}
@@ -326,77 +329,189 @@ class School:
                                         cls.timetable.table[daysOfTheWeek[dayIndex]].remove(subject)
                             
                             break
+
+def _display_school(school, drawType: int = 1):
+    if drawType == 1:
+        for cls, timetable in school.items():
+            print(f"| {cls.name} |")
+            
+            for day, todaysSubjects in timetable.table.items():
+                subjectsContent = [subjs.get() for subjs in todaysSubjects]
+                
+                print(day, ":", ", ".join(list(flatten(subjectsContent))))
+            
+            for subject in timetable.remainderContent:
+                index = timetable.remainderContent.index(subject)
+                if index == 0:
+                    print()
+                    print("Extras:", end=' ')
+                print(subject.name, subject.perWeek, end=', ' if index < len(timetable.remainderContent) - 1 else '')
+            
+            print("\n")
     
-    # The commented functions below are to be reviewed as to whether they will be used at all or not
+    elif drawType == 2:
+        for day in school.weekdays:
+            print()
+            print(f"| {day} |")
+            print()
+            for cls, timetable in school.items():
+                for timetableDay, todaysSubjects in timetable.table.items():
+                    if day == timetableDay:
+                        subjectsContent = [subjs.get() for subjs in todaysSubjects]
+                        print(f"{cls.name}: {str(subjectsContent).replace('[', '').replace(']', '').replace("'", '')}")
+                        break
     
-    # def updateSubject(self, className: str, day: str, subjectIndex: int, s_name: str, s_total: int, s_lockedPeriod: list[int, int] | None, s_teacher_name: int):
-    #     subject = self.classes[className].timetable.table[day][subjectIndex]
-    #     teacher = subject.teacher
+    elif drawType == 3:
+        clashesDict = {}
+        for day in school.weekdays:
+            clashesDict[day] = {}
+            for _, timetable in school.items():
+                for timetableDay, todaysSubjects in timetable.table.items():
+                    if day == timetableDay:
+                        subjectsContent = []
+                        todaysSubjects
+                        
+                        for subjs in todaysSubjects:
+                            subjectsContent += [subjs.name + ", " + (subjs.teacher.name if subjs.teacher is not None else "null") + ", " + timetable.cls.name for _ in range(subjs.total)]
+                            # subjectsContent += [(subjs.teacher.name if subjs.teacher is not None else None) for _ in range(subjs.total)]
+                            # print(subjs.name)
+                        
+                        for subjIndex, subj in enumerate(subjectsContent):
+                            if clashesDict[day].get(subjIndex) is not None:
+                                clashesDict[day][subjIndex].append(subj)
+                            else:
+                                clashesDict[day][subjIndex] = [subj]
+                        break
+        for day, periodClashes in clashesDict.items():
+            print("_" * 40)
+            print(day)
+            print("_" * 40)
+            for clashIndex, clash in periodClashes.items():
+                print()
+                print(f"Period {clashIndex + 1}")
+                print()
+                print(json.dumps(clash, indent=2))
+
+    elif drawType == 4:
+        nonoptimaltimetable = {}
         
-    #     subject.name = s_name
-    #     subject.total = s_total
-    #     subject.lockedPeriod = s_lockedPeriod
+        for cls, timetable in school.items():
+            totalSubjectsAmt = sum(timetable.periodsPerDay)
+            timeTableSubjectsAmt = sum([subject.perWeek for subject in timetable._subjects]) + len(timetable.weekInfo)
+            totalRemainingSubjectsAmt = len(timetable.remainderContent)
+            
+            if max(timeTableSubjectsAmt - totalSubjectsAmt, 0) != totalRemainingSubjectsAmt:
+                nonoptimaltimetable[cls] = timetable.remainderContent
+                print(f"Couldn't get the perfect timetable combination for {timetable.cls.name} after all {timetable._perfectTimetableCounter + 1} tries")
+            else:
+                print(f"Found the perfect time table for {timetable.cls.name} after {timetable._perfectTimetableCounter + 1} {'tries' if timetable._perfectTimetableCounter else 'try'}")
         
-    #     if teacher.name != s_teacher_name:
-    #         self.classes[teacher.subjects.pop(subject).name].teachers.pop(teacher)
-    #         teacher = self.teachers[s_teacher_name]
+        return nonoptimaltimetable
+
+def test():
+    orig_time = time.time()
+
+    with open("../res/project.json") as file:
+        project = json.load(file)
+
+    print(f"Project loaded after {time.time() - orig_time} seconds")
+    print()
     
-    # def updateTeacher(self, teacherName: str, t_name: str):
-    #     teacher = self.teachers[teacherName]
-        
-    #     teacher.name = t_name
     
-    # def updateClass(self, className: str, c_name: str):
-    #     cls = self.classes[className]
-        
-    #     cls.name = c_name
+    print("-------------------------------------------")
+    print("|------TESTING SCHOOL INITIALIZATION------|")
+    print("-------------------------------------------")
+    
+    print()
+    print("Initialising School....")
 
+    orig_time = time.time()
 
+    school = School(project)
 
-# orig_time = time.time()
+    print()
+    print(f"School initialised after {time.time() - orig_time} seconds")
+    print()
+    print()
+    
+    print("-------------------------------------------")
+    print("|--------TESTING SCHOOL GENERATION--------|")
+    print("-------------------------------------------")
+    
+    orig_time = time.time()
+    
+    print()
+    print("Generating School....")
+    
+    school.generateNewSchoolTimetables()
 
-# with open("../res/project.json") as file:
-#     project = json.load(file)
+    print()
+    print(f"School generated after {time.time() - orig_time} seconds")
+    print()
+    print()
+    
+    print("-------------------------------------------")
+    print("|-----TESTING PROJECTS INITIALIZATION-----|")
+    print("-------------------------------------------")
+    
+    print()
+    print(f"Setting project from school....")
 
-# print(f"Project loaded in {time.time() - orig_time} seconds")
-# print()
-# print("Generating School....")
+    orig_time = time.time()
 
-# orig_time = time.time()
+    school.setProjectDictFromSchoolInfo()
 
-# school = School(project)
+    print()
+    print(f"Project set from school after {time.time() - orig_time} seconds")
+    print()
+    print()
+    
+    print("-------------------------------------------")
+    print("|---------TESTING SCHOOLS SETTING---------|")
+    print("-------------------------------------------")
+    
+    print()
+    print(f"Setting school from project....")
 
-# print()
-# print(f"School initialised in {time.time() - orig_time} seconds")
-# print()
+    orig_time = time.time()
 
-# orig_time = time.time()
+    school.setSchoolInfoFromProjectDict()
 
-# school.generateNewSchoolTimetables()
+    print()
+    print(f"School set from project after {time.time() - orig_time} seconds")
+    print()
+    print()
+    
+    print("-------------------------------------------")
+    print("|--TESTING GENRATING SCHOOL FROM PROJECT--|")
+    print("-------------------------------------------")
+    
+    print()
+    print(f"Generating school from project....")
+    orig_time = time.time()
+    
+    school.generateNewSchoolTimetables()
 
-# print()
-# print(f"School generated in {time.time() - orig_time} seconds")
-# print()
+    print()
+    print(f"School generated after {time.time() - orig_time} seconds")
+    print()
+    print()
 
-# print(f"Setting project from school....")
-# print()
+    print("-------------------------------------------")
+    print("|------------DISPLAYING SCHOOL------------|")
+    print("-------------------------------------------")
+    
+    print()
+    print("Displaying school....")
+    
+    orig_time = time.time()
+    # get_clashes(school.school)
+    _display_school(school.schoolDict)
 
-# orig_time = time.time()
+    print()
+    print(f"School displayed after {time.time() - orig_time} seconds")
+    print()
 
-# school.setProjectDictFromSchoolInfo()
+if __name__ == "__main__":
+    test()
 
-# print()
-# print(f"Project set from school in {time.time() - orig_time} seconds")
-# print()
-
-# orig_time = time.time()
-
-# school.setSchoolInfoFromProjectDict()
-# school.generateNewSchoolTimetables()
-
-# print()
-# print(f"School generated in {time.time() - orig_time} seconds")
-# print()
-
-# # get_clashes(school.school)
-# display_school(school.schoolDict)

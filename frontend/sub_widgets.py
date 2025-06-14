@@ -30,8 +30,8 @@ class SelectionList(QDialog):
         self.unselected_widgets = []
         self.separators = []
         
-        self.contents = info["content"]
-        self.id_mappings = deepcopy(info["id_mapping"])
+        self.content = info["content"]
+        self.id_mapping = deepcopy(info["id_mapping"])
         
         main_layout = QVBoxLayout(self)
         
@@ -49,13 +49,13 @@ class SelectionList(QDialog):
         main_layout.addWidget(self.scroll_area)
         
         # Initialize widgets
-        split_index = self.contents.index(None)
-        selected_items = self.contents[:split_index]
-        unselected_items = self.contents[split_index+1:]
+        split_index = self.content.index(None)
+        selected_items = self.content[:split_index]
+        unselected_items = self.content[split_index+1:]
         
         # Add selected items
         for index, item in enumerate(selected_items):
-            widget = SelectedWidget(item, self, self.id_mappings, index)
+            widget = SelectedWidget(item, self, self.id_mapping, self.id_mapping[index])
             self.add_item(widget)
             self.selected_widgets.append(widget)
             if item != selected_items[-1]:
@@ -67,25 +67,26 @@ class SelectionList(QDialog):
         
         # Add unselected items
         for index, item in enumerate(unselected_items):
-            widget = UnselectedWidget(item, self, self.id_mappings, index + len(self.selected_widgets) + 1)
+            widget = UnselectedWidget(item, self, self.id_mapping, self.id_mapping[index + len(selected_items) + 1])
             self.add_item(widget)
             self.unselected_widgets.append(widget)
             if item != unselected_items[-1]:
                 self.add_separator(self.normal_line_thickness, isSelected=False)
     
     def get(self):
-        selected = []
-        unselected = []
+        content = []
         
         for widget in self.selected_widgets:
             if isinstance(widget, SelectedWidget):
-                selected.append(widget.label.text())
+                content.append(widget.label.text())
+        
+        content.append(None)
         
         for widget in self.unselected_widgets:
             if isinstance(widget, UnselectedWidget):
-                unselected.append(widget.label.text())
+                content.append(widget.label.text())
         
-        return {"content": selected + [None] + unselected, "id_mapping": self.id_mappings}
+        return {"content": content, "id_mapping": self.id_mapping}
     
     def add_item(self, custom_widget, index: int = None):
         if index is not None:# or self.selected_widgets + self.unselected_widgets:
@@ -245,6 +246,7 @@ class DropDownCheckBoxes(QDialog):
         container_layout.addStretch()
     
     def get(self):
+        print({"content": self.content, "id_mapping": self.id_mapping})
         return {"content": self.content, "id_mapping": self.id_mapping}
     
     def make_open_dp_func(self, class_id: str, parent_layout: QVBoxLayout, options: dict[str, bool]):
@@ -342,7 +344,7 @@ class DropDownCheckBoxes(QDialog):
         return checkbox_func
 
 class SubjectSelection(QDialog):
-    def __init__(self, title: str, info: dict[str, dict[str, str | None | list[str | None]] | dict[int, str]], available_subject_teachers: dict[str, list[str | None]]):
+    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], default_per_day: int, default_per_week: int):
         super().__init__()
         
         self.setStyleSheet(THEME[SUBJECT_SELECTION])
@@ -350,13 +352,16 @@ class SubjectSelection(QDialog):
         self.setWindowTitle(title)
         self.setFixedSize(600, 400)
         
+        self.default_per_day = default_per_day
+        self.default_per_week = default_per_week
+        
         self.content = info["content"]
         self.id_mapping = info["id_mapping"]
+        self.available_subject_teachers = info["available_subject_teachers"]
         
-        self.available_subject_teachers = available_subject_teachers
         self.subjects = [subject_info["name"] for _, subject_info in self.available_subject_teachers.items()]
         
-        self.dp_tracker = []
+        self.dp_tracker: dict[str, QComboBox] = {}
         self.teacher_buttons: list[QPushButton] = []
         
         self.subject_amount = 0
@@ -395,14 +400,14 @@ class SubjectSelection(QDialog):
             (
                 index_id
                 for index, (index_id, _) in enumerate(self.available_subject_teachers.items())
-                if index not in [dp.currentIndex() for _, dp in self.dp_tracker]
+                if index not in [dp.currentIndex() for dp in self.dp_tracker.values()]
             )
         )
         
-        self.add_subject(subject_id, {"per_day": "2", "per_week": "4", "teachers": self.available_subject_teachers[subject_id]["teachers"]})
+        self.add_subject(subject_id, {"per_day": str(self.default_per_day), "per_week": str(self.default_per_week), "teachers": self.available_subject_teachers[subject_id]["teachers"]})
     
     def get(self):
-        return {"content": self.info, "id_mapping": self.id_mapping}
+        return {"content": self.info, "id_mapping": self.id_mapping, "available_subject_teachers": self.available_subject_teachers}
     
     def add_subject(self, subject_id: str, info: dict):
         selection_widget = QWidget()
@@ -418,9 +423,9 @@ class SubjectSelection(QDialog):
             subjects_dp.setDisabled(True)
         
         subjects_dp.setCurrentIndex(next((s_i for s_i, s_id in self.id_mapping.items() if s_id == subject_id)))
-        subjects_dp.currentIndexChanged.connect(self.make_dp_clicked_func(len(self.dp_tracker)))
-        # subjects_dp.currentIndexChanged.connect(self.make_dp_destroy_func(subjects_dp))
-        self.dp_tracker.append((subject_id, subjects_dp))
+        subjects_dp.currentIndexChanged.connect(self.make_dp_clicked_func(subject_id))
+        subjects_dp.currentIndexChanged.connect(self.make_dp_destroy_func(subjects_dp))
+        self.dp_tracker[subject_id] = subjects_dp
         
         sub_layout = QHBoxLayout()
         
@@ -430,13 +435,13 @@ class SubjectSelection(QDialog):
         per_day_edit = NumberTextEdit()
         per_day_edit.edit.setFixedWidth(50)
         per_day_edit.edit.setPlaceholderText("Per day")
-        per_day_edit.edit.setText("2")
+        per_day_edit.edit.setText(info["per_day"])
         per_day_edit.edit.textChanged.connect(self.make_text_changed_func(subject_id, "per_day", per_day_edit))
         
         per_week_edit = NumberTextEdit()
         per_week_edit.edit.setFixedWidth(54)
         per_week_edit.edit.setPlaceholderText("Per week")
-        per_week_edit.edit.setText("4")
+        per_week_edit.edit.setText(info["per_week"])
         per_week_edit.edit.textChanged.connect(self.make_text_changed_func(subject_id, "per_week", per_week_edit))
         
         teacher_button = QPushButton("Teachers")
@@ -449,20 +454,20 @@ class SubjectSelection(QDialog):
         sub_layout.addWidget(per_week_edit, alignment=Qt.AlignmentFlag.AlignLeft)
         sub_layout.addWidget(teacher_button, alignment=Qt.AlignmentFlag.AlignLeft)
         
-        widget = SelectedWidget(selection_widget, self.container_layout, {}, len(self.dp_tracker) - 1)
+        widget = SelectedWidget(selection_widget, self.container_layout)
         widget.setFixedHeight(100)
-        widget.delete_button.clicked.connect(self.make_dp_destroy_func(len(self.dp_tracker) - 1))
+        widget.delete_button.clicked.connect(self.make_dp_destroy_func(subject_id))
         
         self.container_layout.insertWidget(0, widget, alignment=Qt.AlignmentFlag.AlignTop)
         
-        if info["per_day"] is not None:
-            per_day_edit.edit.setText(info["per_day"])
-        if info["per_week"] is not None:
-            per_week_edit.edit.setText(info["per_week"])
+        # if info["per_day"] is not None:
+        #     per_day_edit.edit.setText(info["per_day"])
+        # if info["per_week"] is not None:
+        #     per_week_edit.edit.setText(info["per_week"])
         
         self.info[subject_id] = info
         
-        if len(self.dp_tracker) >= len(self.subjects):
+        if len(self.dp_tracker) == len(self.subjects):
             self.add_button.setDisabled(True)
     
     def make_temp_show_teacher_popup_func(self, subject_id: str):
@@ -485,46 +490,44 @@ class SubjectSelection(QDialog):
         
         return text_changed_func
 
-    def make_dp_clicked_func(self, dp_tracker_index: int):
+    def make_dp_clicked_func(self, subject_id: str):
         def dp_clicked_func(index):
             # Store the current text before changing
-            
-            subject_id, _ = self.dp_tracker[dp_tracker_index]
-            
-            for odp_index, (old_subject_id, odp) in enumerate(self.dp_tracker):
+            for old_subject_id, odp in self.dp_tracker.copy().items():
                 if old_subject_id != subject_id and odp.currentIndex() == index:
                     widget = odp.parent().parent()
                     self.container_layout.removeWidget(widget)
                     widget.deleteLater()
-                    self.dp_tracker.pop(odp_index)
+                    self.dp_tracker.pop(old_subject_id)
                     
                     if self.info.get(old_subject_id) is not None:
                         self.info.pop(old_subject_id)
                         self.add_button.setDisabled(False)
-                        self.dp_tracker[dp_tracker_index][0] = old_subject_id
+                        self.dp_tracker[subject_id] = odp
                     
                     self.info[old_subject_id] = self.info.pop(subject_id)
                     # self._set_list_value(self.info, dp, self._pop_list_value(self.info, old_text))
                     break
             else:
-                self.dp_tracker[dp_tracker_index][0] = self.id_mapping[index]
+                self.dp_tracker[self.id_mapping[index]] = self.dp_tracker.pop(subject_id)
                 self.info[self.id_mapping[index]] = self.info.pop(subject_id)
         
         return dp_clicked_func
 
-    def make_dp_destroy_func(self, dp_tracker_index: int):
+    def make_dp_destroy_func(self, subject_id: str):
         def dp_destroy_func():
             self.add_button.setDisabled(False)
-            self.info.pop(self.dp_tracker[dp_tracker_index][0])
-            self.dp_tracker.pop(dp_tracker_index)
+            self.info.pop(subject_id)
+            self.dp_tracker.pop(subject_id)
         
         return dp_destroy_func
 
 class OptionSelection(QDialog):
-    def __init__(self, title: str, info: list[str]):
+    def __init__(self, title: str, info: dict[str, str]):
         super().__init__()
+        self.title = title
         
-        self.setWindowTitle(title)
+        self.setWindowTitle(self.title)
         
         self.info = info
         self.options = []
@@ -556,8 +559,8 @@ class OptionSelection(QDialog):
         del temp_option
         
         # Load existing options
-        for option in self.info:
-            self.add_option(option)
+        for option_id, option_name in self.info.items():
+            self.add_option(option_id, option_name)
         
         self.setStyleSheet("""
             QDialog {
@@ -582,13 +585,23 @@ class OptionSelection(QDialog):
             )
     
     def get(self):
-        return {f"@@{index * 12391}+{option.get_text()}@@": option.get_text() for index, option in enumerate(self.options)}
+        return self.info
     
-    def add_option(self, text: str = ""):
+    def add_option(self, _id: str | None = None, text: str = ""):
         option = OptionTag(text)
+        
+        _id = _id if _id is not None else str(option)
+        
+        def update_option():
+            self.info[_id] = option.get_text()
+        
+        update_option()
+        
+        option.done_editing.connect(update_option)
         
         def remove_option():
             self.options.remove(option)
+            self.info.pop(_id)
             self.grid_layout.removeWidget(option)
             option.deleteLater()
             self.reflow_items()  # Reflow remaining items
@@ -605,6 +618,13 @@ class OptionSelection(QDialog):
         
         if not text:
             option.start_editing()
+    
+    def close(self):
+        for option in self.options:
+            if option.is_editing:
+                option.finish_editing()
+        
+        return super().close()
     
     def reflow_items(self):
         # Remove all widgets from grid

@@ -2,7 +2,6 @@ import random
 from typing import Any
 
 from matplotlib.cbook import flatten
-from middle.functions import findClashes
 
 class Subject:
     def __init__(self, _id: str, name: str, total: int, perWeek: int, teacher: 'Teacher') -> None:
@@ -50,18 +49,18 @@ class Subject:
         self.perWeek -= amount
 
 class Class:
-    def __init__(self, level: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolTeachers: dict[str, Any], schoolClasses: dict[str, 'Class'], weekdays: list[str], breakTimePeriods: list[int]) -> None:
+    def __init__(self, index: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolTeachers: dict[str, Any], weekdays: list[str], breakTimePeriods: list[int]) -> None:
         self.school = school
         self.schoolDict = schoolDict
         self.weekdays = weekdays
         
-        self.level = level
+        self.index = index
         self.classID = classID
-        self.uniqueID = self.classID + str(self.level)
+        self.uniqueID = self.classID + str(self.index + 1)
         self.className = className
         self.namingConvention = namingConvention
         
-        self.name = self.namingConvention[self.level - 1] + " " + self.className
+        self.name = self.namingConvention[self.index] + " " + self.className
         self.subjects = subjects
         self.periodsPerDay = periodsPerDay
         self.teachers: dict[Teacher, Subject] = {}
@@ -146,8 +145,8 @@ class Timetable:
                             if not [True for subjInfo in subjects if subjInfo.id == s.id]\
                                and s.id != self.breakPeriodID and subject.perWeek > s.total\
                                and subject.total + s.total == subject.perWeek\
-                               and not self.cls.school._findClashes(subject, timetableDay, replacementPeriod, self.cls)\
-                               and not self.cls.school._findClashes(s, day, subjectPeriod, self.cls)\
+                               and not self.cls.school.findClashes(subject, timetableDay, replacementPeriod, self.cls)\
+                               and not self.cls.school.findClashes(s, day, subjectPeriod, self.cls)\
                                and not s.lockedPeriod\
                                and not subject.lockedPeriod:
                                    tableReplace = subject.copy()
@@ -181,7 +180,7 @@ class Timetable:
             for nonClashingPeriod in range(self.periodsPerDay[self.cls.weekdays.index(subjectDay)]):
                 condition = not (subject.lockedPeriod[0] <= nonClashingPeriod + 1 <= subject.lockedPeriod[0] + subject.lockedPeriod[1] - 1) if subject.lockedPeriod is not None else True
                 if condition:
-                    if not findClashes(self.schoolDict, subject, subjectDay, nonClashingPeriod + 1, self.cls):
+                    if not self.cls.school.findClashes(subject, subjectDay, nonClashingPeriod + 1, self.cls):
                         tmpSubjPeriod = 1
                         for subjIndex, subj in enumerate(subjectsCopy):
                             if nonClashingPeriod + 1 <= tmpSubjPeriod <= nonClashingPeriod + subject.total:

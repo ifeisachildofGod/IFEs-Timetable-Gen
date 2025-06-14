@@ -144,8 +144,12 @@ class _TimetableSettings(QWidget):
         left_sub_option_layout = QHBoxLayout()
         left_sub_option_widget.setLayout(left_sub_option_layout)
         
-        self.set_days_of_the_week = list(self.editor.school.classes.values())[0].weekdays
-        self.days_of_the_week_selector = OptionSelection("Days of the week", self.set_days_of_the_week)
+        temp_option_selector = OptionSelection("", {})
+        for day in list(self.editor.school.classes.values())[0].weekdays:
+            temp_option_selector.add_option(text=day)
+        self.set_days_of_the_week = temp_option_selector.get()
+        
+        del temp_option_selector
         
         dotw_button = QPushButton("Days of the Week")
         dotw_button.clicked.connect(self.show_dotw_editor)
@@ -196,7 +200,7 @@ class _TimetableSettings(QWidget):
             period_amt = int(self.period_amt_edit.edit.text()) if self.period_amt_edit.edit.text().isnumeric() else None
             breaktime_period = int(self.breakperiod_edit.edit.text()) if self.breakperiod_edit.edit.text().isnumeric() else None
             
-            self.timetable_refresh(period_amt, breaktime_period, self.set_days_of_the_week, timetable)
+            self.timetable_refresh(period_amt, breaktime_period, self.set_days_of_the_week.values(), timetable)
         
         self.editor.refresh()
         
@@ -310,8 +314,9 @@ class _TimetableSettings(QWidget):
         self._refresh()
     
     def show_dotw_editor(self):
-        self.days_of_the_week_selector.exec()
-        self.set_days_of_the_week = self.days_of_the_week_selector.get()
+        options_selector = OptionSelection("Days of the Week", self.set_days_of_the_week)
+        options_selector.exec()
+        self.set_days_of_the_week = options_selector.get()
     
     def generate_new_school_timetable(self):
         if self._can_generate_new:
@@ -601,7 +606,7 @@ class TimeTableEditor(QWidget):
         
         self.external_source_ref = None
         
-        self.option_selectors: dict[str, list[OptionSelection, list[str]]] = {}
+        self.option_selectors: dict[str, str] = {}
         
         # Create scroll area for timetables
         self.scroll_area = QScrollArea()
@@ -684,7 +689,7 @@ class TimeTableEditor(QWidget):
         def _refresh_func():
             period_amt = int(period_amt_edit.text()) if period_amt_edit.text().isnumeric() else None
             breaktime_period = int(breakperiod_edit.text()) if breakperiod_edit.text().isnumeric() else None
-            days_of_the_week = self.option_selectors[timetable.cls.name][1]
+            days_of_the_week = self.option_selectors[timetable.cls.name].values()
             
             self.settings_widget.timetable_refresh(period_amt, breaktime_period, days_of_the_week, timetable)
             self.refresh()
@@ -711,8 +716,9 @@ class TimeTableEditor(QWidget):
                 self.thread_generate_new.start()
         
         def weekdays_func():
-            self.option_selectors[timetable.cls.name][0].exec()
-            self.option_selectors[timetable.cls.name][1] = self.option_selectors[timetable.cls.name][0].get()
+            option_selector = OptionSelection("Days of the Week", self.option_selectors[timetable.cls.name])
+            option_selector.exec()
+            self.option_selectors[timetable.cls.name] = option_selector.get()
         
         def refresh_func():
             if self.timetable_warning_dont_ask_again:
@@ -812,7 +818,13 @@ class TimeTableEditor(QWidget):
         timetable = _ClassTimetable(cls, self, class_name, remainder_widget_layout)
         self.timetable_widgets[class_name] = timetable
         set_days_of_the_week = timetable.cls.weekdays
-        self.option_selectors[class_name] = [OptionSelection("Days of the week", set_days_of_the_week), set_days_of_the_week]
+        
+        temp_option_selector = OptionSelection("", {})
+        for day in set_days_of_the_week:
+            temp_option_selector.add_option(text=day)
+        self.option_selectors[class_name] = temp_option_selector.get()
+        
+        del temp_option_selector
         
         self._make_timetable_settings(timetable, settings_widget_layout)
         

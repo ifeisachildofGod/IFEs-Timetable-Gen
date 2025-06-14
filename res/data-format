@@ -1,0 +1,137 @@
+{
+    "levels": [
+        (
+            levelName,
+            {
+                classID: (className, (*breakPeriod, *periodsPerDay, *daysOfTheWeek)),
+                ...
+            }
+        ),
+        ...
+    ]
+    
+    "subjectTeacherMapping": {
+        subjectID: (
+            subjectName,
+            {
+                teachersID: (teachersName, *levels),
+                ...,
+                "&timings": {
+                    classLevelIndex: (maxPerDay, maxPerWeek),
+                    ...
+                }
+                ,
+                "&classes"?: {
+                    classLevelIndex: *classID,
+                    ...
+                }
+            }
+        ),
+        ...
+    }
+    
+    "subjects"?: {
+        ID: (
+            name,
+            {
+                classLevelIndex: (
+                    perDay,
+                    perWeek,
+                    {
+                        classID: [(teacherID, teacherName), (((dayIndex, period), (timetableTotal, timetablePerWeek)), ...)],
+                        ...
+                    }
+                ),
+                ...
+            }
+        ),
+        ...
+    }
+}
+
+
+
+
+
+
+
+{
+    "subjectInfo": {
+        subjectID: {
+            "text": [text_on_input, ...],
+            "classes": {
+                "content": {},
+                "id_mapping": {
+                    "main": {
+                        classID: className,
+                        ...
+                    },
+                    "sub": {
+                        classID: classInfo-classID-options,
+                        ...
+                    }
+                }
+            },
+            "teachers": {
+                "content": [selectedTeacher, ..., None, unselectedTeacher, ...],
+                "id_mapping": {
+                    selectedTeacherIndex: selectedTeacherID,
+                    ...
+                }
+            }
+        },
+        ...
+    },
+
+    "teacherInfo": {
+        teacherID: {
+            "text": [text_on_input, ...],
+            "subjects": {
+                "content": [selectedSubject, ..., None, unselectedSubject, ...],
+                "id_mapping": {
+                    selectedSubjectIndex: selectedSubjectID,
+                    ...
+                }
+            }
+        },
+        ...
+    },
+
+    "classInfo": {
+        classID: {
+            "text": [text_on_input, ...],
+            "options": {
+                optionsID: optionText,
+                ...
+            },
+            "subjects": {
+                "content": {
+                    subjectID: {
+                        "per_day": perDayAmtInStr,
+                        "per_week": perWeekAmtInStr,
+                        "teachers": {
+                            "content": [selectedTeacher, ..., None, unselectedTeacher, ...],
+                            "id_mapping": {
+                                selectedTeacherIndex: selectedTeacherID,
+                                ...
+                            }
+                        }
+                    },
+                    ...
+                },
+                "id_mapping": {
+                    subjectIndex: subjectID,
+                    ...
+                }
+                "available_subject_teachers": {
+                    subjectID: {
+                        "name": subjectName,
+                        "teachers": subjectInfo-subjectID-selectedTeachers
+                    },
+                    ...
+                }
+            }
+        },
+        ...
+    }
+}

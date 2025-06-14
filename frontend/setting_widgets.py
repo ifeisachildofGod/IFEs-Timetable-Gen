@@ -172,13 +172,13 @@ class Subjects(SettingWidget):
                 "id_mapping": {
                     "main": {},
                     "sub": {}
-                    }
-                },
+                }
+            },
             "teachers": {
                 "content": deepcopy(self.teachers),
                 "id_mapping": deepcopy(self.id_mapping)
-                }
             }
+        }
     
     def make_popups(self, _id, layout):
         self._make_popup(_id, "Classes", layout, DropDownCheckBoxes, "classes")
@@ -195,8 +195,8 @@ class Teachers(SettingWidget):
             "subjects": {
                 "content": deepcopy(self.subjects),
                 "id_mapping": deepcopy(self.id_mapping)
-                }
             }
+        }
     
     def make_popups(self, _id, layout):
         self._make_popup(_id, "Subjects", layout, SelectionList, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
@@ -204,7 +204,11 @@ class Teachers(SettingWidget):
 class Classes(SettingWidget):
     def __init__(self):
         super().__init__("Class", ["Enter the class section name"])
+        
         self.subject_teachers_mapping = {}
+        
+        self.default_per_day = 2
+        self.default_per_week = 4
     
     def set_info(self, _id: str):
         self.info[_id] = {
@@ -212,12 +216,13 @@ class Classes(SettingWidget):
             "options": {},
             "subjects": {
                 "content": {},
-                "id_mapping": {index : index_id for index, (index_id, _) in enumerate(deepcopy(self.subject_teachers_mapping).items())}
-                }
+                "id_mapping": {index : index_id for index, (index_id, _) in enumerate(deepcopy(self.subject_teachers_mapping).items())},
+                "available_subject_teachers": self.subject_teachers_mapping
             }
+        }
     
     def make_popups(self, _id, layout):
         self._make_popup(_id, "Option Selector", layout, OptionSelection, "options", button_name="Options")
-        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, available_subject_teachers = self.subject_teachers_mapping)
+        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, default_per_day=self.default_per_day, default_per_week=self.default_per_week)
 
 

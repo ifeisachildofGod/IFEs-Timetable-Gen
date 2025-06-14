@@ -167,6 +167,7 @@ class CustomLabel(QLabel):
 
 class OptionTag(QWidget):
     deleted = pyqtSignal()
+    done_editing = pyqtSignal()
     
     def __init__(self, initial_text: str = ""):
         super().__init__()
@@ -250,6 +251,7 @@ class OptionTag(QWidget):
             if new_text:
                 self.text = new_text
                 self.is_editing = False
+                self.done_editing.emit()
                 self.setup_display_mode()
                 self.label.setText(self.text)
                 self.label.show()
@@ -265,15 +267,17 @@ class OptionTag(QWidget):
 
 
 class SelectedWidget(QWidget):
-    def __init__(self, text_or_widget: str | QWidget, host: Any | QVBoxLayout, id_mapping: dict, index: int):
+    def __init__(self, text_or_widget: str | QWidget, host: Any | QVBoxLayout, id_mapping: dict | None = None, _id: str | None = None):
         super().__init__()
         self.setProperty("class", "subjectListItem")
         self.setStyleSheet("QWidget.subjectListItem {margin: 2px 4px;}")
+        
         self.text_or_widget = text_or_widget
         self.host = host
         
-        self.id_mappings = id_mapping
-        self.index = index
+        self.id_mapping = id_mapping
+        
+        self.id = _id
         
         main_layout = QHBoxLayout()
         main_layout.setSpacing(8)
@@ -310,27 +314,24 @@ class SelectedWidget(QWidget):
     
     def delete_self(self):
         if not isinstance(self.host, QVBoxLayout):
+            self.index = {v: k for k, v in self.id_mapping.items()}[self.id]
+            
+            self.content = [v for v in self.host.get()["content"]]
+            self.content.append(self.content.pop(self.index))
+            
             self.host.selected_widgets.remove(self)
             self.host.container_layout.removeWidget(self)
             
-            prev_selected = self.host.get()["content"][self.host.get()["content"].index(None) + 1:]
-            prev_unselected = self.host.get()["content"][:self.host.get()["content"].index(None)]
-            
-            # print(self.id_mappings, self.host.get()["content"], len(prev_selected), self.index)
-            # print("Changing...")
             if not isinstance(self.host, QVBoxLayout):
-                new_id_mapping = {}
-                # sorted_id_mapping = dict(sorted([(k, v) for k, v in self.id_mappings.items()], key=lambda val: val[0]))
+                sep_index = self.content.index(None)
                 
-                for index, _id in self.id_mappings.items():
-                    if self.index < index:
-                        index -= 1
-                    new_id_mapping[index] = _id
-                # self.id_mappings[len(prev_selected) + 1] = self.id_mappings.pop(self.index)
-                new_id_mapping[len(prev_selected) + len(prev_unselected) + 1] = new_id_mapping.pop(self.index)
-                self.host.id_mappings = self.id_mappings = new_id_mapping
+                self.id_mapping.update({index - 1: index_id for index, index_id in self.id_mapping.items() if self.index < index})
+                
+                self.id_mapping.pop(sep_index)
+                self.id_mapping[len(self.content) - 1] = self.id
+                self.host.id_mapping = self.id_mapping
             
-            widget = UnselectedWidget(self.text_or_widget, self.host, self.id_mappings, len(prev_selected) + len(prev_unselected) + 1)
+            widget = UnselectedWidget(self.text_or_widget, self.host, self.id_mapping, self.id)
             
             # Find the last unselected widget or append at the end
             insert_index = self.host.container_layout.count()
@@ -338,32 +339,30 @@ class SelectedWidget(QWidget):
                 if isinstance(self.host.container_layout.itemAt(i).widget(), UnselectedWidget):
                     insert_index = i + 1
                     break
-            # insert_index = len(prev_selected) + 1
+            
             self.host.add_item(widget, insert_index)
             for widg in self.host.selected_widgets + self.host.unselected_widgets:
                 if isinstance(widg, SelectedWidget) or isinstance(widg, UnselectedWidget):
-                    widg.id_mappings = self.id_mappings
-            # self.host.unselected_widgets.insert(0, widget)
+                    widg.id_mapping = self.id_mapping
+            
             self.host.unselected_widgets.append(widget)
             
             if not isinstance(self.host, QVBoxLayout):
                 self.host.update_separators()
             self.deleteLater()
-            
-            # print(self.id_mappings, self.host.get()["content"])
-            # print()
         else:
             self.host.removeWidget(self)
             self.deleteLater()
 
 class UnselectedWidget(QWidget):
-    def __init__(self, text, host: Any, id_mappings: dict, index: int):
+    def __init__(self, text, host: Any, id_mapping: dict, _id: str):
         super().__init__()
         self.setProperty("class", "subjectListItem")
         self.setStyleSheet("QWidget.subjectListItem {margin: 2px 4px;}")
         
-        self.index = index
-        self.id_mappings = id_mappings
+        self.id_mapping = id_mapping
+        
+        self.id = _id
         
         layout = QHBoxLayout()
         layout.setSpacing(8)
@@ -396,29 +395,27 @@ class UnselectedWidget(QWidget):
         self.setLayout(layout)
     
     def add_self(self):
+        self.index = {v: k for k, v in self.id_mapping.items()}[self.id]
+        
+        self.content = [v for v in self.host.get()["content"]]
+        
+        sep_index = self.content.index(None)
+        
+        self.content.insert(sep_index, self.content[self.index])
+        self.content.pop()
+        
         self.host.unselected_widgets.remove(self)
         self.host.container_layout.removeWidget(self)
         
         prev_selected = self.host.get()["content"][:self.host.get()["content"].index(None)]
         
-        new_id_mapping = {}
-        sorted_id_mapping = dict(sorted([(k, v) for k, v in self.id_mappings.items()], key=lambda val: val[0]))
+        self.id_mapping.update({index + 1: index_id for index, index_id in self.id_mapping.items() if sep_index < index < self.index})
+        self.id_mapping.pop(sep_index + 1)
+        self.id_mapping[sep_index] = self.id
         
-        found = False
-        for index, _id in sorted_id_mapping.items():
-            
-            if index == self.index:
-                found = True
-                new_id_mapping[len(prev_selected)] = _id
-            
-            if index != self.index:
-                if not found and index >= len(prev_selected):
-                    index += 1
-                new_id_mapping[index] = _id
+        self.host.id_mapping = self.id_mapping
         
-        self.host.id_mappings = self.id_mappings = new_id_mapping
-        
-        widget = SelectedWidget(self.text, self.host, self.id_mappings, len(prev_selected))
+        widget = SelectedWidget(self.text, self.host, self.id_mapping, self.id)
         # Find the last selected widget or insert at beginning
         insert_index = 0
         for i in range(self.host.container_layout.count()):
@@ -429,7 +426,7 @@ class UnselectedWidget(QWidget):
         
         for widg in self.host.selected_widgets + self.host.unselected_widgets:
             if isinstance(widg, SelectedWidget) or isinstance(widg, UnselectedWidget):
-                widg.id_mappings = self.id_mappings
+                widg.id_mapping = self.id_mapping
         
         self.host.selected_widgets.append(widget)
         self.host.update_separators()

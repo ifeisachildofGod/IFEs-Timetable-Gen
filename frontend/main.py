@@ -226,13 +226,14 @@ class Window(QMainWindow):
                             subject_info_entry["teachers"]["content"].insert(teacher_none_index_in_subject, curr_subject_value)
                         elif not is_subject_selected_in_teacher and is_teacher_selected_in_subject:
                             # Make is unselected in the subject editor
-                            for i in range(len(subject_info_entry["teachers"]["id_mapping"]) - teacher_index_in_subject - 1):
+                            for i in range(len(subject_info_entry["teachers"]["content"]) - teacher_index_in_subject):
                                 j = teacher_index_in_subject + i
-                                subject_info_entry["teachers"]["id_mapping"][j] = subject_info_entry["teachers"]["id_mapping"][j + 1]
+                                if j + 1 in subject_info_entry["teachers"]["id_mapping"]:
+                                    subject_info_entry["teachers"]["id_mapping"][j] = subject_info_entry["teachers"]["id_mapping"][j + 1]
+                                else:
+                                    subject_info_entry["teachers"]["id_mapping"].pop(j)
                             
                             subject_info_entry["teachers"]["id_mapping"][len(subject_info_entry["teachers"]["content"])] = curr_teacher_id
-                            subject_info_entry["teachers"]["id_mapping"].pop(teacher_none_index_in_subject - 1)
-                            
                             subject_info_entry["teachers"]["content"].append(curr_subject_value)
             
             for i, (subject_id, subject_info_entry) in enumerate(subject_info.items()):
@@ -328,7 +329,7 @@ class Window(QMainWindow):
                     curr_teacher_value = teacher_info_entry["subjects"]["content"].pop(subject_index_in_teacher)
                     curr_subject_id = teacher_info_entry["subjects"]["id_mapping"][subject_index_in_teacher]
                     
-                    if is_teacher_selected_in_subject and not is_subject_selected_in_teacher:
+                    if not is_subject_selected_in_teacher:
                         # Make is selected in the teacher editor
                         for i in range(subject_index_in_teacher - subject_none_index_in_teacher - 1):
                             j = subject_index_in_teacher - i
@@ -338,15 +339,17 @@ class Window(QMainWindow):
                         teacher_info_entry["subjects"]["id_mapping"].pop(subject_none_index_in_teacher + 1)
                         
                         teacher_info_entry["subjects"]["content"].insert(subject_none_index_in_teacher, curr_teacher_value)
-                    elif not is_teacher_selected_in_subject and is_subject_selected_in_teacher:
+                    elif not is_teacher_selected_in_subject:
                         # Make is unselected in the teacher editor
-                        for i in range(len(teacher_info_entry["subjects"]["id_mapping"]) - subject_index_in_teacher - 1):
+                        for i in range(len(teacher_info_entry["subjects"]["content"]) - subject_index_in_teacher):
                             j = subject_index_in_teacher + i
-                            teacher_info_entry["subjects"]["id_mapping"][j] = teacher_info_entry["subjects"]["id_mapping"][j + 1]
+                            
+                            if j + 1 in teacher_info_entry["subjects"]["id_mapping"]:
+                                teacher_info_entry["subjects"]["id_mapping"][j] = teacher_info_entry["subjects"]["id_mapping"][j + 1]
+                            else:
+                                teacher_info_entry["subjects"]["id_mapping"].pop(j)
                         
                         teacher_info_entry["subjects"]["id_mapping"][len(teacher_info_entry["subjects"]["content"])] = curr_subject_id
-                        teacher_info_entry["subjects"]["id_mapping"].pop(subject_none_index_in_teacher - 1)
-                        
                         teacher_info_entry["subjects"]["content"].append(curr_teacher_value)
         
         for teacher_id, teacher_info_entry in teacher_info.items():
@@ -382,42 +385,69 @@ class Window(QMainWindow):
     def _update_classes(self):
         subject_info = self.subjects_widget.get()
         class_info = self.classes_widget.get()
+        teacher_info = self.teachers_widget.get()
         
         subject_teacher_mapping = {}
         for subject_index, (subject_id, subject_info_entry) in enumerate(subject_info.items()):
-            teacher_none_index_in_subjects = subject_info_entry["teachers"]["content"].index(None)
+            subject_teacher_info = self._deep_copy(subject_info_entry["teachers"])
+            teacher_none_index_in_subjects = subject_teacher_info["content"].index(None)
             
-            teacher_info = self._deep_copy(subject_info_entry["teachers"])
-            teacher_info["content"] = [None] + teacher_info["content"][:teacher_none_index_in_subjects]
-            teacher_info["id_mapping"] = {index + 1 : index_id for index, index_id in teacher_info["id_mapping"].items() if index < teacher_none_index_in_subjects}
+            selecteds_teacher_subject_id_mapping = {index + 1 : index_id for index, index_id in subject_teacher_info["id_mapping"].items() if index < teacher_none_index_in_subjects}
             
-            for _, class_object in class_info.items():
-                class_subject_content = class_object["subjects"]["content"].get(subject_id)
+            subject_teacher_mapping[subject_id] = {"name": subject_info_entry["text"][0], "teachers": {
+                "content": [None] + subject_teacher_info["content"][:teacher_none_index_in_subjects],
+                "id_mapping": selecteds_teacher_subject_id_mapping,
+            }}
+            
+            for _, class_info_entry in class_info.items():
+                class_subject_content = class_info_entry["subjects"]["content"].get(subject_id)
                 
-                if class_subject_content is not None and class_subject_content["teachers"]["id_mapping"] != teacher_info["id_mapping"]:
-                    subject_teachers_corrections = {index : index_id for index, index_id in teacher_info["id_mapping"].items() if class_subject_content["teachers"]["id_mapping"].get(index) != index_id}
+                if class_subject_content is not None:
+                    selected_teachers_ids = selecteds_teacher_subject_id_mapping.values()
                     
-                    class_subject_content["teachers"]["id_mapping"].update(subject_teachers_corrections)
-                    class_subject_content["teachers"]["content"] = [teacher_info["content"][index] for index in class_subject_content["teachers"]["id_mapping"].keys()]
-                    
-                    if None in class_subject_content["teachers"]["content"]:
-                        class_subject_content["teachers"]["content"].remove(None)
-                    
-                    sorted_teacher_indexes = sorted(list(class_subject_content["teachers"]["id_mapping"].keys()))
-                    for i, index in enumerate(sorted_teacher_indexes):
-                        if i != index:
-                            class_subject_content["teachers"]["content"].insert(i, None)
-                            break
-                    
-                    class_object["subjects"]["content"][subject_id] = class_subject_content
-            
-            subject_teacher_mapping[subject_id] = {"name": subject_info_entry["text"][0], "teachers": teacher_info}
+                    if sorted(class_subject_content["teachers"]["id_mapping"].values()) != sorted(selected_teachers_ids):
+                        class_subject_teacher_content = class_subject_content["teachers"]["content"]
+                        class_subject_teacher_id_mapping = class_subject_content["teachers"]["id_mapping"]
+                        
+                        class_subject_teacher_id_mapping_inv = {index_id: index for index, index_id in class_subject_teacher_id_mapping.items()}
+                        
+                        # Remove un-removed teachers
+                        for _, teacher_id in {k: v for k, v in class_subject_teacher_id_mapping.items()}.items():
+                            if teacher_id not in selected_teachers_ids:
+                                teacher_index = class_subject_teacher_id_mapping_inv[teacher_id]
+                                
+                                class_subject_teacher_content.pop(teacher_index)
+                                
+                                for i in range(len(class_subject_teacher_content) - teacher_index):
+                                    j = teacher_index + i
+                                    
+                                    if j + 1 in class_subject_teacher_id_mapping:
+                                        class_subject_teacher_id_mapping[j] = class_subject_teacher_id_mapping[j + 1]
+                                    else:
+                                        class_subject_teacher_id_mapping.pop(j)
+                                
+                                class_subject_teacher_id_mapping.pop(len(class_subject_teacher_content))
+                            
+                            class_subject_teacher_id_mapping_inv = {index_id: index for index, index_id in class_subject_teacher_id_mapping.items()}
+                        
+                        # Add un-added teachers
+                        for teacher_id in selected_teachers_ids:
+                            if teacher_id not in class_subject_teacher_id_mapping_inv:
+                                teacher_index = next(index for index, index_id in teacher_info["id_mapping"].items() if index_id == teacher_id)
+                                
+                                class_subject_teacher_id_mapping[len(class_subject_teacher_content)] = teacher_id
+                                class_subject_teacher_content.append(teacher_info["content"][teacher_index])
+                else:
+                    class_info_entry["subjects"]["id_mapping"][subject_index] = subject_id
+        
+        for _, class_info_entry in class_info.items():
+            class_info_entry["subjects"]["available_subject_teachers"] = subject_teacher_mapping
         
         for subject_index, (subject_id, _) in enumerate(self.classes_widget.subject_teachers_mapping.items()):
             if subject_id not in subject_info:
-                for _, class_object in class_info.items():
-                    class_object["subjects"]["content"].pop(subject_id)
-                    class_object["subjects"]["id_mapping"].pop(subject_index)
+                for _, class_info_entry in class_info.items():
+                    class_info_entry["subjects"]["content"].pop(subject_id)
+                    class_info_entry["subjects"]["id_mapping"].pop(subject_index)
         
         self.classes_widget.info = class_info
         self.classes_widget.subject_teachers_mapping = subject_teacher_mapping
@@ -590,25 +620,22 @@ class Window(QMainWindow):
             case 0:  # Subjects view
                 self._update_subjects(prev_index == 1, prev_index == 2)
             case 1:  # Teachers view
-                if prev_index == 0:
-                    self._update_teachers()
-                elif prev_index == 2:
-                    self._update_subjects(False, True)
+                if prev_index == 2:
+                    self.update_interaction(2, 0)
+                self._update_teachers()
             case 2: # Classes view
                 if prev_index == 0:
-                    self._update_teachers()
-                    self._update_subjects(True, True)
+                    self.update_interaction(0, 1)
                 elif prev_index == 1:
-                    self._update_subjects(True, True)
-                    self._update_teachers()
+                    self.update_interaction(1, 0)
                 self._update_classes()
             case 3:  # Timetable view
                 if prev_index == 0:
-                    self._update_teachers()
+                    self.update_interaction(0, 2)
                 if prev_index == 1:
-                    self._update_subjects(True, False)
+                    self.update_interaction(1, 2)
                 if prev_index == 2:
-                    self._update_subjects(False, True)
+                    self.update_interaction(2, 0)
                 
                 self._update_timetable_editor()
                 # self.timetable_widget.settings_widget.generate_new_school_timetable()
