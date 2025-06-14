@@ -3,8 +3,12 @@ import json
 import random
 from typing import Union
 from matplotlib.cbook import flatten
-from middle.objects import Teacher, Class, Subject, Timetable
-# 
+
+if __name__ == "__main__":
+    from objects import *
+else:
+    from middle.objects import *
+
 PotentialOptionType = Union[
     dict[str,
          tuple[str, dict[str,
@@ -167,8 +171,6 @@ class School:
                 for classID, ((teacherID, teachersName), _) in classTeacherMapping.items():
                     index = int(index)
                     
-                    uniqueClassID = classID + str(index + 1)
-                    
                     subj = Subject(subjectID, subjectName, perDay, perWeek, None)
                     
                     teacher = self.teachers.get(teacherID)
@@ -177,12 +179,13 @@ class School:
                     else:
                         self.teachers[teacherID] = teacher = subj.teacher = Teacher(teacherID, teachersName, {subj: None}, self.teachers)
                     
-                    cls = self.classes.get(uniqueClassID)
+                    new_cls = Class(index, classID, classIDNameMapping[classID], [subj], periods[index][classID], levelNames, self, self.schoolDict, self.teachers, weekdays[index][classID], breakperiods[index][classID])
+                    cls = self.classes.get(new_cls.uniqueID)
                     if cls is not None:
                         cls.subjects.append(subj)
                         cls.timetable.subjects.append(subj)
                     else:
-                        self.classes[uniqueClassID] = cls = Class(index, classID, classIDNameMapping[classID], [subj], periods[index][classID], levelNames, self, self.schoolDict, self.teachers, weekdays[index][classID], breakperiods[index][classID])
+                        self.classes[new_cls.uniqueID] = cls = new_cls
                     
                     teacher.subjects[subj] = cls
     

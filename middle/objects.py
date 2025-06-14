@@ -1,6 +1,5 @@
 import random
 from typing import Any
-
 from matplotlib.cbook import flatten
 
 class Subject:

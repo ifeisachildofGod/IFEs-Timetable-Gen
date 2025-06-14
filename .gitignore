@@ -131,6 +131,4 @@ cython_debug/
 
 # Miscelaneous:
 testing_code_im_not_sure_of.py
-backend/help
-tests.py
-s.css
+style_testing.css
