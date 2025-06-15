@@ -266,11 +266,11 @@ class School:
                         else:
                             subjects[subject.id][1][str(cls.index)][2][cls.classID] = subjectLevelClassInfo
         
-        self.project = {
-            'levels': classLevels, 
+        self.project.update({
+            "levels": classLevels, 
             "subjectTeacherMapping": subjectTeacherMapping,
             "subjects": subjects
-        }
+        })
     
     def setTimetableFromProjectDict(self):
         for subjectID, (subjectName, subjectInfo) in self.project["subjects"].items():

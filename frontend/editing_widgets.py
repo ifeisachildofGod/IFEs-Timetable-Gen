@@ -1,3 +1,4 @@
+import random
 from typing import Callable
 from matplotlib.cbook import flatten
 from frontend.base_widgets import DraggableSubjectLabel, TimeTableItem
@@ -10,7 +11,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QScrollArea,
     QTableWidget, QLabel, QFrame,
     QAbstractItemView, QHeaderView, QMenu, QSizePolicy,
-    QProgressBar, QCheckBox, QMessageBox
+    QProgressBar, QCheckBox, QMessageBox, QMainWindow
 )
 
 from PyQt6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent
@@ -675,6 +676,123 @@ class TimeTableEditor(QWidget):
             drag.exec()
         
         return func
+    
+    def update_data_interaction(self, parent: QMainWindow):
+        subjects_info = parent.subjects_widget.get()
+        teachers_info = parent.teachers_widget.get()
+        classes_info = parent.classes_widget.get()
+        
+        subjectTeacherMapping = {}
+        for subject_id, subject_info in subjects_info.items():
+            teacher_subject_info = {}
+            
+            for class_id, _ in subject_info["classes"]["content"].items():
+                class_index = next(index for index, (_id, _) in enumerate(classes_info.items()) if _id == class_id)
+                subject_in_class_info = classes_info[class_id]["subjects"]["content"][subject_id]
+                
+                teacher_none_index = subject_in_class_info["teachers"]["content"].index(None)
+                available_teachers = [
+                    (index_id, teachers_info[index_id])
+                    for index, index_id in
+                        subject_in_class_info["teachers"]["id_mapping"].items()
+                    if index < teacher_none_index
+                ]
+                
+                for teacher_id, teacher_info in available_teachers:
+                    if teacher_id not in teacher_subject_info:
+                        teacher_subject_info[teacher_id] = [teacher_info["text"][0], [class_index]]
+                    else:
+                        teacher_subject_info[teacher_id][1].append(class_index)
+                
+                if "&timings" not in teacher_subject_info:
+                    teacher_subject_info["&timings"] = {str(class_index): [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]}
+                else:
+                    teacher_subject_info["&timings"][str(class_index)] = [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]
+                
+                valid_options = [option_id for option_id, option_state in subject_info["classes"]["content"][class_id].items() if option_state]
+                if len(valid_options) != len(subject_info["classes"]["content"][class_id]):
+                    if "&classes" not in teacher_subject_info:
+                        teacher_subject_info["&classes"] = {str(class_index): valid_options}
+                    else:
+                        teacher_subject_info["&classes"][str(class_index)] = valid_options
+        
+            subjectTeacherMapping[subject_id] = (subject_info["text"][0], teacher_subject_info)
+        
+        total_subject_amt = 0
+        for _, subject_info in subjectTeacherMapping.values():
+            for class_index, (_, perWeek) in subject_info["&timings"].items():
+                total_subject_amt += perWeek * len([info["options"] for info in classes_info.values()][int(class_index)])
+        
+        class_levels = []
+        for class_index, (class_id, class_info) in enumerate(classes_info.items()):
+            level_info = {
+                option_id:
+                [
+                    option_text,
+                    (
+                        self.school.project["levels"][class_index][1][class_id + option_id]
+                        if self._certify_class_level_info(class_index, option_id) else
+                        [[int(total_subject_amt / (len(parent.default_weekdays) * len(classes_info))) for _ in range(len(parent.default_weekdays))], [int(total_subject_amt / (len(parent.default_weekdays) * len(classes_info) * 2)) for _ in range(len(parent.default_weekdays))], parent.default_weekdays]
+                    )
+                ]
+                for option_id, option_text in class_info["options"].items()}
+            class_levels.append([class_info["text"][0], level_info])
+        
+        project_update = {
+            "levels": class_levels,
+            "subjectTeacherMapping": subjectTeacherMapping
+        }
+        
+        school_project_subjects_dict = self.school.project.get("subjects")
+                
+        if school_project_subjects_dict is not None:
+            subjects = {}
+            for subject_id, (subject_name, subject_info) in subjectTeacherMapping.items():
+                subject_level_info = {}
+                classes_taught = {
+                    str(class_index): list(class_info["options"].keys())
+                    for class_index, (_, class_info)
+                    in enumerate(classes_info.items())
+                } if subject_info.get("&classes") is None else subject_info["&classes"]
+                
+                for class_index, class_ids in classes_taught.items():
+                    class_teacher_mapping = {}
+                    for class_id in class_ids:
+                        teacher_info_from_project = None
+                        
+                        subject_info_from_subjects = school_project_subjects_dict.get(subject_id)
+                        if subject_info_from_subjects is not None:
+                            teacher_info_from_project = subject_info_from_subjects[1][class_index][2].get(class_id)
+                        
+                        if teacher_info_from_project is not None:
+                            class_teacher_mapping[class_id] = teacher_info_from_project
+                        else:
+                            all_available_class_teacher_ids = list({_id: name for _id, (name, _) in [(k, v) for k, v in subject_info.items() if not k.startswith("&")]}.items())
+                            if random.choice([True, False, False, False, False]):
+                                random.shuffle(all_available_class_teacher_ids)
+                            
+                            teacher_id = all_available_class_teacher_ids[0][0]
+                            teacher_name = all_available_class_teacher_ids[0][1]
+                            
+                            class_teacher_mapping[class_id] = [[teacher_id, teacher_name], []]
+                        
+                    per_day, per_week = subject_info["&timings"][class_index]
+                    subject_level_info[class_index] = (per_day, per_week, class_teacher_mapping)
+                
+                subjects[subject_id] = [subject_name, subject_level_info]
+            
+            project_update["subjects"] = subjects
+        
+        parent.project.update(project_update)
+        self.school = parent.school = School(parent.project)
+        parent.timetable_widget.set_editor_from_school(self.school)
+    
+    def _certify_class_level_info(self, class_index: int, option_id: str):
+        if class_index < len(self.school.project["levels"]):
+            if option_id in self.school.project["levels"][class_index][1]:
+                return True
+        
+        return False
     
     def _set_school_timetable(self):
         for _, cls in self.school.classes.items():

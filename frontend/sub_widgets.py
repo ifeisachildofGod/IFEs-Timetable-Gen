@@ -1,5 +1,4 @@
 from copy import deepcopy
-import time
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,

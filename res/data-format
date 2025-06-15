@@ -56,7 +56,7 @@
 
 
 {
-    "subjectInfo": {
+    "subjectsInfo": {
         subjectID: {
             "text": [text_on_input, ...],
             "classes": {
@@ -89,7 +89,7 @@
         ...
     },
 
-    "teacherInfo": {
+    "teachersInfo": {
         teacherID: {
             "text": [text_on_input, ...],
             "subjects": {
@@ -103,7 +103,7 @@
         ...
     },
 
-    "classInfo": {
+    "classesInfo": {
         classID: {
             "text": [text_on_input, ...],
             "options": {
