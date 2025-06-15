@@ -1,4 +1,5 @@
 from copy import deepcopy
+import time
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,
@@ -195,6 +196,8 @@ class DropDownCheckBoxes(QDialog):
         
         self.setLayout(main_layout)
         
+        all_clicked_checkboxes: list[QCheckBox] = []
+        
         for class_id, class_options in self.content.items():
             main_widget = QWidget()
             
@@ -227,10 +230,9 @@ class DropDownCheckBoxes(QDialog):
             
             check_box = QCheckBox()
             check_box.clicked.connect(self.make_main_checkbox_func(class_id))
-            if False not in list(class_options.values()):
-                check_box.click()
-            
-            self.class_check_box_tracker["main_cb"][class_id] = check_box
+            all_clicked = False not in list(class_options.values()) and class_options
+            if all_clicked:
+                all_clicked_checkboxes.append(check_box)
             
             header_layout.addWidget(dp_icon)
             header_layout.addWidget(title)
@@ -238,15 +240,18 @@ class DropDownCheckBoxes(QDialog):
             header_layout.addWidget(check_box)
             
             self.class_check_box_tracker["icon"][class_id] = dp_icon
+            self.class_check_box_tracker["sub_cbs"][class_id] = {}
+            self.class_check_box_tracker["main_cb"][class_id] = check_box
+            self.class_check_box_tracker["widget"][class_id] = self.make_dp_widget(class_id, class_options, all_clicked)
             
             container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
-            
-            self.class_check_box_tracker["widget"][class_id] = self.make_dp_widget(class_options, class_id)
+        
+        for cb in all_clicked_checkboxes:
+            cb.click()
         
         container_layout.addStretch()
     
     def get(self):
-        print({"content": self.content, "id_mapping": self.id_mapping})
         return {"content": self.content, "id_mapping": self.id_mapping}
     
     def make_open_dp_func(self, class_id: str, parent_layout: QVBoxLayout, options: dict[str, bool]):
@@ -256,24 +261,24 @@ class DropDownCheckBoxes(QDialog):
             self.class_check_box_tracker["icon"][class_id].setAngle(0 if self.class_check_box_tracker["icon"][class_id].angle != 0 else 270)
             
             if parent_layout.itemAt(1) is None:
-                for state_id, state in self.content[class_id].items():
-                    checkBox = self.class_check_box_tracker["sub_cbs"][class_id][state_id]
-                    if (state and not checkBox.isChecked()) or (not state and checkBox.isChecked()):
-                        checkBox.click()
+                # for state_id, state in self.content[class_id].items():
+                #     checkBox = self.class_check_box_tracker["sub_cbs"][class_id][state_id]
+                #     if (state and not checkBox.isChecked()) or (not state and checkBox.isChecked()):
+                #         checkBox.click()
                 
                 parent_layout.addWidget(widget)
             else:
-                for state_id, state in self.class_check_box_tracker["sub_cbs"][class_id].items():
-                    self.content[class_id][state_id] = state
+                # for state_id, state in self.class_check_box_tracker["sub_cbs"][class_id].items():
+                #     self.content[class_id][state_id] = state
                 
                 parent_layout.removeWidget(widget)
                 widget.deleteLater()
                 
-                self.class_check_box_tracker["widget"][class_id] = self.make_dp_widget(options, class_id)
+                self.class_check_box_tracker["widget"][class_id] = self.make_dp_widget(class_id, options, self.class_check_box_tracker["main_cb"][class_id].isChecked())
         
         return open_dp
     
-    def make_dp_widget(self, options: dict[str, bool], class_id: str):
+    def make_dp_widget(self, class_id: str, options: dict[str, bool], all_clicked: bool):
         dp_widget = QWidget()
         dp_widget.setObjectName("dropdownContent")
         
@@ -281,19 +286,20 @@ class DropDownCheckBoxes(QDialog):
         dp_layout.setSpacing(2)
         dp_widget.setLayout(dp_layout)
         
+        clicked_cbs: list[QCheckBox] = []
+        
         for optionID, optionState in options.items():
             option_layout = QHBoxLayout()
             
             dp_title = QLabel(self.id_mapping["sub"][class_id][optionID])
             dp_checkbox = QCheckBox()
-            if optionState:
-                dp_checkbox.click()
             
-            if self.class_check_box_tracker["sub_cbs"].get(class_id) is None:
-                self.class_check_box_tracker["sub_cbs"][class_id] = {}
             self.class_check_box_tracker["sub_cbs"][class_id][optionID] = dp_checkbox
             
             dp_checkbox.clicked.connect(self.make_checkbox_func(class_id))
+            
+            if optionState:
+                clicked_cbs.append(dp_checkbox)
             
             option_layout.addSpacing(50)
             option_layout.addWidget(dp_title)
@@ -301,6 +307,10 @@ class DropDownCheckBoxes(QDialog):
             option_layout.addWidget(dp_checkbox)
             
             dp_layout.addLayout(option_layout)
+        
+        if not all_clicked:
+            for cb in clicked_cbs:
+                cb.click()
         
         return dp_widget
     

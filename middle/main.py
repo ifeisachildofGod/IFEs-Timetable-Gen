@@ -3,11 +3,7 @@ import json
 import random
 from typing import Union
 from matplotlib.cbook import flatten
-
-if __name__ == "__main__":
-    from objects import *
-else:
-    from middle.objects import *
+from middle.objects import *
 
 PotentialOptionType = Union[
     dict[str,

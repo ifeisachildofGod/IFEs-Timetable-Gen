@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QScrollArea,
     QTableWidget, QLabel, QFrame,
     QAbstractItemView, QHeaderView, QMenu, QSizePolicy,
-    QProgressBar, QCheckBox
+    QProgressBar, QCheckBox, QMessageBox
 )
 
 from PyQt6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent
@@ -200,7 +200,7 @@ class _TimetableSettings(QWidget):
             period_amt = int(self.period_amt_edit.edit.text()) if self.period_amt_edit.edit.text().isnumeric() else None
             breaktime_period = int(self.breakperiod_edit.edit.text()) if self.breakperiod_edit.edit.text().isnumeric() else None
             
-            self.timetable_refresh(period_amt, breaktime_period, self.set_days_of_the_week.values(), timetable)
+            self.timetable_refresh(period_amt, breaktime_period, list(self.set_days_of_the_week.values()), timetable)
         
         self.editor.refresh()
         
@@ -299,8 +299,8 @@ class _TimetableSettings(QWidget):
     def timetable_update(self, timetable: '_ClassTimetable'):
         timetable.timetable.reset()
         
-        timetable.cls = self.editor.school.classes[timetable.cls.name]
-        timetable.timetable = self.editor.school.classes[timetable.cls.name].timetable
+        timetable.cls = self.editor.school.classes[timetable.cls.uniqueID]
+        timetable.timetable = timetable.cls.timetable
         
         timetable.save_timetable()
     
@@ -328,8 +328,14 @@ class _TimetableSettings(QWidget):
                 if not self.continue_refresh:
                     return
             
-            self.progress_bar.set_max(lambda: sum([sum([sum(periods) - len(periods) for _, (periods, _, _) in timing_info.items()]) for _, (timing_info, _) in self.editor.school.project["levels"].items()]))
-            self.progress_bar.set_var_func(lambda: sum([sum([sum([s.total for s in subjects]) - 1 for _, subjects in timetable.table.items()]) for _, timetable in self.editor.school.school.items()]))
+            total_subject_periods = 0
+            for _, timing_info in self.editor.school.project["levels"]:
+                for _, (_, (periods, break_periods, _)) in timing_info.items():
+                    for index, total_periods in enumerate(periods):
+                        total_subject_periods += total_periods - (1 if break_periods[index] <= total_periods else 0)
+            
+            self.progress_bar.set_max(lambda: total_subject_periods)
+            self.progress_bar.set_var_func(lambda: sum([sum([sum([s.total for s in subjects]) - 1 for _, subjects in timetable.table.items()]) for _, timetable in self.editor.school.schoolDict.items()]))
             self.progress_bar.start(100)
             
             self.thread_generate_new = _GenerateNewSchoolThread(self.threads_list, self._generate)
@@ -337,9 +343,8 @@ class _TimetableSettings(QWidget):
             self.thread_generate_new.start()
 
 class _ClassTimetable(QTableWidget):
-    def __init__(self, cls: Class, editor: 'TimeTableEditor', name: str, remainder_layout: QVBoxLayout):
+    def __init__(self, cls: Class, editor: 'TimeTableEditor', remainder_layout: QVBoxLayout):
         super().__init__()
-        self.name = name
         self.cls = cls
         self.timetable = cls.timetable
         self.editor = editor
@@ -408,7 +413,7 @@ class _ClassTimetable(QTableWidget):
                 target_item = self.item(row, col)
                 
                 source_subject = self.current_source.subject
-                source_class = self.editor.timetable_widgets[self.name].cls
+                source_class = self.editor.timetable_widgets[self.cls.uniqueID].cls
                 source_widget = self.current_source.tableWidget()
                 source_row = source_widget.row(self.current_source)
                 source_col = source_widget.column(self.current_source)
@@ -619,12 +624,12 @@ class TimeTableEditor(QWidget):
         self.scroll_area.setWidget(self.timetables_container)
         
         # Create timetable for each class
-        self.timetalble_parent_widget: dict[str, QWidget] = {}
+        self.timetable_parent_widget: dict[str, QWidget] = {}
         self.timetable_widgets: dict[str, _ClassTimetable] = {}
-        for index, (class_name, cls) in enumerate(self.school.classes.items()):
-            widget = self._make_timetable_for_each_class(index, class_name, cls)
+        for index, (_, cls) in enumerate(self.school.classes.items()):
+            widget = self._make_timetable_for_each_class(index, cls)
             
-            self.timetalble_parent_widget[class_name] = widget
+            self.timetable_parent_widget[cls.uniqueID] = widget
             self.timetables_layout.addWidget(widget)
         
         # Create settings for timetables
@@ -637,16 +642,16 @@ class TimeTableEditor(QWidget):
     def set_editor_from_school(self, school: School):
         self.school = school
         
-        for _, widget in self.timetalble_parent_widget.items():
+        for _, widget in self.timetable_parent_widget.items():
             widget.deleteLater()
             self.timetables_layout.removeWidget(widget)
         
-        self.timetalble_parent_widget = {}
+        self.timetable_parent_widget = {}
         self.timetable_widgets = {}
-        for index, (class_name, cls) in enumerate(self.school.classes.items()):
-            widget = self._make_timetable_for_each_class(index, class_name, cls)
+        for index, (_, cls) in enumerate(self.school.classes.items()):
+            widget = self._make_timetable_for_each_class(index, cls)
             
-            self.timetalble_parent_widget[class_name] = widget
+            self.timetable_parent_widget[cls.uniqueID] = widget
             self.timetables_layout.addWidget(widget)
     
     def refresh(self):
@@ -672,12 +677,12 @@ class TimeTableEditor(QWidget):
         return func
     
     def _set_school_timetable(self):
-        for class_name, _ in self.school.classes.items():
-            self.timetable_widgets[class_name].populate_timetable()
+        for _, cls in self.school.classes.items():
+            self.timetable_widgets[cls.uniqueID].populate_timetable()
     
-    def _timetable_generating_finished(self, name: str):
+    def _timetable_generating_finished(self, _id: str):
         self._can_generate_new_timetable = True
-        self.timetable_widgets[name].populate_timetable()
+        self.timetable_widgets[_id].populate_timetable()
     
     def _timetable_dailog_dont_ask_again(self):
         self.timetable_warning_dont_ask_again = False
@@ -689,7 +694,7 @@ class TimeTableEditor(QWidget):
         def _refresh_func():
             period_amt = int(period_amt_edit.text()) if period_amt_edit.text().isnumeric() else None
             breaktime_period = int(breakperiod_edit.text()) if breakperiod_edit.text().isnumeric() else None
-            days_of_the_week = self.option_selectors[timetable.cls.name].values()
+            days_of_the_week = list(self.option_selectors[timetable.cls.uniqueID].values())
             
             self.settings_widget.timetable_refresh(period_amt, breaktime_period, days_of_the_week, timetable)
             self.refresh()
@@ -712,13 +717,13 @@ class TimeTableEditor(QWidget):
                 _refresh_func()
                 
                 self.thread_generate_new = _GenerateNewSchoolThread(lambda: self.school.generateTimetable(timetable.cls), self.THREADS)
-                self.thread_generate_new.finished.connect(lambda: self._timetable_generating_finished(timetable.cls.name))
+                self.thread_generate_new.finished.connect(lambda: self._timetable_generating_finished(timetable.cls.uniqueID))
                 self.thread_generate_new.start()
         
         def weekdays_func():
-            option_selector = OptionSelection("Days of the Week", self.option_selectors[timetable.cls.name])
+            option_selector = OptionSelection("Days of the Week", self.option_selectors[timetable.cls.uniqueID])
             option_selector.exec()
-            self.option_selectors[timetable.cls.name] = option_selector.get()
+            self.option_selectors[timetable.cls.uniqueID] = option_selector.get()
         
         def refresh_func():
             if self.timetable_warning_dont_ask_again:
@@ -765,7 +770,7 @@ class TimeTableEditor(QWidget):
         layout.addWidget(generate_new_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(refresh_button, alignment=Qt.AlignmentFlag.AlignHCenter)
     
-    def _make_timetable_for_each_class(self, index, class_name, cls):
+    def _make_timetable_for_each_class(self, index: int, cls: Class):
         widget = QWidget()
         layout = QVBoxLayout()
         
@@ -780,7 +785,7 @@ class TimeTableEditor(QWidget):
             separator.setStyleSheet("background-color: #3d3d3d;")
             layout.addWidget(separator)
         
-        class_header = QLabel(f"Class: {class_name}")
+        class_header = QLabel(f"Class: {cls.name}")
         class_header.setStyleSheet("font-weight: bold; padding: 10px;")
         
         # Create timetable
@@ -815,14 +820,14 @@ class TimeTableEditor(QWidget):
         
         settings_widget_layout = QVBoxLayout(settings_widget)
         
-        timetable = _ClassTimetable(cls, self, class_name, remainder_widget_layout)
-        self.timetable_widgets[class_name] = timetable
+        timetable = _ClassTimetable(cls, self, remainder_widget_layout)
+        self.timetable_widgets[cls.uniqueID] = timetable
         set_days_of_the_week = timetable.cls.weekdays
         
         temp_option_selector = OptionSelection("", {})
         for day in set_days_of_the_week:
             temp_option_selector.add_option(text=day)
-        self.option_selectors[class_name] = temp_option_selector.get()
+        self.option_selectors[cls.uniqueID] = temp_option_selector.get()
         
         del temp_option_selector
         

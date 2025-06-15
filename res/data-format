@@ -3,7 +3,7 @@
         (
             levelName,
             {
-                classID: (className, (*breakPeriod, *periodsPerDay, *daysOfTheWeek)),
+                classID: (className, (*periodsPerDay, *breakPeriod, *daysOfTheWeek)),
                 ...
             }
         ),
@@ -14,7 +14,7 @@
         subjectID: (
             subjectName,
             {
-                teachersID: (teachersName, *levels),
+                teachersID: (teachersName, *indexesOfClassesTaught),
                 ...,
                 "&timings": {
                     classLevelIndex: (maxPerDay, maxPerWeek),
@@ -60,7 +60,13 @@
         subjectID: {
             "text": [text_on_input, ...],
             "classes": {
-                "content": {},
+                "content": {
+                    classID: {
+                        optionID: optionState,
+                        ...
+                    },
+                    ...
+                },
                 "id_mapping": {
                     "main": {
                         classID: className,
