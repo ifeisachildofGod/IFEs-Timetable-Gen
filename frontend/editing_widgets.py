@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QScrollArea,
     QTableWidget, QLabel, QFrame,
     QAbstractItemView, QHeaderView, QMenu, QSizePolicy,
-    QProgressBar, QCheckBox, QMessageBox, QMainWindow
+    QProgressBar, QCheckBox, QMainWindow
 )
 
 from PyQt6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent
@@ -135,8 +135,10 @@ class _TimetableSettings(QWidget):
         left_option_layout = QVBoxLayout()
         left_option_widget.setLayout(left_option_layout)
         
-        self.breakperiod_edit = NumberTextEdit(1, min([widg.periods for widg in  self.editor.timetable_widgets.values()]))
+        breakperiods = [widg.periods for widg in  self.editor.timetable_widgets.values()]
+        self.breakperiod_edit = NumberTextEdit(1, min(breakperiods) if breakperiods else 1)
         self.breakperiod_edit.edit.setPlaceholderText("Break period")
+        self.breakperiod_edit.setDisabled(bool(breakperiods))
         self.period_amt_edit = NumberTextEdit(1, 100)
         self.period_amt_edit.edit.setPlaceholderText("Period amount")
         
@@ -145,12 +147,15 @@ class _TimetableSettings(QWidget):
         left_sub_option_layout = QHBoxLayout()
         left_sub_option_widget.setLayout(left_sub_option_layout)
         
-        temp_option_selector = OptionSelection("", {})
-        for day in list(self.editor.school.classes.values())[0].weekdays:
-            temp_option_selector.add_option(text=day)
-        self.set_days_of_the_week = temp_option_selector.get()
-        
-        del temp_option_selector
+        if self.editor.school.classes:
+            temp_option_selector = OptionSelection("", {})
+            for day in list(self.editor.school.classes.values())[0].weekdays:
+                temp_option_selector.add_option(text=day)
+            self.set_days_of_the_week = temp_option_selector.get()
+            
+            del temp_option_selector
+        else:
+            self.set_days_of_the_week = []
         
         dotw_button = QPushButton("Days of the Week")
         dotw_button.clicked.connect(self.show_dotw_editor)
@@ -221,7 +226,7 @@ class _TimetableSettings(QWidget):
     def timetable_refresh(self, period_amt: int | None, break_period: int | None, days_of_the_week: list[str], timetable: '_ClassTimetable'):
         if break_period is not None and break_period != int(sum(timetable.cls.timetable.breakTimePeriods) / len(timetable.cls.timetable.breakTimePeriods)):
             for x in range(timetable.columnCount()):
-                break_period_item = timetable.takeItem(timetable.cls.timetable.breakTimePeriods[x] - 1, x)  # TimeTableItem(Subject("Break", 1, 1, None), break_time=True)
+                break_period_item = timetable.takeItem(timetable.cls.timetable.breakTimePeriods[x] - 1, x)
                 replacement_item = timetable.takeItem(break_period - 1, x)
                 
                 timetable.setItem(timetable.cls.timetable.breakTimePeriods[x] - 1, x, replacement_item)
@@ -959,8 +964,6 @@ class TimeTableEditor(QWidget):
         
         class_widget_layout.addWidget(timetable)
         class_widget_layout.addWidget(sidebar_widget)
-        
-        # self.timetables_layout.addWidget(class_widget)
         
         sidebar_widget_layout.addWidget(remainder_scroll_area, alignment=Qt.AlignmentFlag.AlignHCenter)
         sidebar_widget_layout.addWidget(settings_scroll_area, alignment=Qt.AlignmentFlag.AlignHCenter)

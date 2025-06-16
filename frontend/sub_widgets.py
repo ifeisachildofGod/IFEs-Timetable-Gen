@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Callable
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,
@@ -89,7 +90,7 @@ class SelectionList(QDialog):
         return {"content": content, "id_mapping": self.id_mapping}
     
     def add_item(self, custom_widget, index: int = None):
-        if index is not None:# or self.selected_widgets + self.unselected_widgets:
+        if index is not None:
             self.container_layout.insertWidget(index, custom_widget)
         else:
             self.container_layout.addWidget(custom_widget)
@@ -206,14 +207,17 @@ class DropDownCheckBoxes(QDialog):
             
             open_dp_func = self.make_open_dp_func(class_id, widget_wrapper_layout, class_options)
             
-            def make_open_dp_func(event):
-                if event.button() == Qt.MouseButton.LeftButton:
-                    open_dp_func()
+            def make_open_dp_func(odp_param_func):
+                def odp_func(event):
+                    if event.button() == Qt.MouseButton.LeftButton:
+                        odp_param_func()
+                
+                return odp_func
             
             header = QWidget()
             header.setObjectName("dropdownHeader")
             header.setFixedHeight(50)
-            header.mousePressEvent = make_open_dp_func
+            header.mousePressEvent = make_open_dp_func(open_dp_func)
             
             widget_wrapper_layout.addWidget(header)
             
@@ -260,16 +264,8 @@ class DropDownCheckBoxes(QDialog):
             self.class_check_box_tracker["icon"][class_id].setAngle(0 if self.class_check_box_tracker["icon"][class_id].angle != 0 else 270)
             
             if parent_layout.itemAt(1) is None:
-                # for state_id, state in self.content[class_id].items():
-                #     checkBox = self.class_check_box_tracker["sub_cbs"][class_id][state_id]
-                #     if (state and not checkBox.isChecked()) or (not state and checkBox.isChecked()):
-                #         checkBox.click()
-                
                 parent_layout.addWidget(widget)
             else:
-                # for state_id, state in self.class_check_box_tracker["sub_cbs"][class_id].items():
-                #     self.content[class_id][state_id] = state
-                
                 parent_layout.removeWidget(widget)
                 widget.deleteLater()
                 
@@ -371,7 +367,7 @@ class SubjectSelection(QDialog):
         self.subjects = [subject_info["name"] for _, subject_info in self.available_subject_teachers.items()]
         
         self.dp_tracker: dict[str, QComboBox] = {}
-        self.teacher_buttons: list[QPushButton] = []
+        self.del_widg_func_tracker: dict[str, Callable[[str], None]] = {}
         
         self.subject_amount = 0
         
@@ -406,11 +402,9 @@ class SubjectSelection(QDialog):
     
     def _add_new_subject(self):
         subject_id = next(
-            (
-                index_id
-                for index, (index_id, _) in enumerate(self.available_subject_teachers.items())
-                if index not in [dp.currentIndex() for dp in self.dp_tracker.values()]
-            )
+            index_id
+            for index, (index_id, _) in enumerate(self.available_subject_teachers.items())
+            if index not in [dp.currentIndex() for dp in self.dp_tracker.values()]
         )
         
         self.add_subject(subject_id, {"per_day": str(self.default_per_day), "per_week": str(self.default_per_week), "teachers": self.available_subject_teachers[subject_id]["teachers"]})
@@ -433,7 +427,6 @@ class SubjectSelection(QDialog):
         
         subjects_dp.setCurrentIndex(next((s_i for s_i, s_id in self.id_mapping.items() if s_id == subject_id)))
         subjects_dp.currentIndexChanged.connect(self.make_dp_clicked_func(subject_id))
-        subjects_dp.currentIndexChanged.connect(self.make_dp_destroy_func(subjects_dp))
         self.dp_tracker[subject_id] = subjects_dp
         
         sub_layout = QHBoxLayout()
@@ -455,31 +448,26 @@ class SubjectSelection(QDialog):
         
         teacher_button = QPushButton("Teachers")
         teacher_button.setMaximumWidth(60)
-        teacher_button.clicked.connect(self.make_temp_show_teacher_popup_func(subject_id))
-        
-        self.teacher_buttons.append(teacher_button)
+        teacher_button.clicked.connect(self.make_show_teacher_popup_func(subject_id))
         
         sub_layout.addWidget(per_day_edit, alignment=Qt.AlignmentFlag.AlignLeft)
         sub_layout.addWidget(per_week_edit, alignment=Qt.AlignmentFlag.AlignLeft)
         sub_layout.addWidget(teacher_button, alignment=Qt.AlignmentFlag.AlignLeft)
         
+        self.del_widg_func_tracker[subject_id] = self.make_dp_destroy_func(subject_id)
+        
         widget = SelectedWidget(selection_widget, self.container_layout)
         widget.setFixedHeight(100)
-        widget.delete_button.clicked.connect(self.make_dp_destroy_func(subject_id))
+        widget.delete_button.clicked.connect(self.del_widg_func_tracker[subject_id])
         
         self.container_layout.insertWidget(0, widget, alignment=Qt.AlignmentFlag.AlignTop)
-        
-        # if info["per_day"] is not None:
-        #     per_day_edit.edit.setText(info["per_day"])
-        # if info["per_week"] is not None:
-        #     per_week_edit.edit.setText(info["per_week"])
         
         self.info[subject_id] = info
         
         if len(self.dp_tracker) == len(self.subjects):
             self.add_button.setDisabled(True)
     
-    def make_temp_show_teacher_popup_func(self, subject_id: str):
+    def make_show_teacher_popup_func(self, subject_id: str):
         def temp_show_teacher_popup():
             info = self.info[subject_id]
             
@@ -501,25 +489,44 @@ class SubjectSelection(QDialog):
 
     def make_dp_clicked_func(self, subject_id: str):
         def dp_clicked_func(index):
-            # Store the current text before changing
-            for old_subject_id, odp in self.dp_tracker.copy().items():
-                if old_subject_id != subject_id and odp.currentIndex() == index:
-                    widget = odp.parent().parent()
-                    self.container_layout.removeWidget(widget)
-                    widget.deleteLater()
-                    self.dp_tracker.pop(old_subject_id)
-                    
-                    if self.info.get(old_subject_id) is not None:
-                        self.info.pop(old_subject_id)
-                        self.add_button.setDisabled(False)
-                        self.dp_tracker[subject_id] = odp
-                    
-                    self.info[old_subject_id] = self.info.pop(subject_id)
-                    # self._set_list_value(self.info, dp, self._pop_list_value(self.info, old_text))
-                    break
-            else:
-                self.dp_tracker[self.id_mapping[index]] = self.dp_tracker.pop(subject_id)
-                self.info[self.id_mapping[index]] = self.info.pop(subject_id)
+            dublicate_dp_id = next((dublicate_dp_id for dublicate_dp_id, odp in self.dp_tracker.copy().items() if dublicate_dp_id != subject_id and odp.currentIndex() == index), None)
+            new_subject_id = self.id_mapping[index]
+            
+            if dublicate_dp_id is not None:
+                new_subject_id = dublicate_dp_id
+                
+                odp = self.dp_tracker[dublicate_dp_id]
+                
+                widget = odp.parent().parent()
+                self.container_layout.removeWidget(widget)
+                widget.deleteLater()
+                self.add_button.setDisabled(False)
+            
+            self.info[new_subject_id] = self.info.pop(subject_id)
+            self.info[new_subject_id]["teachers"] = self.available_subject_teachers[new_subject_id]["teachers"]
+            self.dp_tracker[new_subject_id] = self.dp_tracker.pop(subject_id)
+            
+            main_widget = self.dp_tracker[new_subject_id].parent().parent()
+            sub_widget_layout = self.dp_tracker[new_subject_id].parent().layout().itemAt(1).layout()
+            
+            per_day_edit = sub_widget_layout.itemAt(0).widget()
+            per_day_edit.edit.textChanged.disconnect()
+            per_day_edit.edit.textChanged.connect(self.make_text_changed_func(new_subject_id, "per_day", per_day_edit))
+            
+            per_week_edit = sub_widget_layout.itemAt(1).widget()
+            per_week_edit.edit.textChanged.disconnect()
+            per_week_edit.edit.textChanged.connect(self.make_text_changed_func(new_subject_id, "per_week", per_week_edit))
+            
+            teacher_button = sub_widget_layout.itemAt(2).widget()
+            teacher_button.clicked.disconnect()
+            teacher_button.clicked.connect(self.make_show_teacher_popup_func(new_subject_id))
+            
+            self.dp_tracker[new_subject_id].currentIndexChanged.disconnect()
+            self.dp_tracker[new_subject_id].currentIndexChanged.connect(self.make_dp_clicked_func(new_subject_id))
+            
+            main_widget.delete_button.clicked.disconnect(self.del_widg_func_tracker.pop(subject_id))
+            self.del_widg_func_tracker[new_subject_id] = self.make_dp_destroy_func(new_subject_id)
+            main_widget.delete_button.clicked.connect(self.del_widg_func_tracker[new_subject_id])
         
         return dp_clicked_func
 
@@ -706,79 +713,4 @@ class WarningDialog(QDialog):
         if not self.ok_clicked:
             self.button_clicked.emit(False)
         self.ok_clicked = False
-
-
-# class FlowLayout(QLayout):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.items = []
-#         self.h_spacing = 4
-#         self.v_spacing = 4
-    
-#     def addItem(self, item):
-#         self.items.append(item)
-    
-#     def removeWidget(self, widget):
-#         for i, item in enumerate(self.items):
-#             if item.widget() == widget:
-#                 return self.takeAt(i)
-#         return None
-    
-#     def count(self):
-#         return len(self.items)
-    
-#     def itemAt(self, index):
-#         if 0 <= index < len(self.items):
-#             return self.items[index]
-#         return None
-    
-#     def takeAt(self, index):
-#         if 0 <= index < len(self.items):
-#             return self.items.pop(index)
-#         return None
-    
-#     def expandingDirections(self):
-#         return Qt.Orientations(0)
-    
-#     def hasHeightForWidth(self):
-#         return True
-    
-#     def heightForWidth(self, width):
-#         return self.doLayout(QRect(0, 0, width, 0), True)
-    
-#     def setGeometry(self, rect):
-#         super().setGeometry(rect)
-#         self.doLayout(rect, False)
-    
-#     def sizeHint(self):
-#         return self.minimumSize()
-    
-#     def minimumSize(self):
-#         size = QSize()
-#         for item in self.items:
-#             size = size.expandedTo(item.minimumSize())
-#         return size
-    
-#     def doLayout(self, rect, test_only):
-#         x = rect.x()
-#         y = rect.y()
-#         line_height = 0
-#         max_width = rect.width()
-        
-#         for item in self.items:
-#             item_width = item.sizeHint().width()
-#             item_height = item.sizeHint().height()
-            
-#             if x + item_width > max_width:
-#                 x = rect.x()
-#                 y = y + line_height + self.v_spacing
-#                 line_height = 0
-            
-#             if not test_only:
-#                 item.setGeometry(QRect(x, y, item_width, item_height))
-            
-#             x = x + item_width + self.h_spacing
-#             line_height = max(line_height, item_height)
-        
-#         return y + line_height - rect.y()
 

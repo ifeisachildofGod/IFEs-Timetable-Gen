@@ -72,7 +72,6 @@ class SettingWidget(QWidget):
         buttons_layout = QHBoxLayout()
         
         _id = str(widget) if _id is None else _id
-        # _id = self.objectName() + ": " + str(len(self.info) + 1) if _id is None else _id
         
         if data is None:
             self.add_id_to_info(_id)
@@ -98,7 +97,6 @@ class SettingWidget(QWidget):
         
         self.container_layout.insertWidget(0, widget, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignVCenter)
         
-        # name_edit.returnPressed.connect(lambda: name_edit.clearFocus())
         for edit in text_edits:
             edit.show()
         text_edits[0].setFocus()
@@ -132,7 +130,8 @@ class SettingWidget(QWidget):
             edit.setFixedHeight(80)
             edit.setStyleSheet("font-size: 40px;")
             
-            self.info[_id]["text"].append(text)
+            if data is None:
+                self.info[_id]["text"].append(text)
             
             edit.textChanged.connect(self._make_store_edit_func(_id, edit, index))
             
@@ -172,8 +171,9 @@ class SettingWidget(QWidget):
 
 class Subjects(SettingWidget):
     def __init__(self, save_data: dict | None):
-        super().__init__("Subjects", ["Enter the subject name"], save_data)
         self.teachers = [None]
+        
+        super().__init__("Subjects", ["Enter the subject name"], save_data)
     
     def update_data_interaction(self, parent, prev_index, curr_index):
         general_condition = prev_index != 3 and not (curr_index == 3 and prev_index != 0)
@@ -255,7 +255,7 @@ class Subjects(SettingWidget):
                             subject_info_entry["teachers"]["id_mapping"][len(subject_info_entry["teachers"]["content"])] = curr_teacher_id
                             subject_info_entry["teachers"]["content"].append(curr_subject_value)
             
-            for i, (subject_id, subject_info_entry) in enumerate(subject_info.items()):
+            for subject_id, subject_info_entry in subject_info.items():
                 subject_teacher_index_id_mapping = dict(
                     zip(
                         list(subject_info_entry["teachers"]["id_mapping"].values()),
@@ -328,8 +328,9 @@ class Subjects(SettingWidget):
 
 class Teachers(SettingWidget):
     def __init__(self, save_data: dict | None):
-        super().__init__("Teachers", ["Full name"], save_data)
         self.subjects = [None]
+        
+        super().__init__("Teachers", ["Full name"], save_data)
     
     def update_data_interaction(self, parent, prev_index, curr_index):
         if not ((prev_index == 0 and curr_index in (1, 2)) or (curr_index == 3 and prev_index != 1)) or prev_index == 3:
@@ -455,14 +456,14 @@ class Teachers(SettingWidget):
 
 class Classes(SettingWidget):
     def __init__(self, save_data: dict | None):
-        super().__init__("Classes", ["Enter the class section name"], save_data)
+        self.default_per_day = 2
+        self.default_per_week = 4
         
         self.subject_teachers_mapping = {}
         
-        self.default_per_day = 2
-        self.default_per_week = 4
+        super().__init__("Classes", ["Enter the class section name"], save_data)
     
-    def update_data_interaction(self, parent, prev_index, curr_index):
+    def update_data_interaction(self, parent, prev_index, _):
         if prev_index in (2, 3):
             return
         

@@ -46,16 +46,10 @@
             }
         ),
         ...
-    }
-}
+    },
 
 
 
-
-
-
-
-{
     "subjectsInfo": {
         subjectID: {
             "text": [text_on_input, ...],
@@ -81,7 +75,7 @@
             "teachers": {
                 "content": [selectedTeacher, ..., None, unselectedTeacher, ...],
                 "id_mapping": {
-                    selectedTeacherIndex: selectedTeacherID,
+                    teacherIndex: teacherID,
                     ...
                 }
             }
@@ -95,7 +89,7 @@
             "subjects": {
                 "content": [selectedSubject, ..., None, unselectedSubject, ...],
                 "id_mapping": {
-                    selectedSubjectIndex: selectedSubjectID,
+                    subjectIndex: subjectID,
                     ...
                 }
             }
