@@ -9,9 +9,9 @@ from typing import Callable
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout,
     QVBoxLayout, QPushButton, QStackedWidget,
-    QMenuBar, QMessageBox, QFileDialog
+    QMessageBox, QFileDialog
 )
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QAction
 from frontend.setting_widgets import SettingWidget, Subjects, Teachers, Classes
 from frontend.editing_widgets import TimeTableEditor
 from frontend.theme import *
@@ -48,6 +48,8 @@ class Window(QMainWindow):
         
         self.setWindowTitle("IFEs Timetable Generator")
         self.setGeometry(100, 100, 1000, 700)
+        
+        self.create_menu_bar()
         
         # Create main container
         container = QWidget()
@@ -174,6 +176,56 @@ class Window(QMainWindow):
     
     def save_as(self):
         self._file_dialog(self._save_file_as, "save")
+    
+    def undo(self):
+        undo_func = self.focusWidget().__dict__.get("undo")
+        if undo_func is not None:
+            undo_func()
+    
+    def redo(self):
+        redo_func = self.focusWidget().__dict__.get("redo")
+        if redo_func is not None:
+            redo_func()
+    
+    def create_menu_bar(self):
+        menubar = self.menuBar()
+        
+        # File Menu
+        file_menu = menubar.addMenu("File")
+        edit_menu = menubar.addMenu("Edit")
+        help_menu = menubar.addMenu("Help")
+        
+        # Add File Actions
+        new_action = QAction("New", self)
+        open_action = QAction("Open", self)
+        save_action = QAction("Save", self)
+        save_as_action = QAction("Save_as", self)
+        exit_action = QAction("Exit", self)
+        
+        new_action.setShortcut("Ctrl+N")
+        open_action.setShortcut("Ctrl+O")
+        save_action.setShortcut("Ctrl+S")
+        save_as_action.setShortcut("Ctrl+Shift+S")
+        
+        new_action.triggered.connect(self.new)
+        open_action.triggered.connect(self.open)
+        save_action.triggered.connect(self.save)
+        save_as_action.triggered.connect(self.save_as)
+        exit_action.triggered.connect(self.close)
+        
+        file_menu.addActions([new_action, open_action, save_action, save_as_action, exit_action])
+        
+        # Add Edit Actions
+        undo_action = QAction("Undo", self)
+        redo_action = QAction("Redo", self)
+        
+        undo_action.setShortcut("Ctrl+Z")
+        redo_action.setShortcut("Ctrl+Y")
+        
+        undo_action.triggered.connect(self.undo)
+        redo_action.triggered.connect(self.redo)
+        
+        edit_menu.addActions([undo_action, redo_action])
     
     def get_settings_info(self):
         setting_widgets: dict[str, SettingWidget] = {
