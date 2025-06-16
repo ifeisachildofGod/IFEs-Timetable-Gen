@@ -1,40 +1,69 @@
-from copy import deepcopy
-import os
-import random
-import subprocess
-import sys
+import subprocess, gzip, json, shutil
 
-import json
+from copy import deepcopy
 from typing import Callable
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout,
     QVBoxLayout, QPushButton, QStackedWidget,
-    QMessageBox, QFileDialog
+    QMessageBox, QFileDialog   
 )
 from PyQt6.QtGui import QAction
+from PyQt6.QtCore import QThread, Qt
 from frontend.setting_widgets import SettingWidget, Subjects, Teachers, Classes
 from frontend.editing_widgets import TimeTableEditor
 from frontend.theme import *
 from middle.main import School
 
-args = sys.argv
+class Thread(QThread):
+    def __init__(self, func: Callable):
+        super().__init__()
+        self.func = func
+    
+    def run(self):
+        try:
+            self.func()
+        except Exception as e:
+            print(e)
+            self.terminate()
+
+def gzip_file(input_file_path, output_file_path=None):
+    if output_file_path is None:
+        output_file_path = input_file_path
+    
+    with open(input_file_path, 'rb') as f_in:
+        with gzip.open(output_file_path, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    
+    print(f"File compressed and saved to: {output_file_path}")
 
 class Window(QMainWindow):
-    def __init__(self):
+    def __init__(self, args):
         super().__init__()
         # Default data
         self.default_save_data = {"levels": [], "subjectTeacherMapping": {}}
         self.default_weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         
         # Get saved data
-        self.path = args[1] if len(args) > 1 else None
+        self.path = None
+        self.write_save_file = None
+        self.save_data = deepcopy(self.default_save_data)
+        self.orig_data = deepcopy(self.save_data)
         
-        if self.path is not None:
-            with open(self.path) as file:
+        self.setWindowTitle(f"IFEs Timetable Generator")
+        
+        if len(args) > 1:
+            try:
+                gzip.open(self.path, "rt")
+            except:
+                gzip_file(self.path)
+            
+            with gzip.open(self.path, "rt") as file:
                 self.save_data = json.load(file)
-                self._fix_data()
-        else:
-            self.save_data = deepcopy(self.default_save_data)
+                self.orig_data = deepcopy(self.save_data)
+            
+            self._fix_data()
+            
+            self.setWindowTitle(self.windowTitle() + " - " + self.path)
         
         # Initialize school data
         self.school = School(self.save_data)
@@ -46,7 +75,6 @@ class Window(QMainWindow):
         self.display_index = 0
         self.prev_display_index = 0
         
-        self.setWindowTitle("IFEs Timetable Generator")
         self.setGeometry(100, 100, 1000, 700)
         
         self.create_menu_bar()
@@ -114,21 +142,28 @@ class Window(QMainWindow):
         subjects_btn.click()  # Start with subjects page selected
     
     def _fix_data(self):
-        for subject_info in self.save_data["subjectsInfo"]["variables"].values():
-            for k in subject_info["teachers"]["id_mapping"].copy().keys():
-                subject_info["teachers"]["id_mapping"][int(k)] = subject_info["teachers"]["id_mapping"].pop(k)
+        subjects_data = self.save_data.get("subjectsInfo")
+        teachers_data = self.save_data.get("teachersInfo")
+        classes_data = self.save_data.get("classesInfo")
         
-        for teacher_info in self.save_data["teachersInfo"]["variables"].values():
-            for k in teacher_info["subjects"]["id_mapping"].copy().keys():
-                teacher_info["subjects"]["id_mapping"][int(k)] = teacher_info["subjects"]["id_mapping"].pop(k)
+        if subjects_data is not None:
+            for subject_info in subjects_data["variables"].values():
+                for k in subject_info["teachers"]["id_mapping"].copy().keys():
+                    subject_info["teachers"]["id_mapping"][int(k)] = subject_info["teachers"]["id_mapping"].pop(k)
         
-        for class_info in self.save_data["classesInfo"]["variables"].values():
-            for k in class_info["subjects"]["id_mapping"].copy().keys():
-                class_info["subjects"]["id_mapping"][int(k)] = class_info["subjects"]["id_mapping"].pop(k)
-            
-            for subject_in_class_info in class_info["subjects"]["content"].values():
-                for k in subject_in_class_info["teachers"]["id_mapping"].copy().keys():
-                    subject_in_class_info["teachers"]["id_mapping"][int(k)] = subject_in_class_info["teachers"]["id_mapping"].pop(k)
+        if teachers_data is not None:
+            for teacher_info in self.save_data["teachersInfo"]["variables"].values():
+                for k in teacher_info["subjects"]["id_mapping"].copy().keys():
+                    teacher_info["subjects"]["id_mapping"][int(k)] = teacher_info["subjects"]["id_mapping"].pop(k)
+        
+        if classes_data is not None:
+            for class_info in self.save_data["classesInfo"]["variables"].values():
+                for k in class_info["subjects"]["id_mapping"].copy().keys():
+                    class_info["subjects"]["id_mapping"][int(k)] = class_info["subjects"]["id_mapping"].pop(k)
+                
+                for subject_in_class_info in class_info["subjects"]["content"].values():
+                    for k in subject_in_class_info["teachers"]["id_mapping"].copy().keys():
+                        subject_in_class_info["teachers"]["id_mapping"][int(k)] = subject_in_class_info["teachers"]["id_mapping"].pop(k)
     
     def _file_dialog(self, func: Callable[[tuple[str, str]], str], file_mode: str):
         open_file_dialog = QFileDialog()
@@ -144,9 +179,10 @@ class Window(QMainWindow):
     
     def _make_new_file(self, path: tuple[str, str]):
         with open(path[0], "w") as file:
-            file.write(json.dumps(deepcopy(self.default_save_data), indent=2))
+            json.dump(deepcopy(self.default_save_data), file, indent=2)
         
-        subprocess.run(["py", "main.py", path])
+        create_new_file_thread = Thread(lambda : subprocess.run(["py", "main.py", path[0]]))
+        create_new_file_thread.start()
     
     def _set_path(self, path: tuple[str, str]):
         self.path = path[0]
@@ -157,14 +193,18 @@ class Window(QMainWindow):
         data = self.save_data.copy()
         data.update(self.get_settings_info())
         
-        with open(path[0], "w") as file:
-            file.write(json.dumps(data, indent=2))
+        with gzip.open(path[0], "wt") as file:
+            json.dump(data, file, indent=2)
     
     def new(self):
         self._file_dialog(self._make_new_file, "new")
     
     def open(self):
-        self._file_dialog(lambda path: subprocess.run(["py", "main.py", path]), "open")
+        def func(path):
+            create_new_file_thread = Thread(lambda : subprocess.run(["py", "main.py", path]))
+            create_new_file_thread.start()
+        
+        self._file_dialog(func, "open")
     
     def save(self):
         self.save_data.update(self.get_settings_info())
@@ -172,7 +212,8 @@ class Window(QMainWindow):
         if self.path is None:
             self._file_dialog(self._set_path, "save")
         
-        self._save_file_as((self.path, ))
+        self._save_file_as(self.path)
+        self.orig_data = deepcopy(self.save_data)
     
     def save_as(self):
         self._file_dialog(self._save_file_as, "save")
@@ -247,10 +288,11 @@ class Window(QMainWindow):
         for thread in self.timetable_widget.THREADS:
             thread.quit()
         
-        reply = QMessageBox.question(self, "Save", "Save before quitting?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        
-        if reply == QMessageBox.StandardButton.Yes:
-            self.save()
+        if self.orig_data != self.save_data:
+            reply = QMessageBox.question(self, "Save", "Save before quitting?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self.save()
         
         event.accept()
     
