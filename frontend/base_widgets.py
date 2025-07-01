@@ -16,27 +16,30 @@ from middle.objects import Class, Subject
 
 
 class TimeTableItem(QTableWidgetItem):
-    def __init__(self, subject: Subject = None, break_time: bool = None):
+    def __init__(self, subject: Subject | None = None, break_time: bool | None = None, free_period: bool | None = None):
         super().__init__()
         
         self.subject = subject
         self.break_time = break_time
+        self.free_period = free_period
         
-        self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsEnabled)
+        self.setFlags(self.flags() & Qt.ItemFlag.ItemIsEnabled)
         
         if self.break_time:
             color = list(_hex_to_rgb(_widgets_bg_color_5))
             color.pop()
             self.setBackground(QColor(*[int(col_val * 255) for col_val in color]))
+        elif self.free_period:
+            self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
         
-        # I check if subject is None seperately bcos of when the break time is chacked
+        # I check if subject is None seperately bcos of when the break time is checked
         
         if self.subject is None or self.break_time:
             self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsDropEnabled)
-        else:
+        elif not self.free_period and not self.break_time and self.subject.teacher is not None:
             self.setText(self.subject.name)
             self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.setToolTip(f"Teacher: {self.subject.teacher.name if self.subject.teacher else 'None'}")
+            self.setToolTip(f"ID: {self.subject.uniqueID}\nTeacher: {self.subject.teacher.name}\nLocked: {self.subject.lockedPeriod is not None}")
 
 class DraggableSubjectLabel(QLabel):
     clicked = pyqtSignal(QMouseEvent)
@@ -48,7 +51,7 @@ class DraggableSubjectLabel(QLabel):
         
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setProperty('class', 'subject-item')
-        self.setToolTip(f"Teacher: {str(subject.teacher.name)}")
+        self.setToolTip(f"ID: {self.subject.uniqueID}\nTeacher: {self.subject.teacher.name}")
         
         self.setFixedSize(150, 40)
         self.setStyleSheet("QLabel{background-color: " + _widgets_bg_color_2 + "; border-radius: 10px;} QLabel:hover{background-color: " + get_hover_color(_widgets_bg_color_2) + ";}")

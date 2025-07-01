@@ -38,7 +38,13 @@
                     perDay,
                     perWeek,
                     {
-                        classID: [(teacherID, teacherName), (((dayIndex, period), (timetableTotal, timetablePerWeek)), ...)],
+                        classID: [
+                            (teacherID, teacherName),
+                            (
+                                ((dayIndex, period), (timetableTotal, timetablePerWeek), remainderAmount),
+                                ...
+                            )
+                        ],
                         ...
                     }
                 ),

@@ -24,10 +24,12 @@ class Subject:
     def teacher(self, teacher: 'Teacher'):
         self._teacher = teacher
         self.uniqueID = self.id + (self._teacher.id if self._teacher is not None else "")
+        self.uniqueID.replace("0x", "")
     
     def copy(self):
         subject = Subject(self.id, self.name, self.total, self.perWeek, self.teacher)
         subject.lockedPeriod = self.lockedPeriod
+        
         return subject
     
     def fullReset(self):
@@ -51,6 +53,8 @@ class Class:
     def __init__(self, index: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolTeachers: dict[str, Any], weekdays: list[str], breakTimePeriods: list[int]) -> None:
         self.school = school
         self.schoolDict = schoolDict
+        self.schoolTeachers = schoolTeachers
+        
         self.weekdays = weekdays
         
         self.index = index
@@ -64,19 +68,20 @@ class Class:
         self.periodsPerDay = periodsPerDay
         self.teachers: dict[Teacher, Subject] = {}
         
+        self.breakTimePeriods = breakTimePeriods
+        
+        self.updateTeachers()
+        
+        self.timetable = Timetable(self, [subject.copy() for subject in self.subjects], self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
+    
+    def updateTeachers(self):
         for subjs in self.subjects:
-            for _, teacher in schoolTeachers.items():
+            for _, teacher in self.schoolTeachers.items():
                 classTaught = teacher.subjects.get(subjs)
                 
                 if classTaught is not None:
-                    if self.name in classTaught.name:
+                    if self.uniqueID in classTaught.uniqueID:
                         self.teachers[teacher] = subjs
-        
-        self.breakTimePeriods = breakTimePeriods
-        
-        self.timetable = Timetable(self, [subject.copy() for subject in self.subjects], self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
-        
-        # schoolClasses[self.name] = self
 
 class Teacher:
     def __init__(self, _id: str, name: str, subjects: dict[Subject, Class], schoolTeachers: dict[str, Any]) -> None:
@@ -298,7 +303,7 @@ class Timetable:
                             subjects.insert(subjectIndex + 2, Subject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.teacher))
                         break
         
-        self.remainderContent = self.subjects
+        self.remainderContent = [subj.copy() for subj in self.subjects]
         
         if self._foundPerfectTimeTable:
             return

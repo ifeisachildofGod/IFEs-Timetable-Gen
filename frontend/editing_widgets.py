@@ -20,11 +20,14 @@ from frontend.theme import *
 from frontend.theme import _widgets_bg_color_6
 
 from middle.main import School, Class
+from middle.objects import Subject
 
 
 class _GenerateNewSchoolThread(QThread):
     def __init__(self, threads_list: list['_GenerateNewSchoolThread'], run_func: Callable = None):
         super().__init__()
+        self.setParent(None)
+        
         self.run_func = run_func if run_func is not None else print
         threads_list.append(self)
         self.finished.connect(lambda: threads_list.remove(self))
@@ -351,6 +354,7 @@ class _TimetableSettings(QWidget):
 class _ClassTimetable(QTableWidget):
     def __init__(self, cls: Class, editor: 'TimeTableEditor', remainder_layout: QVBoxLayout):
         super().__init__()
+        
         self.cls = cls
         self.timetable = cls.timetable
         self.editor = editor
@@ -451,7 +455,6 @@ class _ClassTimetable(QTableWidget):
                         self.update()
                         source_widget.update()
                         
-                        self.save_timetable()
                         event.accept()
                         
                         del target_item
@@ -488,7 +491,6 @@ class _ClassTimetable(QTableWidget):
                 self.blockSignals(False)
                 
                 # Force refresh
-                self.save_timetable()
                 event.accept()
             
             self.editor.external_source_ref = None
@@ -508,23 +510,37 @@ class _ClassTimetable(QTableWidget):
             for row in range(self.rowCount()):
                 item = self.item(row, col)
                 if isinstance(item, TimeTableItem) and item.subject:
-                    subjects.append(item.subject)
+                    if (subjects and subjects[len(subjects) - 1].uniqueID != item.subject.uniqueID) or not subjects:
+                        subjects.append(item.subject)
+                        
+                        if item.subject.id not in (self.timetable.freePeriodID, self.timetable.breakPeriodID):
+                            coords = [
+                                (col, row),
+                                (item.subject.total, item.subject.perWeek),
+                                next((obj.total for obj in self.remainder_layout.children() if isinstance(obj, DraggableSubjectLabel) and item.subject.uniqueID == obj.subject.uniqueID), 0)
+                            ]
+                            
+                            self.editor.school.project["subjects"][item.subject.id][1][str(self.cls.index)][2][self.cls.classID][1].append(coords)
+                        
             self.timetable.table[day] = subjects
     
     def populate_timetable(self):
         """Load the timetable data into the grid"""
         for col, (day, _, _) in enumerate(self.timetable.weekInfo):
-            subjects = list(flatten([[subj for _ in range(subj.total)] for subj in self.timetable.table[day]])) + [None for _ in range(max(self.timetable.periodsPerDay) - len(self.timetable.table[day]))]
+            total_s_names = list(flatten([[subj for _ in range(subj.total)] for subj in self.timetable.table[day]]))
+            subjects = total_s_names + [Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None) for _ in range(max(self.timetable.periodsPerDay) - len(total_s_names))]
             
             for row, subject in enumerate(subjects):
-                item = TimeTableItem(subject, row + 1 == self.cls.breakTimePeriods[col])
+                item = TimeTableItem(subject, row + 1 == self.cls.breakTimePeriods[col], subject.id == self.cls.timetable.freePeriodID)
                 self.setItem(row, col, item)
         
         for label in self.remainder_layout.findChildren(DraggableSubjectLabel):
             self.remainder_layout.removeWidget(label)
         
-        subjects = flatten([[subj for _ in range(subj.total)] for subj in self.cls.timetable.remainderContent])
-        for subject in subjects:
+        rem_subjects = flatten([[subj for _ in range(subj.total)] for subj in self.cls.timetable.remainderContent if subj.teacher is not None])
+        
+        
+        for subject in rem_subjects:
             subject_label = DraggableSubjectLabel(subject, self.cls)
             subject_label.clicked.connect(self.editor.make_ds_func(subject_label))
             
@@ -532,7 +548,7 @@ class _ClassTimetable(QTableWidget):
     
     def show_context_menu(self, pos):
         item = self.itemAt(pos)
-        if item and isinstance(item, TimeTableItem):
+        if item and isinstance(item, TimeTableItem) and not item.break_time:
             menu = QMenu(self)
             delete_action = menu.addAction("Delete")
             if item.subject.lockedPeriod:
@@ -550,7 +566,6 @@ class _ClassTimetable(QTableWidget):
                 self.add_remainder(subject_label)
                 
                 self.setItem(self.row(item), self.column(item), TimeTableItem())
-                self.save_timetable()
             elif action and action.text() == "Lock to Period":
                 item.subject.lockedPeriod = [self.row(item), 1]  # Lock to current period
                 item.locked = True
@@ -583,8 +598,10 @@ class _ClassTimetable(QTableWidget):
 class TimeTableEditor(QWidget):
     THREADS: list[_GenerateNewSchoolThread] = []
     
-    def __init__(self, school: School):
+    def __init__(self, main_window: QMainWindow, school: School):
         super().__init__()
+        
+        self.main_window = main_window
         self.school = school
         
         progress_bar_widget = QWidget()
@@ -634,8 +651,6 @@ class TimeTableEditor(QWidget):
         self.timetable_widgets: dict[str, _ClassTimetable] = {}
         for index, (_, cls) in enumerate(self.school.classes.items()):
             widget = self._make_timetable_for_each_class(index, cls)
-            
-            self.timetable_parent_widget[cls.uniqueID] = widget
             self.timetables_layout.addWidget(widget)
         
         # Create settings for timetables
@@ -648,16 +663,20 @@ class TimeTableEditor(QWidget):
     def set_editor_from_school(self, school: School):
         self.school = school
         
-        for _, widget in self.timetable_parent_widget.items():
-            widget.deleteLater()
+        classes = {}
+        
+        for class_index, (_, cls) in enumerate(self.school.classes.items()):
+            classes[cls.uniqueID] = self.timetable_parent_widget[cls.uniqueID] if cls.uniqueID in self.timetable_parent_widget else self._make_timetable_for_each_class(class_index, cls)
+        
+        for class_id, widget in self.timetable_parent_widget.copy().items():
+            if class_id not in classes:
+                self.timetable_parent_widget.pop(class_id)
+                self.timetable_widgets.pop(class_id)
+            
             self.timetables_layout.removeWidget(widget)
         
-        self.timetable_parent_widget = {}
-        self.timetable_widgets = {}
-        for index, (_, cls) in enumerate(self.school.classes.items()):
-            widget = self._make_timetable_for_each_class(index, cls)
-            
-            self.timetable_parent_widget[cls.uniqueID] = widget
+        for class_id, widget in classes.items():
+            self.timetable_widgets[class_id].populate_timetable()
             self.timetables_layout.addWidget(widget)
     
     def refresh(self):
@@ -682,10 +701,18 @@ class TimeTableEditor(QWidget):
         
         return func
     
-    def update_data_interaction(self, parent: QMainWindow):
-        subjects_info = parent.subjects_widget.get()
-        teachers_info = parent.teachers_widget.get()
-        classes_info = parent.classes_widget.get()
+    def update_data_interaction(self):
+        for _, (_, info1) in self.school.project["subjects"].items():
+            for _, (_, _, info2) in info1.items():
+                for _, (_, info3) in info2.items():
+                    info3.clear()
+        
+        for _, cls in self.school.classes.items():
+            self.timetable_widgets[cls.uniqueID].save_timetable()
+        
+        subjects_info = self.main_window.subjects_widget.get()
+        teachers_info = self.main_window.teachers_widget.get()
+        classes_info = self.main_window.classes_widget.get()
         
         subjectTeacherMapping = {}
         for subject_id, subject_info in subjects_info.items():
@@ -736,8 +763,8 @@ class TimeTableEditor(QWidget):
                     option_text,
                     (
                         self.school.project["levels"][class_index][1][class_id + option_id]
-                        if self._certify_class_level_info(class_index, option_id) else
-                        [[int(total_subject_amt / (len(parent.default_weekdays) * len(classes_info))) for _ in range(len(parent.default_weekdays))], [int(total_subject_amt / (len(parent.default_weekdays) * len(classes_info) * 2)) for _ in range(len(parent.default_weekdays))], parent.default_weekdays]
+                        if self._certify_class_level_info(class_index, class_id, option_id) else
+                        [[self.main_window.default_period_amt for _ in range(len(self.main_window.default_weekdays))], [self.main_window.default_breakperiod for _ in range(len(self.main_window.default_weekdays))], self.main_window.default_weekdays]
                     )
                 ]
                 for option_id, option_text in class_info["options"].items()}
@@ -749,15 +776,17 @@ class TimeTableEditor(QWidget):
         }
         
         school_project_subjects_dict = self.school.project.get("subjects")
-                
+        
         if school_project_subjects_dict is not None:
             subjects = {}
             for subject_id, (subject_name, subject_info) in subjectTeacherMapping.items():
                 subject_level_info = {}
+                
                 classes_taught = {
                     str(class_index): list(class_info["options"].keys())
                     for class_index, (_, class_info)
                     in enumerate(classes_info.items())
+                    if subject_info["&timings"].get(str(class_index)) is not None
                 } if subject_info.get("&classes") is None else subject_info["&classes"]
                 
                 for class_index, class_ids in classes_taught.items():
@@ -780,7 +809,7 @@ class TimeTableEditor(QWidget):
                             teacher_name = all_available_class_teacher_ids[0][1]
                             
                             class_teacher_mapping[class_id] = [[teacher_id, teacher_name], []]
-                        
+                    
                     per_day, per_week = subject_info["&timings"][class_index]
                     subject_level_info[class_index] = (per_day, per_week, class_teacher_mapping)
                 
@@ -788,13 +817,13 @@ class TimeTableEditor(QWidget):
             
             project_update["subjects"] = subjects
         
-        parent.project.update(project_update)
-        self.school = parent.school = School(parent.project)
-        parent.timetable_widget.set_editor_from_school(self.school)
+        self.main_window.save_data.update(project_update)
+        self.school = self.main_window.school = School(self.main_window.save_data)
+        self.main_window.timetable_widget.set_editor_from_school(self.school)
     
-    def _certify_class_level_info(self, class_index: int, option_id: str):
+    def _certify_class_level_info(self, class_index: int, class_id: str, option_id: str):
         if class_index < len(self.school.project["levels"]):
-            if option_id in self.school.project["levels"][class_index][1]:
+            if class_id + option_id in self.school.project["levels"][class_index][1]:
                 return True
         
         return False
@@ -945,6 +974,7 @@ class TimeTableEditor(QWidget):
         
         timetable = _ClassTimetable(cls, self, remainder_widget_layout)
         self.timetable_widgets[cls.uniqueID] = timetable
+        self.timetable_parent_widget[cls.uniqueID] = widget
         set_days_of_the_week = timetable.cls.weekdays
         
         temp_option_selector = OptionSelection("", {})
@@ -973,3 +1003,5 @@ class TimeTableEditor(QWidget):
         
         return widget
 
+
+    

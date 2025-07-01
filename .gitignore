@@ -136,3 +136,5 @@ cython_debug/
 testing_code_im_not_sure_of.py
 style_testing.css
 design_editor.py
+project_backup.json
+project_backup.json.ttbl

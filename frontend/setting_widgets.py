@@ -14,13 +14,15 @@ from frontend.theme import *
 
 
 class SettingWidget(QWidget):
-    def __init__(self, name: str, input_placeholders: list[str], data: dict | None = None):
+    def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[str], data: dict | None = None):
         super().__init__()
+        
+        self.main_window = main_window
+        
         self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
         
         self.info = {}
         self.id_mapping = {}
-        self.info_framework = {}
         self.input_placeholders = input_placeholders
         
         self.main_layout = QVBoxLayout(self)
@@ -30,7 +32,6 @@ class SettingWidget(QWidget):
         
         self.container = QWidget()
         self.container_layout = QVBoxLayout(self.container)
-        self.container_layout.addStretch()
         self.scroll_area.setWidget(self.container)
         
         self.add_button = QPushButton()
@@ -48,6 +49,10 @@ class SettingWidget(QWidget):
             
             for _id, values in data["variables"].items():
                 self.add(self.input_placeholders, _id, values)
+        
+        self.container_layout.addStretch()
+        
+        self.scroll_area.verticalScrollBar().setValue(0)
     
     def keyPressEvent(self, a0):
         if a0.key() == 16777220:
@@ -71,7 +76,7 @@ class SettingWidget(QWidget):
         header_layout = QHBoxLayout()
         buttons_layout = QHBoxLayout()
         
-        _id = str(widget) if _id is None else _id
+        _id = str(hex(id(widget)).upper()) if _id is None else _id
         
         if data is None:
             self.add_id_to_info(_id)
@@ -95,11 +100,14 @@ class SettingWidget(QWidget):
         layout.addLayout(buttons_layout)
         layout.addLayout(header_layout)
         
-        self.container_layout.insertWidget(0, widget, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignVCenter)
+        self.container_layout.insertWidget(len(self.info) - 1, widget, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignVCenter)
         
         for edit in text_edits:
             edit.show()
         text_edits[0].setFocus()
+        
+        self.scroll_area.update()
+        self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
         
     def make_popups(self, _id: str, layout: QHBoxLayout):
         pass
@@ -110,7 +118,7 @@ class SettingWidget(QWidget):
     def add_id_to_info(self, _id: str, info_value: dict):
         pass
     
-    def update_data_interaction(self, parent: QMainWindow, prev_index: int, curr_index: int):
+    def update_data_interaction(self, prev_index: int, curr_index: int):
         pass
     
     def _make_store_edit_func(self, _id: str, edit: QLineEdit, index: int):
@@ -170,12 +178,12 @@ class SettingWidget(QWidget):
 
 
 class Subjects(SettingWidget):
-    def __init__(self, save_data: dict | None):
+    def __init__(self, main_window: QMainWindow, save_data: dict | None):
         self.teachers = [None]
         
-        super().__init__("Subjects", ["Enter the subject name"], save_data)
+        super().__init__(main_window, "Subjects", ["Enter the subject name"], save_data)
     
-    def update_data_interaction(self, parent, prev_index, curr_index):
+    def update_data_interaction(self, prev_index, curr_index):
         general_condition = prev_index != 3 and not (curr_index == 3 and prev_index != 0)
         if not general_condition:
             return
@@ -183,9 +191,9 @@ class Subjects(SettingWidget):
         teacher_update_condition = (prev_index == 1 and curr_index == 0) or (curr_index == 2 and prev_index == 1)
         class_update_condition = (prev_index == 2 and curr_index == 0) or (curr_index == 1 and prev_index == 2)
         
-        subject_info = parent.subjects_widget.get()
-        teacher_info = parent.teachers_widget.get()
-        class_info = parent.classes_widget.get()
+        subject_info = self.main_window.subjects_widget.get()
+        teacher_info = self.main_window.teachers_widget.get()
+        class_info = self.main_window.classes_widget.get()
         
         if teacher_update_condition:
             # Update Teachers
@@ -198,8 +206,8 @@ class Subjects(SettingWidget):
                 teachers.append(teacher_name)
                 id_mapping[teacher_index + 1] = teacher_id
             
-            parent.subjects_widget.teachers = teachers
-            parent.subjects_widget.id_mapping = id_mapping
+            self.main_window.subjects_widget.teachers = teachers
+            self.main_window.subjects_widget.id_mapping = id_mapping
             
             for teacher_index, (teacher_id, teacher_info_entry) in enumerate(teacher_info.items()):
                 teacher_subject_index_id_mapping = dict(
@@ -297,8 +305,15 @@ class Subjects(SettingWidget):
                         ) if subject_info[subject_id]["classes"]["content"].get(class_id) is not None else
                         False
                     ) for option_id, _ in class_info_entry["options"].items()}
+            
+            for subject_id, subject_info in subject_info.items():
+                for subject_class_id in subject_info["classes"]["id_mapping"]["main"].copy().keys():
+                    if subject_class_id not in class_info:
+                        subject_info[subject_id]["classes"]["content"].pop(subject_class_id)
+                        subject_info[subject_id]["classes"]["id_mapping"]["main"].pop(subject_class_id)
+                        subject_info[subject_id]["classes"]["id_mapping"]["sub"].pop(subject_class_id)
         
-        parent.subjects_widget.info = subject_info
+        self.main_window.subjects_widget.info = subject_info
     
     def add_id_to_info(self, _id):
         self.info[_id] = {
@@ -327,17 +342,17 @@ class Subjects(SettingWidget):
         self._make_popup(_id, "Teachers", layout, SelectionList, "teachers", alignment=Qt.AlignmentFlag.AlignLeft)
 
 class Teachers(SettingWidget):
-    def __init__(self, save_data: dict | None):
+    def __init__(self, main_window: QMainWindow, save_data: dict | None):
         self.subjects = [None]
         
-        super().__init__("Teachers", ["Full name"], save_data)
+        super().__init__(main_window, "Teachers", ["Full name"], save_data)
     
-    def update_data_interaction(self, parent, prev_index, curr_index):
+    def update_data_interaction(self, prev_index, curr_index):
         if not ((prev_index == 0 and curr_index in (1, 2)) or (curr_index == 3 and prev_index != 1)) or prev_index == 3:
             return
         
-        teacher_info = parent.teachers_widget.get()
-        subject_info = parent.subjects_widget.get()
+        teacher_info = self.main_window.teachers_widget.get()
+        subject_info = self.main_window.subjects_widget.get()
         
         subjects = [None]
         id_mapping = {}
@@ -348,8 +363,8 @@ class Teachers(SettingWidget):
             subjects.append(subject_name)
             id_mapping[subject_index + 1] = subject_id
         
-        parent.teachers_widget.subjects = subjects
-        parent.teachers_widget.id_mapping = id_mapping
+        self.main_window.teachers_widget.subjects = subjects
+        self.main_window.teachers_widget.id_mapping = id_mapping
         
         for subject_index, (subject_id, subject_info_entry) in enumerate(subject_info.items()):
             subject_teacher_index_id_mapping = dict(
@@ -434,7 +449,7 @@ class Teachers(SettingWidget):
                 subject_name = " ".join(subject_info[index_id]["text"])
                 teacher_info_entry["subjects"]["content"][index] = subject_name
         
-        parent.teachers_widget.info = teacher_info
+        self.main_window.teachers_widget.info = teacher_info
     
     def add_id_to_info(self, _id: str):
         self.info[_id] = {
@@ -455,21 +470,18 @@ class Teachers(SettingWidget):
         self._make_popup(_id, "Subjects", layout, SelectionList, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
 
 class Classes(SettingWidget):
-    def __init__(self, save_data: dict | None):
-        self.default_per_day = 2
-        self.default_per_week = 4
-        
+    def __init__(self, main_window: QMainWindow, save_data: dict | None):
         self.subject_teachers_mapping = {}
         
-        super().__init__("Classes", ["Enter the class section name"], save_data)
+        super().__init__(main_window, "Classes", ["Enter the class section name"], save_data)
     
-    def update_data_interaction(self, parent, prev_index, _):
+    def update_data_interaction(self, prev_index, _):
         if prev_index in (2, 3):
             return
         
-        subject_info = parent.subjects_widget.get()
-        class_info = parent.classes_widget.get()
-        teacher_info = parent.teachers_widget.get()
+        subject_info = self.main_window.subjects_widget.get()
+        class_info = self.main_window.classes_widget.get()
+        teacher_info = self.main_window.teachers_widget.get()
         
         subject_teacher_mapping = {}
         for subject_index, (subject_id, subject_info_entry) in enumerate(subject_info.items()):
@@ -525,14 +537,14 @@ class Classes(SettingWidget):
         for _, class_info_entry in class_info.items():
             class_info_entry["subjects"]["available_subject_teachers"] = subject_teacher_mapping
         
-        for subject_index, (subject_id, _) in enumerate(parent.classes_widget.subject_teachers_mapping.items()):
+        for subject_index, (subject_id, _) in enumerate(self.main_window.classes_widget.subject_teachers_mapping.items()):
             if subject_id not in subject_info:
                 for _, class_info_entry in class_info.items():
                     class_info_entry["subjects"]["content"].pop(subject_id)
                     class_info_entry["subjects"]["id_mapping"].pop(subject_index)
         
-        parent.classes_widget.info = class_info
-        parent.classes_widget.subject_teachers_mapping = subject_teacher_mapping
+        self.main_window.classes_widget.info = class_info
+        self.main_window.classes_widget.subject_teachers_mapping = subject_teacher_mapping
     
     def add_id_to_info(self, _id: str):
         self.info[_id] = {
@@ -552,6 +564,6 @@ class Classes(SettingWidget):
     
     def make_popups(self, _id, layout):
         self._make_popup(_id, "Option Selector", layout, OptionSelection, "options", button_name="Options")
-        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, default_per_day=self.default_per_day, default_per_week=self.default_per_week)
+        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, default_per_day=self.main_window.default_per_day, default_per_week=self.main_window.default_per_week)
 
 

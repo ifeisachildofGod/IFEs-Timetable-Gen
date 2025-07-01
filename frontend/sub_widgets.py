@@ -606,7 +606,7 @@ class OptionSelection(QDialog):
     def add_option(self, _id: str | None = None, text: str = ""):
         option = OptionTag(text)
         
-        _id = _id if _id is not None else str(option)
+        _id = str(hex(id(option)).upper()) if _id is None else _id
         
         def update_option():
             self.info[_id] = option.get_text()

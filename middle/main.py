@@ -130,8 +130,14 @@ class School:
         cls.timetable.generate()
     
     def generateNewSchoolTimetables(self):
+        print("Loaded")
         for _, cls in self.classes.items():
             self.generateTimetable(cls)
+            
+            adsdd = [s.name for s in cls.timetable.remainderContent if s.teacher is not None]
+            if adsdd:
+                print(cls.name, ", ".join(adsdd))
+        print()
     
     def setSchoolInfoFromProjectDict(self):
         classIDNameMapping = {}
@@ -184,28 +190,16 @@ class School:
                         self.classes[new_cls.uniqueID] = cls = new_cls
                     
                     teacher.subjects[subj] = cls
+        
+        for _, cls in self.classes.items():
+            cls.timetable._subjects = [s.copy() for s in cls.timetable.subjects]
+            cls.updateTeachers()
+        
+        self.setTimetableFromProjectDict()
     
     def setProjectDictFromSchoolInfo(self):
         classLevels = []
-        
-        class_timetable_subject_teacher_mapping_coords = {}
         for _, cls in sorted(self.classes.items(), key=(lambda c: self.classes[c[0]].index)):
-            timetable_subject_mapping_coords = {}
-            for day_index, (_, table) in enumerate(cls.timetable.table.items()):
-                period = 1
-                for subject in table:
-                    if subject.id not in (cls.timetable.breakPeriodID, cls.timetable.freePeriodID):
-                        for _ in range(subject.total):
-                            if timetable_subject_mapping_coords.get(subject.id) is None:
-                                timetable_subject_mapping_coords[subject.id] = {}
-                                timetable_subject_mapping_coords[subject.id][subject.teacher.id] = [[(day_index, period), (subject.total, subject.perWeek)]]
-                            else:
-                                timetable_subject_mapping_coords[subject.id][subject.teacher.id].append([(day_index, period), (subject.total, subject.perWeek)])
-                            
-                            period += 1
-                
-            class_timetable_subject_teacher_mapping_coords[cls.index] = timetable_subject_mapping_coords
-            
             if cls.index != len(classLevels):
                 classLevels[cls.index][1][cls.classID] = [cls.className, [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]]
             else:
@@ -234,7 +228,7 @@ class School:
                 if subjectTeacherMapping[subject.id][1]["&timings"].get(str(cls.index)) is None:
                     subjectTeacherMapping[subject.id][1]["&timings"][str(cls.index)] = [subject.TOTAL, subject.PERWEEK]
         
-        for subjectID, (_, subjectInfo) in subjectTeacherMapping.items():
+        for _, (_, subjectInfo) in subjectTeacherMapping.items():
             for index, validClasses in subjectInfo["&classes"].copy().items():
                 if len(validClasses) == len(classLevels[int(index)][1]):
                     subjectInfo["&classes"].pop(index)
@@ -246,16 +240,7 @@ class School:
         for _, cls in self.classes.items():
             for subject in cls.subjects:
                 if subject.id not in (cls.timetable.freePeriodID, cls.timetable.breakPeriodID):
-                    timetableCoords = []
-                    for clsTimetableDayIndex, (_, clsTimetableSubjectsToday) in enumerate(cls.timetable.table.items()):
-                        period = 1
-                        for clsTimetableSubject in clsTimetableSubjectsToday:
-                            if clsTimetableSubject.uniqueID == subject:
-                                timetableCoords.append((clsTimetableDayIndex, period))
-                            period += clsTimetableSubject.total
-                    timetableCoords = []
-                    
-                    subjectLevelClassInfo = [(subject.teacher.id, subject.teacher.name), timetableCoords]
+                    subjectLevelClassInfo = [(subject.teacher.id, subject.teacher.name), self.project["subjects"][subject.id][1][str(cls.index)][2][cls.classID][1]]
                     subjectLevelInfo = [subject.TOTAL, subject.PERWEEK, {cls.classID: subjectLevelClassInfo}]
                     
                     if subject.id not in subjects:
@@ -273,61 +258,53 @@ class School:
         })
     
     def setTimetableFromProjectDict(self):
+        for _, cls in self.classes.items():
+            cls.timetable.reset()
+            for dayIndex, (day, _) in enumerate(cls.timetable.table.items()):
+                free1 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
+                break_t = [Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None)]
+                free2 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
+                
+                cls.timetable.table[day] = list(flatten([free1, break_t, free2]))
+                
+                for s in cls.timetable.table[day]:
+                    s.perWeek = 0
+        
         for subjectID, (subjectName, subjectInfo) in self.project["subjects"].items():
             for _, (perDay, perWeek, classTeacherCoordsMapping) in subjectInfo.items():
                 for classID, ((teacherID, _), coords) in classTeacherCoordsMapping.items():
                     for _, cls in self.classes.items():
-                        teacherInClass = {teacher for teacher in cls.teachers if teacher.id == teacherID}
-                        teacher = teacherInClass[0] if teacherInClass else None
+                        teacher = next((teacher for teacher in cls.teachers if teacher.id == teacherID), None)
                         if cls.classID == classID and teacher is not None:
-                            for (dayIndex, period), (coordTotal, coordPerWeek) in coords:
+                            for (dayIndex, period), (coordTotal, coordPerWeek), remainderAmount in coords:
                                 subjectInsert = Subject(subjectID, subjectName, coordTotal, coordPerWeek, teacher)
+                                
                                 subjectInsert.TOTAL = perDay
                                 subjectInsert.PERWEEK = perWeek
                                 
+                                if remainderAmount:
+                                    cls.timetable.remainderContent.append(Subject(subjectID, subjectName, coordTotal, remainderAmount, teacher))
+                                
                                 daysOfTheWeek = list(cls.timetable.table.keys())
-                                dayPeriod = 0
-                                
-                                subjectInsertIndexReplacementList: list[tuple[int, Subject]] = []
-                                
-                                for subjectIndex, subject in enumerate(cls.timetable.table[daysOfTheWeek[dayIndex]]):
-                                    dayPeriod += subject.total
-                                    if period <= dayPeriod:
-                                        removalAmountOnLeft = dayPeriod - period + 1
-                                        removalAmountOnRight = period - removalAmountOnLeft
-                                        
-                                        initSubjectRemainder = removalAmountOnLeft - 1 + subjectInsert.total - subject.total
-                                        
-                                        subjectInsertIndexReplacementList.append((subjectIndex, subjectInsert if initSubjectRemainder >= 0 else (subjectInsert, Subject(subject.name, abs(initSubjectRemainder), subject.perWeek, subject.teacher))))
-                                        
-                                        subject.total -= removalAmountOnLeft
-                                        
-                                        for subjectToTheRight in cls.timetable.table[daysOfTheWeek[dayIndex]][subjectIndex + 1:]:
-                                            if subjectToTheRight.total > removalAmountOnRight:
-                                                subjectToTheRight.total -= removalAmountOnRight
-                                                removalAmountOnRight = 0
-                                            else:
-                                                removalAmountOnRight -= subjectToTheRight.total
-                                                subjectToTheRight.total = 0
-                                            
-                                            if removalAmountOnRight == 0:
-                                                break
-                                
-                                for insertSubjectIndex, insertSubjectorPrevRepRemainder in subjectInsertIndexReplacementList:
-                                    if isinstance(insertSubjectorPrevRepRemainder, Subject):
-                                        cls.timetable.table[daysOfTheWeek[dayIndex]].insert(insertSubjectIndex + 1, insertSubjectorPrevRepRemainder)
-                                    else:
-                                        insertSubject, prevRemainderReplacement = insertSubjectorPrevRepRemainder
-                                        
-                                        cls.timetable.table[daysOfTheWeek[dayIndex]].insert(insertSubjectIndex + 1, insertSubject)
-                                        cls.timetable.table[daysOfTheWeek[dayIndex]].insert(insertSubjectIndex + 2, prevRemainderReplacement)
-                                
-                                referenceTableList = [s for s in cls.timetable.table[daysOfTheWeek[dayIndex]]]
-                                for subject in referenceTableList:
-                                    if subject.total == 0:
-                                        cls.timetable.table[daysOfTheWeek[dayIndex]].remove(subject)
-                            
+                                cls.timetable.table[daysOfTheWeek[dayIndex]][period : period + subjectInsert.total] = [subjectInsert for _ in range(subjectInsert.total)]
                             break
+        
+        for _, cls in self.classes.items():
+            for dayIndex, (day, subjects) in enumerate(cls.timetable.table.copy().items()):
+                newSubjects = []
+                
+                for index, subject in enumerate(subjects):
+                    if not newSubjects or (newSubjects and newSubjects[-1].uniqueID != subject.uniqueID):
+                        if subject.uniqueID == cls.timetable.freePeriodID:
+                            total = 0
+                            for s in subjects[index:]:
+                                if s.uniqueID == cls.timetable.freePeriodID:
+                                    total += 1
+                                    continue
+                                break
+                            subject.total = total
+                        newSubjects.append(subject)
+                cls.timetable.table[day] = newSubjects
 
 def _display_school(school, drawType: int = 1):
     if drawType == 1:
