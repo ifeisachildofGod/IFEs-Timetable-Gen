@@ -495,10 +495,10 @@ class _ClassTimetable(QTableWidget):
     
     def add_remainder(self, remainder: DraggableSubjectLabel, index: int | None = None):
         if index is not None:
-            # self.remainder_layout.insertWidget(index, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            self.remainder_layout.insertWidget(index, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             self.remainder_labels.insert(index - 1, remainder)
         else:
-            # self.remainder_layout.insertWidget(self.remainder_layout.count() - 1, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            self.remainder_layout.insertWidget(self.remainder_layout.count() - 1, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             self.remainder_labels.append(remainder)
         self.timetable.remainderContent.append(remainder.subject)
     
