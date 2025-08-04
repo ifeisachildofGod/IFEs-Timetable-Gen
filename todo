@@ -2,12 +2,12 @@
 
 - Considering making the teacher level selection system a dropdown checkbox widget where each teacher can select the level the would like to be in instead of having it in the classes widget
 
-- ~~Implementing the update of all none widget data as the widgets are changing~~ **(Misguided)**
+- ~~Implementing the update of all none widget data as the widgets are changing~~ **(Scrubbed)**
 \
 \
 **Notes:**
     1. Consider making the system of widget changing and selection that of properties instead of direct change in the interaction funtions
-    2. Also consider changing all information dictionary webs into dataclasses **(Not likely)**
+    2. Consider changing settings information dictionary into dataclasses
 
 - Bring the theming system implemented in the "Graduation App" project to this one and revamp all styles
 
