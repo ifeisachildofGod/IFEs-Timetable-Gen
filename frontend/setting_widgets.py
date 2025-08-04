@@ -1,4 +1,5 @@
 from copy import deepcopy
+import random
 from typing import Callable
 from frontend.sub_widgets import (
     SelectionList, DropDownCheckBoxes, SubjectSelection,
@@ -9,12 +10,13 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QScrollArea,
     QMainWindow
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from frontend.theme import *
 
-
 class SettingWidget(QWidget):
-    def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[str], data: dict | None = None):
+    saved_state_changed = pyqtSignal(bool)
+    
+    def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[str], saved: bool, data: dict | None = None):
         super().__init__()
         
         self.main_window = main_window
@@ -23,7 +25,11 @@ class SettingWidget(QWidget):
         
         self.info = {}
         self.id_mapping = {}
+        self.saved_tracker = {}
+        self.children_saved_tracker = {}
         self.input_placeholders = input_placeholders
+        
+        self.saved = saved
         
         self.main_layout = QVBoxLayout(self)
         
@@ -48,6 +54,7 @@ class SettingWidget(QWidget):
             self.__dict__.update(data["constants"])
             
             for _id, values in data["variables"].items():
+                self.saved_tracker[_id] = deepcopy(values["text"])
                 self.add(self.input_placeholders, _id, values)
         
         self.container_layout.addStretch()
@@ -81,7 +88,7 @@ class SettingWidget(QWidget):
         if data is None:
             self.add_id_to_info(_id)
         else:
-            self.set_id_data_to_info(_id, data)
+            self.info[_id] = data
         
         text_edits = self._make_inputs(_id, input_placeholders, data)
         
@@ -112,18 +119,30 @@ class SettingWidget(QWidget):
     def make_popups(self, _id: str, layout: QHBoxLayout):
         pass
     
-    def set_id_data_to_info(self, _id: str, data: dict):
-        self.info[_id] = data
-    
     def add_id_to_info(self, _id: str, info_value: dict):
         pass
     
     def update_data_interaction(self, prev_index: int, curr_index: int):
         pass
     
+    def _make_saved_state_changed_func(self, _id: str):
+        def func(val: bool):
+            self.children_saved_tracker[_id] = val
+            
+            prev_saved_state = self.saved
+            self.saved = False not in list(self.children_saved_tracker.values())
+            
+            if self.saved != prev_saved_state:
+                self.saved_state_changed.emit(self.saved)
+        
+        return func
+    
     def _make_store_edit_func(self, _id: str, edit: QLineEdit, index: int):
-        def store_text_data():
-            self.info[_id]["text"][index] = edit.text()
+        saved_state_changed_func = self._make_saved_state_changed_func(_id)
+        
+        def store_text_data(text: str):
+            self.info[_id]["text"][index] = text
+            saved_state_changed_func(self.saved_tracker[_id] == self.info[_id]["text"])
         
         return store_text_data
     
@@ -140,6 +159,8 @@ class SettingWidget(QWidget):
             
             if data is None:
                 self.info[_id]["text"].append(text)
+            
+            self.saved_tracker[_id] = deepcopy(self.info[_id]["text"])
             
             edit.textChanged.connect(self._make_store_edit_func(_id, edit, index))
             
@@ -169,19 +190,22 @@ class SettingWidget(QWidget):
     
     def _make_popup_func(self, _id: str, title: str, popup_class: type[SelectionList] | type[SubjectSelection] | type[OptionSelection] | type[DropDownCheckBoxes], var_name: str, *args, **kwargs):
         def show_popup():
-            popup = popup_class(title=title, info=self.info[_id][var_name], *args, **kwargs)
+            popup = popup_class(title=title, info=self.info[_id][var_name], saved=self.saved, *args, **kwargs)
+            
+            if _id + var_name not in self.children_saved_tracker:
+                popup.saved_state_changed.connect(self._make_saved_state_changed_func(_id + var_name))
+            
             popup.exec()
             self.info[_id][var_name] = popup.get()
         
         return show_popup
 
 
-
 class Subjects(SettingWidget):
-    def __init__(self, main_window: QMainWindow, save_data: dict | None):
+    def __init__(self, main_window: QMainWindow, saved: bool, save_data: dict | None):
         self.teachers = [None]
         
-        super().__init__(main_window, "Subjects", ["Enter the subject name"], save_data)
+        super().__init__(main_window, "Subjects", ["Enter the subject name"], saved, save_data)
     
     def update_data_interaction(self, prev_index, curr_index):
         general_condition = prev_index != 3 and not (curr_index == 3 and prev_index != 0)
@@ -292,26 +316,100 @@ class Subjects(SettingWidget):
                     subject_info_entry["teachers"]["content"][index] = teacher_name
         
         if class_update_condition:
+            # levels = self.main_window.save_data["levels"]
+            # subjectTeacherMapping = self.main_window.save_data["subjectTeacherMapping"]
+            # subjects = self.main_window.save_data.get("subjects")
+            
             # Update Classes
-            for class_id, class_info_entry in deepcopy(class_info).items():
+            for class_index, (class_id, class_info_entry) in enumerate(deepcopy(class_info).items()):
                 for subject_id, _ in class_info_entry["subjects"]["content"].items():
                     subject_info[subject_id]["classes"]["id_mapping"]["main"][class_id] = class_info_entry["text"][0]
+                    # levels[class_index][1] = {
+                    #     option_id: levels[class_index][1].get(
+                    #         option_id,
+                    #         (
+                    #             option_text,
+                    #             (
+                    #                 list(
+                    #                     self.main_window.default_period_amt
+                    #                     for _ in
+                    #                     range(len(self.main_window.default_weekdays))),
+                    #                 list(
+                    #                     self.main_window.default_breakperiod
+                    #                     for _ in
+                    #                     range(len(self.main_window.default_weekdays))),
+                    #                 deepcopy(self.main_window.default_weekdays)
+                    #             )    
+                    #         )) for option_id, option_text in class_info_entry["options"].items()
+                    # }
+                    
                     subject_info[subject_id]["classes"]["id_mapping"]["sub"][class_id] = class_info_entry["options"]
-                    subject_info[subject_id]["classes"]["content"][class_id] = {option_id : (
-                        (
-                            subject_info[subject_id]["classes"]["content"][class_id].get(option_id)
-                            if subject_info[subject_id]["classes"]["content"][class_id].get(option_id) is None else
-                            False
-                        ) if subject_info[subject_id]["classes"]["content"].get(class_id) is not None else
-                        False
-                    ) for option_id, _ in class_info_entry["options"].items()}
+                    
+                    subject_info[subject_id]["classes"]["content"][class_id] = {
+                        option_id:
+                        subject_info[subject_id]["classes"]["content"].get(class_id, {}).get(option_id, False)
+                    for option_id, _ in class_info_entry["options"].items()}
             
-            for subject_id, subject_info in subject_info.items():
-                for subject_class_id in subject_info["classes"]["id_mapping"]["main"].copy().keys():
+            for subj_id, subj_info in subject_info.items():
+                for subject_class_id in subj_info["classes"]["id_mapping"]["main"].copy():
+                    # str_cls_index = str(next(index for index, (c_id, _) in enumerate(class_info.items()) if c_id == subject_class_id))
+                    
+                    # class_level_options_mapping = subjectTeacherMapping[subj_id][1]["&classes"] = subjectTeacherMapping[subj_id][1].get("&classes", {})
+                    
+                    # if class_level_options_mapping.get(str_cls_index) is not None:
+                    #     class_level_options_mapping[str_cls_index].append(subject_class_id)
+                    # else:
+                    #     class_level_options_mapping[str_cls_index] = [subject_class_id]
+                    
+                    # if subj_id in class_info[subject_class_id]["subjects"]["content"]:
+                    #     cls_subj_data = class_info[subject_class_id]["subjects"]["content"][subj_id]
+                    #     subjectTeacherMapping[subj_id][1]["&timings"][str_cls_index] = [cls_subj_data["per_day"], cls_subj_data["per_week"]]
+                    
+                    # if subjects is not None:
+                    #     if subjects[subj_id][1].get(str_cls_index) is None:
+                    #         subjects[subj_id][1][str_cls_index] = [_, _, {}]
+                        
+                    #     subjects[subj_id][1][str_cls_index] = list(subjects[subj_id][1][str_cls_index])
+                        
+                    #     cls_entry_data = class_info[subject_class_id]["subjects"]["content"][subject_id]
+                        
+                    #     subjects[subj_id][1][str_cls_index][0] = int(cls_entry_data["per_day"])
+                    #     subjects[subj_id][1][str_cls_index][1] = int(cls_entry_data["per_week"])
+                        
+                    #     if sum(list(subj_info["classes"]["content"][subject_class_id].values())):
+                    #         for option_id, option_state in subj_info["classes"]["content"][subject_class_id].items():
+                    #             if option_state:
+                    #                 all_teachers = subject_info[subj_id]["teachers"]
+                    #                 none_index = all_teachers["content"].index(None)
+                    #                 selected_teachers = all_teachers["content"][:none_index]
+                                    
+                    #                 for teacher_index, teacher_name in enumerate(selected_teachers):
+                    #                     teacher_id = all_teachers["id_mapping"][teacher_index]
+                                        
+                    #                     if teacher_id not in [t_id for (t_id, _), _ in subjects[subj_id][1][str_cls_index][2].values()]:
+                    #                         teacher_info = [teacher_id, teacher_name]
+                    #                         break
+                    #                 else:
+                    #                     teacher_info = random.choice([[all_teachers["id_mapping"][index], value] for index, value in enumerate(selected_teachers)])
+                                    
+                    #                 if option_id in subjects[subj_id][1][str_cls_index][2]:
+                    #                     teacher_index = {v : k for k, v in all_teachers["id_mapping"].items()}[subjects[subj_id][1][str_cls_index][2][option_id][0][0]]
+                                        
+                    #                     if teacher_index > none_index:
+                    #                         subjects[subj_id][1][str_cls_index][2][option_id][0] = teacher_info
+                    #                 else:
+                    #                     subjects[subj_id][1][str_cls_index][2][option_id] = [teacher_info, []]
+                                
+                    #             elif option_id in subjects[subj_id][1][str_cls_index][2]:
+                    #                 subjects[subj_id][1][str_cls_index][2].pop(option_id)
+                    #     else:
+                    #         if str_cls_index in subjects[subj_id][1]:
+                    #             subjects[subj_id][1].pop(str_cls_index)
+                    
                     if subject_class_id not in class_info:
-                        subject_info[subject_id]["classes"]["content"].pop(subject_class_id)
-                        subject_info[subject_id]["classes"]["id_mapping"]["main"].pop(subject_class_id)
-                        subject_info[subject_id]["classes"]["id_mapping"]["sub"].pop(subject_class_id)
+                        subj_info[subj_id]["classes"]["content"].pop(subject_class_id)
+                        subj_info[subj_id]["classes"]["id_mapping"]["main"].pop(subject_class_id)
+                        subj_info[subj_id]["classes"]["id_mapping"]["sub"].pop(subject_class_id)
         
         self.main_window.subjects_widget.info = subject_info
     
@@ -342,14 +440,32 @@ class Subjects(SettingWidget):
         self._make_popup(_id, "Teachers", layout, SelectionList, "teachers", alignment=Qt.AlignmentFlag.AlignLeft)
 
 class Teachers(SettingWidget):
-    def __init__(self, main_window: QMainWindow, save_data: dict | None):
+    def __init__(self, main_window: QMainWindow, saved: bool, save_data: dict | None):
         self.subjects = [None]
         
-        super().__init__(main_window, "Teachers", ["Full name"], save_data)
+        super().__init__(main_window, "Teachers", ["Full name"], saved, save_data)
+    
+    def _get_indexes_of_teacher_classes(self, teacher_id: str, subject_id: str):
+        indexes = []
+        
+        class_info = self.main_window.classes_widget.get()
+        
+        for class_index, (_, class_info_entry) in enumerate(class_info.items()):
+            if subject_id in class_info_entry["subjects"]["content"]:
+                all_teachers_info = class_info_entry["subjects"]["content"][subject_id]["teachers"]
+                
+                teacher_is_teaching_subject = teacher_id in [id for index, id in all_teachers_info["id_mapping"].items() if index < all_teachers_info["content"].index(None)]
+                
+                if teacher_is_teaching_subject:
+                    indexes.append(class_index)
+        
+        return list(set(indexes))
     
     def update_data_interaction(self, prev_index, curr_index):
         if not ((prev_index == 0 and curr_index in (1, 2)) or (curr_index == 3 and prev_index != 1)) or prev_index == 3:
             return
+        
+        # subjectTeacherMapping = self.main_window.save_data["subjectTeacherMapping"]
         
         teacher_info = self.main_window.teachers_widget.get()
         subject_info = self.main_window.subjects_widget.get()
@@ -448,6 +564,13 @@ class Teachers(SettingWidget):
             for index, index_id in teacher_info_entry["subjects"]["id_mapping"].items():
                 subject_name = " ".join(subject_info[index_id]["text"])
                 teacher_info_entry["subjects"]["content"][index] = subject_name
+                
+                # if index_id not in subjectTeacherMapping:
+                #     subjectTeacherMapping[index_id] = [subject_info_entry["text"][0], {teacher_id: [teacher_info_entry["text"][0], self._get_indexes_of_teacher_classes(teacher_id, index_id)]}]
+                # else:
+                #     subjectTeacherMapping[index_id] = list(subjectTeacherMapping[index_id])
+                #     subjectTeacherMapping[index_id][0] = subject_info[index_id]["text"][0]
+                #     subjectTeacherMapping[index_id][1][teacher_id] = [teacher_info_entry["text"][0], self._get_indexes_of_teacher_classes(teacher_id, index_id)]
         
         self.main_window.teachers_widget.info = teacher_info
     
@@ -470,10 +593,10 @@ class Teachers(SettingWidget):
         self._make_popup(_id, "Subjects", layout, SelectionList, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
 
 class Classes(SettingWidget):
-    def __init__(self, main_window: QMainWindow, save_data: dict | None):
+    def __init__(self, main_window: QMainWindow, saved: bool, save_data: dict | None):
         self.subject_teachers_mapping = {}
         
-        super().__init__(main_window, "Classes", ["Enter the class section name"], save_data)
+        super().__init__(main_window, "Classes", ["Enter the class section name"], saved, save_data)
     
     def update_data_interaction(self, prev_index, _):
         if prev_index in (2, 3):

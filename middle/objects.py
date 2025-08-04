@@ -23,8 +23,8 @@ class Subject:
     @teacher.setter
     def teacher(self, teacher: 'Teacher'):
         self._teacher = teacher
-        self.uniqueID = self.id + (self._teacher.id if self._teacher is not None else "")
-        self.uniqueID.replace("0x", "")
+        self.uniqueID = (self.id + (self._teacher.id if self._teacher is not None else "")).lower()
+        self.uniqueID = self.uniqueID.replace("0x", "").upper()
     
     def copy(self):
         subject = Subject(self.id, self.name, self.total, self.perWeek, self.teacher)

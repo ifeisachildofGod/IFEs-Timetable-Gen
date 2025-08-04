@@ -16,7 +16,9 @@ from frontend.base_widgets import SelectedWidget, UnselectedWidget, CustomLabel,
 
 
 class SelectionList(QDialog):
-    def __init__(self, title: str, info: dict):
+    saved_state_changed = pyqtSignal(bool)
+    
+    def __init__(self, title: str, info: dict, saved: bool):
         super().__init__()
         
         self.setStyleSheet(THEME[SELECTION_LIST])
@@ -30,6 +32,8 @@ class SelectionList(QDialog):
         self.selected_widgets = []
         self.unselected_widgets = []
         self.separators = []
+        
+        self.saved = saved
         
         self.content = info["content"]
         self.id_mapping = deepcopy(info["id_mapping"])
@@ -56,7 +60,7 @@ class SelectionList(QDialog):
         
         # Add selected items
         for index, item in enumerate(selected_items):
-            widget = SelectedWidget(item, self, self.id_mapping, self.id_mapping[index])
+            widget = SelectedWidget(item, self, self.id_mapping, self.id_mapping[index], self.id_mapping, self.saved_state_changed)
             self.add_item(widget)
             self.selected_widgets.append(widget)
             if item != selected_items[-1]:
@@ -68,11 +72,14 @@ class SelectionList(QDialog):
         
         # Add unselected items
         for index, item in enumerate(unselected_items):
-            widget = UnselectedWidget(item, self, self.id_mapping, self.id_mapping[index + len(selected_items) + 1])
+            widget = UnselectedWidget(item, self, self.id_mapping, self.id_mapping[index + len(selected_items) + 1], self.id_mapping, self.saved_state_changed)
             self.add_item(widget)
             self.unselected_widgets.append(widget)
             if item != unselected_items[-1]:
                 self.add_separator(self.normal_line_thickness, isSelected=False)
+    
+    def save(self):
+        self.saved_tracker = deepcopy(self.get()["id_mapping"])
     
     def get(self):
         content = []
@@ -87,7 +94,9 @@ class SelectionList(QDialog):
             if isinstance(widget, UnselectedWidget):
                 content.append(widget.label.text())
         
-        return {"content": content, "id_mapping": self.id_mapping}
+        info = {"content": content, "id_mapping": self.id_mapping}
+        
+        return info
     
     def add_item(self, custom_widget, index: int = None):
         if index is not None:
@@ -165,7 +174,9 @@ class SelectionList(QDialog):
                                   for p in unselected_positions]
 
 class DropDownCheckBoxes(QDialog):
-    def __init__(self, title: str, info: dict[str, dict[str, dict[str, dict[str, str | bool]]] | dict[int, str]]):
+    saved_state_changed = pyqtSignal([bool])
+    
+    def __init__(self, title: str, info: dict[str, dict[str, dict[str, dict[str, str | bool]]] | dict[int, str]], saved: bool):
         super().__init__()
         
         self.setStyleSheet(THEME[DROPDOWN_CHECK_BOXES_THEME])
@@ -175,11 +186,12 @@ class DropDownCheckBoxes(QDialog):
         
         self.content = info["content"]
         self.id_mapping = info["id_mapping"]
-        
+        self.saved_tracker = {}
         self.class_check_box_tracker = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "widget": {}}
         
         self.main_guy_is_clicked = False
         self.mini_guy_is_clicked = False
+        self.saved = saved
         
         main_layout = QVBoxLayout(self)
         
@@ -245,14 +257,21 @@ class DropDownCheckBoxes(QDialog):
             self.class_check_box_tracker["icon"][class_id] = dp_icon
             self.class_check_box_tracker["sub_cbs"][class_id] = {}
             self.class_check_box_tracker["main_cb"][class_id] = check_box
-            self.class_check_box_tracker["widget"][class_id] = self.make_dp_widget(class_id, class_options, all_clicked)
+            self.class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, all_clicked)
+            
+            all_clicked_checkboxes.extend(to_be_clicked)
             
             container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
+        
+        self.saved_tracker = deepcopy(self.content)
         
         for cb in all_clicked_checkboxes:
             cb.click()
         
         container_layout.addStretch()
+    
+    def save(self):
+        self.saved_tracker = deepcopy(self.content)
     
     def get(self):
         return {"content": self.content, "id_mapping": self.id_mapping}
@@ -291,7 +310,7 @@ class DropDownCheckBoxes(QDialog):
             
             self.class_check_box_tracker["sub_cbs"][class_id][optionID] = dp_checkbox
             
-            dp_checkbox.clicked.connect(self.make_checkbox_func(class_id))
+            dp_checkbox.clicked.connect(self.make_sub_checkbox_func(class_id, optionID))
             
             if optionState:
                 clicked_cbs.append(dp_checkbox)
@@ -303,13 +322,31 @@ class DropDownCheckBoxes(QDialog):
             
             dp_layout.addLayout(option_layout)
         
-        if not all_clicked:
-            for cb in clicked_cbs:
-                cb.click()
-        
-        return dp_widget
+        return dp_widget, clicked_cbs if not all_clicked else []
     
-    def make_checkbox_func(self, class_id: str):
+    def make_main_checkbox_func(self, class_id: str):
+        def checkbox_func(is_on):
+            if not self.mini_guy_is_clicked:
+                self.main_guy_is_clicked = True
+                
+                if is_on:
+                    for cb_id, c_box in self.class_check_box_tracker["sub_cbs"][class_id].items():
+                        if not c_box.isChecked():
+                            c_box.click()
+                        self.content[class_id][cb_id] = True
+                else:
+                    for cb_id, c_box in self.class_check_box_tracker["sub_cbs"][class_id].items():
+                        if c_box.isChecked():
+                            c_box.click()
+                        self.content[class_id][cb_id] = False
+                
+                self.content[class_id][cb_id] = is_on
+                
+                self.main_guy_is_clicked = False
+        
+        return checkbox_func
+    
+    def make_sub_checkbox_func(self, class_id: str, optionID: str):
         def checkbox_func(on):
             if not self.main_guy_is_clicked:
                 self.mini_guy_is_clicked = True
@@ -325,31 +362,16 @@ class DropDownCheckBoxes(QDialog):
                         self.class_check_box_tracker["main_cb"][class_id].click()
                 
                 self.mini_guy_is_clicked = False
-        
-        return checkbox_func
-        
-    def make_main_checkbox_func(self, class_id: str):
-        def checkbox_func(on):
-            if not self.mini_guy_is_clicked:
-                self.main_guy_is_clicked = True
-                
-                if on:
-                    for cb_id, c_box in self.class_check_box_tracker["sub_cbs"][class_id].items():
-                        if not c_box.isChecked():
-                            c_box.click()
-                        self.content[class_id][cb_id] = True
-                else:
-                    for cb_id, c_box in self.class_check_box_tracker["sub_cbs"][class_id].items():
-                        if c_box.isChecked():
-                            c_box.click()
-                        self.content[class_id][cb_id] = False
-                
-                self.main_guy_is_clicked = False
+            
+            self.saved = self.saved_tracker == self.content
+            self.saved_state_changed.emit(self.saved)
         
         return checkbox_func
 
 class SubjectSelection(QDialog):
-    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], default_per_day: int, default_per_week: int):
+    saved_state_changed = pyqtSignal(bool)
+    
+    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], default_per_day: int, default_per_week: int, saved: bool):
         super().__init__()
         
         self.setStyleSheet(THEME[SUBJECT_SELECTION])
@@ -359,6 +381,8 @@ class SubjectSelection(QDialog):
         
         self.default_per_day = default_per_day
         self.default_per_week = default_per_week
+        self.saved = saved
+        self.saved_tracker = {}
         
         self.content = info["content"]
         self.id_mapping = info["id_mapping"]
@@ -399,6 +423,10 @@ class SubjectSelection(QDialog):
         
         for subject_id, subject_info in self.content.items():
             self.add_subject(subject_id, subject_info)
+            self.saved_tracker = deepcopy(self.content)
+    
+    def save(self):
+        self.saved_tracker = deepcopy(self.content)
     
     def _add_new_subject(self):
         subject_id = next(
@@ -408,6 +436,9 @@ class SubjectSelection(QDialog):
         )
         
         self.add_subject(subject_id, {"per_day": str(self.default_per_day), "per_week": str(self.default_per_week), "teachers": self.available_subject_teachers[subject_id]["teachers"]})
+        
+        self.saved = self.saved_tracker == self.info
+        self.saved_state_changed.emit(self.saved)
     
     def get(self):
         return {"content": self.info, "id_mapping": self.id_mapping, "available_subject_teachers": self.available_subject_teachers}
@@ -471,19 +502,19 @@ class SubjectSelection(QDialog):
         def temp_show_teacher_popup():
             info = self.info[subject_id]
             
-            teachers = SelectionList("Teachers", info["teachers"])
+            teachers = SelectionList("Teachers", info["teachers"], self.saved)
             teachers.exec()
             info["teachers"] = teachers.get()
+            self.saved = False if not teachers.saved else self.saved
         
         return temp_show_teacher_popup
     
     def make_text_changed_func(self, subject_id: str, key: str, input_edit: 'NumberTextEdit'):
         def text_changed_func():
-            subject_info = self.info.get(subject_id)
-            if subject_info is None:
-                self.info[subject_id] = [None, None, []]
-            else:
-                subject_info[key] = input_edit.edit.text()
+            self.info[subject_id][key] = input_edit.edit.text()
+            
+            self.saved = self.saved_tracker == self.info
+            self.saved_state_changed.emit(self.saved)
         
         return text_changed_func
 
@@ -527,6 +558,9 @@ class SubjectSelection(QDialog):
             main_widget.delete_button.clicked.disconnect(self.del_widg_func_tracker.pop(subject_id))
             self.del_widg_func_tracker[new_subject_id] = self.make_dp_destroy_func(new_subject_id)
             main_widget.delete_button.clicked.connect(self.del_widg_func_tracker[new_subject_id])
+            
+            self.saved = self.saved_tracker == self.info
+            self.saved_state_changed.emit(self.saved)
         
         return dp_clicked_func
 
@@ -535,10 +569,15 @@ class SubjectSelection(QDialog):
             self.add_button.setDisabled(False)
             self.info.pop(subject_id)
             self.dp_tracker.pop(subject_id)
+            
+            self.saved = self.saved_tracker == self.info
+            self.saved_state_changed.emit(self.saved)
         
         return dp_destroy_func
 
 class OptionSelection(QDialog):
+    saved_state_changed = pyqtSignal(bool)
+    
     def __init__(self, title: str, info: dict[str, str]):
         super().__init__()
         self.title = title
@@ -547,6 +586,7 @@ class OptionSelection(QDialog):
         
         self.info = info
         self.options = []
+        self.saved_tracker = {}
         self.current_row = 0
         self.current_col = 0
         self.max_cols = 4  # Maximum number of columns before wrapping
@@ -577,6 +617,7 @@ class OptionSelection(QDialog):
         # Load existing options
         for option_id, option_name in self.info.items():
             self.add_option(option_id, option_name)
+            self.saved_tracker = deepcopy(self.content)
         
         self.setStyleSheet("""
             QDialog {
@@ -600,6 +641,9 @@ class OptionSelection(QDialog):
             """ + _general_scrollbar_theme
             )
     
+    def save(self):
+        self.saved_tracker = deepcopy(self.content)
+    
     def get(self):
         return self.info
     
@@ -610,6 +654,9 @@ class OptionSelection(QDialog):
         
         def update_option():
             self.info[_id] = option.get_text()
+            
+            self.saved = self.saved_tracker == self.info
+            self.saved_state_changed.emit(self.saved)
         
         update_option()
         

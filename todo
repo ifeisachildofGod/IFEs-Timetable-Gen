@@ -1,0 +1,61 @@
+# Current thoughts and ideas
+
+- Considering making the teacher level selection system a dropdown checkbox widget where each teacher can select the level the would like to be in instead of having it in the classes widget
+
+- ~~Implementing the update of all none widget data as the widgets are changing~~ **(Misguided)**
+\
+\
+**Notes:**
+    1. Consider making the system of widget changing and selection that of properties instead of direct change in the interaction funtions
+    2. Also consider changing all information dictionary webs into dataclasses **(Not likely)**
+
+- Bring the theming system implemented in the "Graduation App" project to this one and revamp all styles
+
+- Remove the days of the week thing because **(Update)** `days of the week are constant`, the only thing that will be allowed to change is what days of the week are used in the timetable
+
+# Future goals
+
+### Exports
+- Add an export system that converts timetable files to:
+    - Image files (*.jpg, *.png, *.wpeg, *.svg)
+    - Documents (*.msix)
+    - HTML files (*.html, **with style**)
+    - Pickle files (*.pickle)
+
+- Export feature would have a single export and batch export feature ***ie. Either all timetables are saved in one file or in thier own respective files***
+
+- In the export screen certain features are editable:
+    - The timetable orientation
+    - Font
+    - Text colour
+
+- Batch exports will also have the option of being saved in the general specified file formats or each indivdual file will have their own file formats. Their names will not be editable, their names will be gotten from their individual class names
+
+
+### Settings
+- Add a general checkbox to each subject to ask if that subject is general to the school
+- Make it possible for a subject to be linked to a parent subject Ex:
+    - Trade subjects:
+        - EI
+        - CCP
+        - Animal Hus
+        - Catering
+    - Computer\Fmaths:
+        - Computer
+        - Fmaths
+- Implement an abbreviation edit to teachers and subjects (If none is provided the name is used. If it is too long, it is ellipsed)
+- Add search functionality to find teachers and subjects
+- Add a marker to each selection (whether teacher or subject) to show that it has been selected by another teacher or subject
+- Add a status bar, which shows certain information (Warnings and abouts)
+- Add a warnings system that shows that subjects which are viable to be in a particular class or section have not been assigned a teacher if the subjects have not been assigned a teacher yet
+
+### Timetable Editor
+- Add a lock option for class timetables that makes it so the timetable cannot be changed when a new one is generated
+- Add a way of clearing timetables
+
+### Timetable Generator
+- Revamp the algorithm and make it better at avoiding clashes and remainders
+
+
+
+

@@ -5,76 +5,52 @@ from typing import Callable
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout,
     QVBoxLayout, QPushButton, QStackedWidget,
-    QMessageBox, QFileDialog   
+    QMessageBox, QFileDialog, QLineEdit
 )
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import QThread, Qt
+from PyQt6.QtCore import QThread
 from matplotlib.cbook import flatten
 from frontend.setting_widgets import SettingWidget, Subjects, Teachers, Classes
 from frontend.editing_widgets import TimeTableEditor
+from frontend.others import *
 from frontend.theme import *
 from middle.main import School
 
-EXTENSION_NAME = "ttbl"
-
-class Thread(QThread):
-    def __init__(self, func: Callable):
-        super().__init__()
-        self.func = func
-    
-    def run(self):
-        try:
-            self.func()
-        except Exception as e:
-            print(e)
-            self.terminate()
-
-def gzip_file(input_file_path: str):
-    try:
-        with gzip.open(input_file_path, "rb") as file:
-            json.load(file)
-        
-        return input_file_path, None
-    except:
-        output_file_path = input_file_path + "." + (f"converted.{EXTENSION_NAME}" if input_file_path.endswith("." + EXTENSION_NAME) else EXTENSION_NAME)
-    
-    with open(input_file_path, 'rb') as f_in:
-        with gzip.open(output_file_path, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
-    
-    return output_file_path, input_file_path
 
 class Window(QMainWindow):
-    def __init__(self, args):
+    def __init__(self, path: str | None):
         super().__init__()
+        self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME});;JSON Files (*.json)")
+        self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback)
         
         # Default data
-        self.default_period_amt = 10  # Being used by the timetable editor
-        self.default_breakperiod = 7  #   "     "   "  "      "       "
+        self.default_period_amt = 10  # Being used by the timetable editor and settings editor
+        self.default_breakperiod = 7  #   "     "   "  "      "       "     "     "       "
         self.default_per_day = 2      # Being used by the settings editors
         self.default_per_week = 4     #   "     "   "  "     "        "
         self.default_save_data = {"levels": [], "subjectTeacherMapping": {}, 'subjects': {}}
         self.default_weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         
+        self.children_saved_tracker = {}
+        
         # Get saved data
-        self.path = None
         self.uncompressed_path = None
+        self.saved = False
         self.save_data = deepcopy(self.default_save_data)
         self.orig_data = deepcopy(self.save_data)
         
         self.setWindowTitle(f"IFEs Timetable Generator")
         
-        if len(args) > 1:
-            self.path = args[1]
+        if self.file.path is not None:
+            self.file.path, self.uncompressed_path = gzip_file(self.file.path)
             
-            self.path, self.uncompressed_path = gzip_file(self.path)
-            
-            with gzip.open(self.path, "rb") as file:
-                self.save_data = json.load(file)
+            self.save_data = self.file.get_data()
             
             self._fix_data()
             
-            self.setWindowTitle(self.windowTitle() + " - " + self.path)
+            self.setWindowTitle(self.windowTitle() + " - " + self.file.path)
+            
+            self.saved = True
         
         # Initialize school data
         self.school = School(self.save_data)
@@ -120,9 +96,13 @@ class Window(QMainWindow):
         timetable_btn.setCheckable(True)
         
         # Add widgets to stack
-        self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"))
-        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"))
-        self.classes_widget = Classes(self, self.save_data.get("classesInfo"))
+        self.subjects_widget = Subjects(self, self.saved, self.save_data.get("subjectsInfo"))
+        self.teachers_widget = Teachers(self, self.saved, self.save_data.get("teachersInfo"))
+        self.classes_widget = Classes(self, self.saved, self.save_data.get("classesInfo"))
+        
+        self.subjects_widget.saved_state_changed.connect(self._make_set_saved_state_func("subjects"))
+        self.teachers_widget.saved_state_changed.connect(self._make_set_saved_state_func("teachers"))
+        self.classes_widget.saved_state_changed.connect(self._make_set_saved_state_func("classes"))
         
         self.timetable_widget = TimeTableEditor(self, self.school)
         
@@ -154,6 +134,18 @@ class Window(QMainWindow):
         
         self.orig_data = deepcopy(self.save_data)
     
+    def _make_set_saved_state_func(self, _id: str):
+        def func(val: bool):
+            self.children_saved_tracker[_id] = val
+            self.saved = False not in list(self.children_saved_tracker.values())
+            
+            if not self.saved:
+                self.setWindowTitle(self.windowTitle() + " *Unsaved")
+            else:
+                self.setWindowTitle(self.windowTitle().replace(" *Unsaved", ""))
+        
+        return func
+    
     def _fix_data(self):
         subjects_data = self.save_data.get("subjectsInfo")
         teachers_data = self.save_data.get("teachersInfo")
@@ -178,62 +170,45 @@ class Window(QMainWindow):
                     for k in subject_in_class_info["teachers"]["id_mapping"].copy().keys():
                         subject_in_class_info["teachers"]["id_mapping"][int(k)] = subject_in_class_info["teachers"]["id_mapping"].pop(k)
     
-    def _file_dialog(self, func: Callable[[tuple[str, str]], str], file_mode: str):
-        open_file_dialog = QFileDialog()
-        match file_mode:
-            case "save":
-                func(open_file_dialog.getSaveFileName(caption="Save As"))
-            case "open":
-                func(open_file_dialog.getOpenFileName(caption="Open File", options=QFileDialog.Option.ReadOnly))
-            case "new":
-                func(open_file_dialog.getSaveFileName(caption="New File"))
-            case "folder":
-                func(open_file_dialog.getExistingDirectory(caption="Folder"))
-    
-    def _make_new_file(self, path: tuple[str, str]):
-        with open(path[0], "w") as file:
-            json.dump(deepcopy(self.default_save_data), file, indent=2)
+    def load_callback(self, path: str):
+        with gzip.open(path, "rb") as file:
+            content = json.load(file)
         
-        create_new_file_thread = Thread(lambda : subprocess.run(["py", "main.py", path[0]]))
-        create_new_file_thread.start()
+        return content
     
-    def _set_path(self, path: tuple[str, str]):
-        self.path = path[0]
+    def open_callback(self, path: str):
+        # def func(path):
+        win = Window([path])
+        win.showMaximized()
+        
+        if not hasattr(self, '_windows'):
+            self._windows = []
+        self._windows.append(win)
+        # self._file_dialog(func, "open")
     
-    def _save_file_as(self, path: tuple[str, str], uncompressed_path: str | None = None):
+    def save_callback(self, path: str):
+        self.subjects_widget.saved_state_changed.emit(True)
+        self.teachers_widget.saved_state_changed.emit(True)
+        self.classes_widget.saved_state_changed.emit(True)
+        
+        self.save_data.update(self.get_settings_info())
+        
+        self.file.path = path
+        
         self.update_interaction(self.prev_display_index, self.display_index)
+        self.update_interaction(self.display_index, self.prev_display_index)
         
         data = self.save_data.copy()
         data.update(self.get_settings_info())
         
-        with gzip.open(path[0], "wb") as file:
+        with gzip.open(self.file.path, "wb") as file:
             file.write(json.dumps(data, indent=2).encode())
         
-        if uncompressed_path is not None:
-            with open(uncompressed_path, "w") as u_file:
+        if self.uncompressed_path is not None:
+            with open(self.uncompressed_path, "w") as u_file:
                 json.dump(data, u_file, indent=2)
-    
-    def new(self):
-        self._file_dialog(self._make_new_file, "new")
-    
-    def open(self):
-        def func(path):
-            create_new_file_thread = Thread(lambda : subprocess.run(["py", "main.py", path]))
-            create_new_file_thread.start()
         
-        self._file_dialog(func, "open")
-    
-    def save(self):
-        self.save_data.update(self.get_settings_info())
-        
-        if self.path is None:
-            self._file_dialog(self._set_path, "save")
-        
-        self._save_file_as(self.path, self.uncompressed_path)
         self.orig_data = deepcopy(self.save_data)
-    
-    def save_as(self):
-        self._file_dialog(self._save_file_as, "save")
     
     def undo(self):
         undo_func = self.focusWidget().__dict__.get("undo")
@@ -253,25 +228,12 @@ class Window(QMainWindow):
         edit_menu = menubar.addMenu("Edit")
         help_menu = menubar.addMenu("Help")
         
-        # Add File Actions
-        new_action = QAction("New", self)
-        open_action = QAction("Open", self)
-        save_action = QAction("Save", self)
-        save_as_action = QAction("Save_as", self)
-        exit_action = QAction("Exit", self)
-        
-        new_action.setShortcut("Ctrl+N")
-        open_action.setShortcut("Ctrl+O")
-        save_action.setShortcut("Ctrl+S")
-        save_as_action.setShortcut("Ctrl+Shift+S")
-        
-        new_action.triggered.connect(self.new)
-        open_action.triggered.connect(self.open)
-        save_action.triggered.connect(self.save)
-        save_as_action.triggered.connect(self.save_as)
-        exit_action.triggered.connect(self.close)
-        
-        file_menu.addActions([new_action, open_action, save_action, save_as_action, exit_action])
+        # Add all actions
+        file_menu.addAction("New", "Ctrl+N", self.file.new)
+        file_menu.addAction("Open", "Ctrl+O", self.file.open)
+        file_menu.addAction("Save", "Ctrl+S", self.file.save)
+        file_menu.addAction("Save As", "Ctrl+Shift+S", self.file.save_as)
+        file_menu.addAction("Close", self.close)
         
         # Add Edit Actions
         undo_action = QAction("Undo", self)
@@ -301,44 +263,15 @@ class Window(QMainWindow):
             setting_widgets.items()
         }
     
-    def xl_equal(self, value1, value2):
-        if isinstance(value1, dict):
-            if isinstance(value2, dict):
-                if self.xl_equal(sorted(list(value1.keys())), sorted(list(value2.keys()))):
-                    if self.xl_equal(list(value1.values()), list(value2.values())):
-                        return True
-            return False
-        elif isinstance(value1, (list, tuple, set)):
-            if isinstance(value2, (list, tuple, set)):
-                for i, v in enumerate(value1):
-                    if i < len(value2):
-                        if not self.xl_equal(v, value2[i]):
-                            break
-                        continue
-                    break
-                else:
-                    return True
-            
-            return False
-        else:
-            if not value1 == value2:
-                if (
-                    (isinstance(value1, (int, float)) and isinstance(value2, str)) or
-                    (isinstance(value2, (int, float)) and isinstance(value1, str))
-                    ) and (value1.isnumeric() or value2.isnumeric()):
-                    return float(value1) == float(value1)
-            
-            return value1 == value2
-    
     def closeEvent(self, event):
         for thread in self.timetable_widget.THREADS:
             thread.quit()
         
-        if not self.xl_equal(self.orig_data, self.save_data):
+        if not self.saved:
             reply = QMessageBox.question(self, "Save", "Save before quitting?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
             
             if reply == QMessageBox.StandardButton.Yes:
-                self.save()
+                self.file.save()
             elif reply == QMessageBox.StandardButton.Cancel:
                 event.ignore()
                 return
@@ -359,6 +292,16 @@ class Window(QMainWindow):
         return func
     
     def update_interaction(self, prev_index: int, curr_index: int):
+        match prev_index:
+            case 3:
+                for _, (_, info1) in self.school.project["subjects"].items():
+                    for _, (_, _, info2) in info1.items():
+                        for _, (_, info3) in info2.items():
+                            info3.clear()
+                
+                for _, cls in self.school.classes.items():
+                    self.timetable_widget.timetable_widgets[cls.uniqueID].save_timetable()
+        
         match curr_index:
             case 0:  # Subjects view
                 self.subjects_widget.update_data_interaction(prev_index, curr_index)
@@ -368,7 +311,7 @@ class Window(QMainWindow):
                 self.teachers_widget.update_data_interaction(prev_index, curr_index)
                 self.subjects_widget.update_data_interaction(prev_index, curr_index)
                 self.classes_widget.update_data_interaction(prev_index, curr_index)
-            case 2: # Classes view
+            case 2:  # Classes view
                 self.classes_widget.update_data_interaction(prev_index, curr_index)
                 self.subjects_widget.update_data_interaction(prev_index, curr_index)
                 self.teachers_widget.update_data_interaction(prev_index, curr_index)

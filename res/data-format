@@ -109,7 +109,7 @@
             "options": {
                 optionsID: optionText,
                 ...
-            },
+                },
             "subjects": {
                 "content": {
                     subjectID: {
@@ -124,18 +124,18 @@
                         }
                     },
                     ...
-                },
+                    },
                 "id_mapping": {
                     subjectIndex: subjectID,
                     ...
-                }
+                    },
                 "available_subject_teachers": {
                     subjectID: {
                         "name": subjectName,
                         "teachers": subjectInfo-subjectID-selectedTeachers
                     },
                     ...
-                }
+                    }
             }
         },
         ...

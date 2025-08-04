@@ -11,11 +11,11 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QScrollArea,
     QTableWidget, QLabel, QFrame,
     QAbstractItemView, QHeaderView, QMenu, QSizePolicy,
-    QProgressBar, QCheckBox, QMainWindow
+    QProgressBar, QCheckBox, QMainWindow, QMessageBox
 )
 
 from PyQt6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent
-from PyQt6.QtCore import Qt, QMimeData, QThread, QTimer
+from PyQt6.QtCore import Qt, QMimeData, QThread, QTimer, pyqtSignal
 from frontend.theme import *
 from frontend.theme import _widgets_bg_color_6
 
@@ -23,17 +23,29 @@ from middle.main import School, Class
 from middle.objects import Subject
 
 
-class _GenerateNewSchoolThread(QThread):
-    def __init__(self, threads_list: list['_GenerateNewSchoolThread'], run_func: Callable = None):
+class Thread(QThread):
+    crashed = pyqtSignal(Exception)
+    
+    def __init__(self, main_window: QMainWindow, func: Callable):
         super().__init__()
         self.setParent(None)
         
-        self.run_func = run_func if run_func is not None else print
-        threads_list.append(self)
-        self.finished.connect(lambda: threads_list.remove(self))
+        self.func = func is not None and func or (lambda: ())
+        main_window.close = self._window_closed()
+    
+    def _window_closed(self):
+        def window_closed_event(self):
+            self.exit(0)
+            super().close()
+        
+        return window_closed_event
     
     def run(self):
-        self.run_func()
+        try:
+            self.func()
+        except Exception as e:
+            self.crashed.emit(e)
+            self.exit(-1)
 
 class _ProgressBar(QProgressBar):
     def __init__(self, master: QWidget):
@@ -79,21 +91,13 @@ class _ProgressBar(QProgressBar):
             self.setValue(self.progress)
 
 class _TimetableSettings(QWidget):
-    def __init__(self, editor: 'TimeTableEditor', progress_bar: _ProgressBar, threads_list: list[_GenerateNewSchoolThread]):
+    def __init__(self, editor: 'TimeTableEditor', progress_bar: _ProgressBar, threads_list: list[Thread]):
         super().__init__()
         
         self.editor = editor
         self.threads_list = threads_list
         
-        self.thread_generate_new = _GenerateNewSchoolThread(self.threads_list, self._generate)
-        
         self._can_generate_new = True
-        self.continue_refresh = True
-        self.warning_dont_ask_again = True
-        
-        self.refresh_warning = WarningDialog("INFORMATION WILL BE LOST", "By doing this, all information in all timetables will be overwritten, no exceptions are made\nDo you want to proceed with this action?")
-        self.refresh_warning.button_clicked.connect(self._dailog_clicked_func)
-        self.refresh_warning.checkbox_on.connect(self._dailog_dont_ask_again)
         
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
@@ -193,12 +197,6 @@ class _TimetableSettings(QWidget):
         self.main_settings_layout.addWidget(timetable_settings_widget)
         
         self.main_settings_widget.setVisible(False)
-    
-    def _dailog_dont_ask_again(self):
-        self.warning_dont_ask_again = False
-    
-    def _dailog_clicked_func(self, ok_clicked: bool):
-        self.continue_refresh = ok_clicked
     
     def _generating_finished(self):
         self._can_generate_new = True
@@ -313,12 +311,12 @@ class _TimetableSettings(QWidget):
         
         timetable.save_timetable()
     
+    def _show_irreversible_warning_screen(self):
+        return QMessageBox.StandardButton.Yes == QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
+                                                                                                  "All information will be overwritten",
+                                                                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+    
     def refresh(self):
-        if self.warning_dont_ask_again:
-            self.refresh_warning.exec()
-            
-            if not self.continue_refresh:
-                return
 
         self._refresh()
     
@@ -331,11 +329,8 @@ class _TimetableSettings(QWidget):
         if self._can_generate_new:
             self._can_generate_new = False
             
-            if self.warning_dont_ask_again:
-                self.refresh_warning.exec()
-                
-                if not self.continue_refresh:
-                    return
+            if not self._show_irreversible_warning_screen():
+                return
             
             total_subject_periods = 0
             for _, timing_info in self.editor.school.project["levels"]:
@@ -347,9 +342,9 @@ class _TimetableSettings(QWidget):
             self.progress_bar.set_var_func(lambda: sum([sum([sum([s.total for s in subjects]) - 1 for _, subjects in timetable.table.items()]) for _, timetable in self.editor.school.schoolDict.items()]))
             self.progress_bar.start(100)
             
-            self.thread_generate_new = _GenerateNewSchoolThread(self.threads_list, self._generate)
-            self.thread_generate_new.finished.connect(self._generating_finished)
-            self.thread_generate_new.start()
+            self.generate_new = Thread(self.editor.main_window, self._generate)
+            self.generate_new.finished.connect(self._generating_finished)
+            self.generate_new.start()
 
 class _ClassTimetable(QTableWidget):
     def __init__(self, cls: Class, editor: 'TimeTableEditor', remainder_layout: QVBoxLayout):
@@ -537,8 +532,7 @@ class _ClassTimetable(QTableWidget):
         for label in self.remainder_layout.findChildren(DraggableSubjectLabel):
             self.remainder_layout.removeWidget(label)
         
-        rem_subjects = flatten([[subj for _ in range(subj.total)] for subj in self.cls.timetable.remainderContent if subj.teacher is not None])
-        
+        rem_subjects = list(flatten([[subj for _ in range(subj.total)] for subj in self.cls.timetable.remainderContent if subj.teacher is not None]))
         
         for subject in rem_subjects:
             subject_label = DraggableSubjectLabel(subject, self.cls)
@@ -596,13 +590,13 @@ class _ClassTimetable(QTableWidget):
         super().mousePressEvent(event)
 
 class TimeTableEditor(QWidget):
-    THREADS: list[_GenerateNewSchoolThread] = []
+    THREADS: list[Thread] = []
     
     def __init__(self, main_window: QMainWindow, school: School):
         super().__init__()
         
-        self.main_window = main_window
         self.school = school
+        self.main_window = main_window
         
         progress_bar_widget = QWidget()
         
@@ -620,13 +614,6 @@ class TimeTableEditor(QWidget):
         
         self._can_generate_new_timetable = True
         self.timetable_warning_dont_ask_again = True
-        
-        self.timetable_refresh_warning = WarningDialog("Warning", "By doing this, all information in this timetable will be overwritten.\nDo you want to proceed with this action?")
-        self.timetable_refresh_warning.button_clicked.connect(self._timetable_dailog_clicked_func)
-        self.timetable_refresh_warning.checkbox_on.connect(self._timetable_dailog_dont_ask_again)
-        
-        self.thread_generate_new = _GenerateNewSchoolThread(self.THREADS)
-        self.continue_timetable_refresh = True
         
         self.setStyleSheet(THEME[TIMETABLE_EDITOR])
         
@@ -666,7 +653,11 @@ class TimeTableEditor(QWidget):
         classes = {}
         
         for class_index, (_, cls) in enumerate(self.school.classes.items()):
-            classes[cls.uniqueID] = self.timetable_parent_widget[cls.uniqueID] if cls.uniqueID in self.timetable_parent_widget else self._make_timetable_for_each_class(class_index, cls)
+            classes[cls.uniqueID] = (
+                self.timetable_parent_widget[cls.uniqueID]
+                if cls.uniqueID in self.timetable_parent_widget else
+                self._make_timetable_for_each_class(class_index, cls)
+            )
         
         for class_id, widget in self.timetable_parent_widget.copy().items():
             if class_id not in classes:
@@ -702,14 +693,6 @@ class TimeTableEditor(QWidget):
         return func
     
     def update_data_interaction(self):
-        for _, (_, info1) in self.school.project["subjects"].items():
-            for _, (_, _, info2) in info1.items():
-                for _, (_, info3) in info2.items():
-                    info3.clear()
-        
-        for _, cls in self.school.classes.items():
-            self.timetable_widgets[cls.uniqueID].save_timetable()
-        
         subjects_info = self.main_window.subjects_widget.get()
         teachers_info = self.main_window.teachers_widget.get()
         classes_info = self.main_window.classes_widget.get()
@@ -782,21 +765,22 @@ class TimeTableEditor(QWidget):
             for subject_id, (subject_name, subject_info) in subjectTeacherMapping.items():
                 subject_level_info = {}
                 
+                cls_lvls_taught = list(
+                    flatten(
+                        [class_lvls_info[1] for t_ids, class_lvls_info in subject_info.items() if not t_ids.startswith("&")]
+                    )
+                )
+                
                 classes_taught = {
-                    str(class_index): list(class_info["options"].keys())
-                    for class_index, (_, class_info)
-                    in enumerate(classes_info.items())
-                    if subject_info["&timings"].get(str(class_index)) is not None
-                } if subject_info.get("&classes") is None else subject_info["&classes"]
+                    str(cls_level_index): list(list(classes_info.values())[cls_level_index]["options"].keys())
+                    for cls_level_index in cls_lvls_taught
+                }
+                classes_taught.update(subject_info.get("&classes", {}))
                 
                 for class_index, class_ids in classes_taught.items():
                     class_teacher_mapping = {}
                     for class_id in class_ids:
-                        teacher_info_from_project = None
-                        
-                        subject_info_from_subjects = school_project_subjects_dict.get(subject_id)
-                        if subject_info_from_subjects is not None:
-                            teacher_info_from_project = subject_info_from_subjects[1][class_index][2].get(class_id)
+                        teacher_info_from_project = school_project_subjects_dict.get(subject_id, [_, {}])[1].get(class_index, [_, _, {}])[2].get(class_id)
                         
                         if teacher_info_from_project is not None:
                             class_teacher_mapping[class_id] = teacher_info_from_project
@@ -819,7 +803,7 @@ class TimeTableEditor(QWidget):
         
         self.main_window.save_data.update(project_update)
         self.school = self.main_window.school = School(self.main_window.save_data)
-        self.main_window.timetable_widget.set_editor_from_school(self.school)
+        self.set_editor_from_school(self.school)
     
     def _certify_class_level_info(self, class_index: int, class_id: str, option_id: str):
         if class_index < len(self.school.project["levels"]):
@@ -836,12 +820,6 @@ class TimeTableEditor(QWidget):
         self._can_generate_new_timetable = True
         self.timetable_widgets[_id].populate_timetable()
     
-    def _timetable_dailog_dont_ask_again(self):
-        self.timetable_warning_dont_ask_again = False
-    
-    def _timetable_dailog_clicked_func(self, ok_clicked: bool):
-        self.continue_timetable_refresh = ok_clicked
-    
     def _make_setting_funcs(self, timetable: _ClassTimetable, period_amt_edit: QLineEdit, breakperiod_edit: QLineEdit):
         def _refresh_func():
             period_amt = int(period_amt_edit.text()) if period_amt_edit.text().isnumeric() else None
@@ -857,9 +835,11 @@ class TimeTableEditor(QWidget):
                 self._can_generate_new_timetable = False
                 
                 if self.timetable_warning_dont_ask_again:
-                    self.timetable_refresh_warning.exec()
+                    response = QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
+                                                                                "All information will be overwritten",
+                                                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
                     
-                    if not self.continue_timetable_refresh:
+                    if response != QMessageBox.StandardButton.Yes:
                         return
                 
                 self.progress_bar.set_max(lambda: sum(timetable.cls.timetable.periodsPerDay) - len(timetable.cls.timetable.periodsPerDay))
@@ -868,9 +848,9 @@ class TimeTableEditor(QWidget):
                 
                 _refresh_func()
                 
-                self.thread_generate_new = _GenerateNewSchoolThread(lambda: self.school.generateTimetable(timetable.cls), self.THREADS)
-                self.thread_generate_new.finished.connect(lambda: self._timetable_generating_finished(timetable.cls.uniqueID))
-                self.thread_generate_new.start()
+                self.generate_new = Thread(self.main_window, lambda: self.school.generateTimetable(timetable.cls))
+                self.generate_new.finished.connect(lambda: self._timetable_generating_finished(timetable.cls.uniqueID))
+                self.generate_new.start()
         
         def weekdays_func():
             option_selector = OptionSelection("Days of the Week", self.option_selectors[timetable.cls.uniqueID])
@@ -878,12 +858,13 @@ class TimeTableEditor(QWidget):
             self.option_selectors[timetable.cls.uniqueID] = option_selector.get()
         
         def refresh_func():
-            if self.timetable_warning_dont_ask_again:
-                self.timetable_refresh_warning.exec()
+            response = QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
+                                                                        "All information will be overwritten",
+                                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
                 
-                if not self.continue_timetable_refresh:
-                    return
-            
+            if response != QMessageBox.StandardButton.Yes:
+                return
+        
             _refresh_func()
         
         return {

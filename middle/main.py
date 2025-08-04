@@ -42,11 +42,9 @@ class School:
         self.setSchoolInfoFromProjectDict()
     
     def _nullCheck(self, value, null_replacement):
-        if value is None:
-            return null_replacement
-        return value
+        return null_replacement if value is None else value
     
-    def _getSubjects(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]], classTimetableSubjectMappingCoords: dict[int, dict[str, tuple[int, int]]]):
+    def _getSubjects(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
         subjects = {}
         
         for subjectID, (subjectName, subjectInfo) in mappings.items():
@@ -65,30 +63,19 @@ class School:
                     if random.choice([True, False, False, False, False]):
                         random.shuffle(availableTeachers)
                     
-                    options = classOptions[index]
-                    classesOptions = subjectInfo.get("&classes")
-                    if classesOptions is not None:
-                        options = classesOptions.get(str(index))
+                    options = subjectInfo.get("&classes", {}).get(str(index), classOptions[index])
                     
                     optionIndex = 0
-                    for optionID in self._nullCheck(options, classOptions[index]):
-                        if optionID in classOptions[index]:
-                            teacherData = availableTeachers[optionIndex % len(availableTeachers)]
-                            
-                            coords = []
-                            coordsSubjectsView = classTimetableSubjectMappingCoords.get(index)
-                            if coordsSubjectsView is not None:
-                                coordsSubjectTeacherView = coordsSubjectsView.get(subjectID)
-                                if coordsSubjectTeacherView is not None:
-                                    coords = coordsSubjectTeacherView.get(teacherData[0])
-                            
-                            teachersMapping[optionID] = [teacherData, coords]
-                            optionIndex += 1
+                    for optionID in options:
+                        teacherData = availableTeachers[optionIndex % len(availableTeachers)]
+                        
+                        teachersMapping[optionID] = [teacherData, []]
+                        optionIndex += 1
                     
                     timings = subjectInfo.get("&timings")[str(index)]
                     
                     subjects[subjectID][1][str(index)] = [timings[0], timings[1], teachersMapping]
-
+        
         return subjects
     
     def findClashes(self, subject: Subject, day: str, period: int, cls: Class):
@@ -130,13 +117,14 @@ class School:
         cls.timetable.generate()
     
     def generateNewSchoolTimetables(self):
+        print()
         print("Loaded")
         for _, cls in self.classes.items():
             self.generateTimetable(cls)
             
-            adsdd = [s.name for s in cls.timetable.remainderContent if s.teacher is not None]
-            if adsdd:
-                print(cls.name, ", ".join(adsdd))
+            rems = [s.name for s in cls.timetable.remainderContent if s.teacher is not None]
+            if rems:
+                print(cls.name, ", ".join(rems))
         print()
     
     def setSchoolInfoFromProjectDict(self):
@@ -151,28 +139,14 @@ class School:
         weekdays = [{_id: w for _id, (_, (_, _, w))  in classInfo.items()} for _, classInfo in self.project['levels']]
         levelNames = [name for name, _ in self.project['levels']]
         
-        classTimetableSubjectMappingCoords = {}
-        
-        subject = self.project.get("subjects")
-        if subject is not None:
-            for subjectID, (subjectName, subjectInfo) in subject.items():
-                for index, (_, _, subjectLevelInfo) in subjectInfo.items():
-                    for classID, ((teacherID, _), coords) in subjectLevelInfo.items():
-                        if index not in classTimetableSubjectMappingCoords:
-                            classTimetableSubjectMappingCoords[index] = {}
-                        else:
-                            if subjectID not in classTimetableSubjectMappingCoords[index]:
-                                classTimetableSubjectMappingCoords[index][subjectID] = {}
-                            else:
-                                classTimetableSubjectMappingCoords[index][subjectID][teacherID] = coords
-        
-        subjects = self.project["subjects"] = self._nullCheck(subject, self._getSubjects(classOptions, self.project["subjectTeacherMapping"], classTimetableSubjectMappingCoords))
+        subjects = self.project.get("subjects")
+        if subjects is None:
+            subjects = self.project["subjects"] = self._getSubjects(classOptions, self.project["subjectTeacherMapping"])
         
         for subjectID, (subjectName, subjectInfo) in subjects.items():
             for index, (perDay, perWeek, classTeacherMapping) in subjectInfo.items():
                 for classID, ((teacherID, teachersName), _) in classTeacherMapping.items():
                     index = int(index)
-                    
                     subj = Subject(subjectID, subjectName, perDay, perWeek, None)
                     
                     teacher = self.teachers.get(teacherID)
