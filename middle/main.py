@@ -117,15 +117,8 @@ class School:
         cls.timetable.generate()
     
     def generateNewSchoolTimetables(self):
-        print()
-        print("Loaded")
         for _, cls in self.classes.items():
             self.generateTimetable(cls)
-            
-            rems = [s.name for s in cls.timetable.remainderContent if s.teacher is not None]
-            if rems:
-                print(cls.name, ", ".join(rems))
-        print()
     
     def setSchoolInfoFromProjectDict(self):
         classIDNameMapping = {}

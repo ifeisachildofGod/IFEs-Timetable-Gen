@@ -20,7 +20,7 @@ from frontend.theme import *
 from frontend.theme import _widgets_bg_color_6
 
 from middle.main import School, Class
-from middle.objects import Subject
+from middle.objects import Subject, Teacher
 
 
 class Thread(QThread):
@@ -354,6 +354,8 @@ class _ClassTimetable(QTableWidget):
         self.timetable = cls.timetable
         self.editor = editor
         
+        self.remainder_labels: list[DraggableSubjectLabel] = []
+        
         self.remainder_layout = remainder_layout
         
         self.periods = max(self.timetable.periodsPerDay)
@@ -493,9 +495,11 @@ class _ClassTimetable(QTableWidget):
     
     def add_remainder(self, remainder: DraggableSubjectLabel, index: int | None = None):
         if index is not None:
-            self.remainder_layout.insertWidget(index, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            # self.remainder_layout.insertWidget(index, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            self.remainder_labels.insert(index - 1, remainder)
         else:
-            self.remainder_layout.insertWidget(self.remainder_layout.count() - 1, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            # self.remainder_layout.insertWidget(self.remainder_layout.count() - 1, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            self.remainder_labels.append(remainder)
         self.timetable.remainderContent.append(remainder.subject)
     
     def save_timetable(self):
@@ -529,10 +533,11 @@ class _ClassTimetable(QTableWidget):
                 item = TimeTableItem(subject, row + 1 == self.cls.breakTimePeriods[col], subject.id == self.cls.timetable.freePeriodID)
                 self.setItem(row, col, item)
         
-        for label in self.remainder_layout.findChildren(DraggableSubjectLabel):
+        for label in self.remainder_labels:
             self.remainder_layout.removeWidget(label)
+            label.deleteLater()
         
-        rem_subjects = list(flatten([[subj for _ in range(subj.total)] for subj in self.cls.timetable.remainderContent if subj.teacher is not None]))
+        rem_subjects = list(flatten([[subj for _ in range(subj.perWeek)] for subj in self.cls.timetable.remainderContent if subj.teacher is not None]))
         
         for subject in rem_subjects:
             subject_label = DraggableSubjectLabel(subject, self.cls)

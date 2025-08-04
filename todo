@@ -50,6 +50,7 @@
 - Add a warnings system that shows that subjects which are viable to be in a particular class or section have not been assigned a teacher if the subjects have not been assigned a teacher yet
 
 ### Timetable Editor
+- Add search functionality to find classes
 - Add a lock option for class timetables that makes it so the timetable cannot be changed when a new one is generated
 - Add a way of clearing timetables
 
