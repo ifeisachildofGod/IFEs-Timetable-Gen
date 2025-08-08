@@ -60,23 +60,11 @@
         subjectID: {
             "text": [text_on_input, ...],
             "classes": {
-                "content": {
-                    classID: {
-                        optionID: optionState,
-                        ...
-                    },
+                classID: {
+                    optionID: optionState,
                     ...
                 },
-                "id_mapping": {
-                    "main": {
-                        classID: className,
-                        ...
-                    },
-                    "sub": {
-                        classID: classInfo-classID-options,
-                        ...
-                    }
-                }
+                ...
             },
             "teachers": {
                 "content": [selectedTeacher, ..., None, unselectedTeacher, ...],
@@ -92,6 +80,19 @@
     "teachersInfo": {
         teacherID: {
             "text": [text_on_input, ...],
+            "classes": {
+                "content":{
+                    subjectID: {
+                        classID: (isRandomlySelectedState, {optionID: optionState, ...}),
+                        ...}
+                    },
+                    ...
+                },
+                "id_mapping": {
+                    subjectID: subjectName,
+                    ...
+                }
+            },
             "subjects": {
                 "content": [selectedSubject, ..., None, unselectedSubject, ...],
                 "id_mapping": {

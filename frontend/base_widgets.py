@@ -40,7 +40,7 @@ class TimeTableItem(QTableWidgetItem):
         elif not self.free_period and not self.break_time and self.subject.teacher is not None:
             self.setText(self.subject.name)
             self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.setToolTip(f"ID: {self.subject.uniqueID}\nTeacher: {self.subject.teacher.name}\nLocked: {self.subject.lockedPeriod is not None}")
+            self.setToolTip(f"Teacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}\nLocked: {self.subject.lockedPeriod is not None}")
 
 class DraggableSubjectLabel(QLabel):
     clicked = pyqtSignal(QMouseEvent)
@@ -52,7 +52,7 @@ class DraggableSubjectLabel(QLabel):
         
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setProperty('class', 'subject-item')
-        self.setToolTip(f"ID: {self.subject.uniqueID}\nTeacher: {self.subject.teacher.name}")
+        self.setToolTip(f"Teacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}")
         
         self.setFixedSize(150, 40)
         self.setStyleSheet("QLabel{background-color: " + _widgets_bg_color_2 + "; border-radius: 10px;} QLabel:hover{background-color: " + get_hover_color(_widgets_bg_color_2) + ";}")
@@ -271,7 +271,7 @@ class OptionTag(QWidget):
 
 
 class SelectedWidget(QWidget):
-    def __init__(self, text_or_widget: str | QWidget, host: Any | QVBoxLayout, id_mapping: dict | None = None, _id: str | None = None, saved_tracker: dict | None = None, saved_state_changed_signal: pyqtSignal | None = None):
+    def __init__(self, text_or_widget: str | QWidget, host: Any | QVBoxLayout, id_mapping: dict | None = None, _id: str | None = None, saved_state_changed_signal: pyqtSignal | None = None):
         super().__init__()
         self.setProperty("class", "subjectListItem")
         self.setStyleSheet("QWidget.subjectListItem {margin: 2px 4px;}")
@@ -316,7 +316,6 @@ class SelectedWidget(QWidget):
         main_layout.setContentsMargins(10, 0, 0, 0)
         self.setLayout(main_layout)
         
-        self.saved_tracker = saved_tracker
         self.saved_state_changed_signal = saved_state_changed_signal
     
     def delete_self(self):
@@ -337,7 +336,7 @@ class SelectedWidget(QWidget):
             self.id_mapping[len(self.content) - 1] = self.id
             self.host.id_mapping = self.id_mapping
             
-            widget = UnselectedWidget(self.text_or_widget, self.host, self.id_mapping, self.id, self.saved_tracker, self.saved_state_changed_signal)
+            widget = UnselectedWidget(self.text_or_widget, self.host, self.id_mapping, self.id, self.saved_state_changed_signal)
             
             # Find the last unselected widget or append at the end
             insert_index = self.host.container_layout.count()
@@ -358,14 +357,13 @@ class SelectedWidget(QWidget):
             
             self.deleteLater()
             
-            self.host.saved = self.saved_tracker == self.host.get()
-            self.saved_state_changed_signal.emit(self.host.saved)
+            self.saved_state_changed_signal.emit()
         else:
             self.host.removeWidget(self)
             self.deleteLater()
 
 class UnselectedWidget(QWidget):
-    def __init__(self, text, host: Any, id_mapping: dict, _id: str, saved_tracker: dict, saved_state_changed_signal: pyqtSignal):
+    def __init__(self, text, host: Any, id_mapping: dict, _id: str, saved_state_changed_signal: pyqtSignal):
         super().__init__()
         self.setProperty("class", "subjectListItem")
         self.setStyleSheet("QWidget.subjectListItem {margin: 2px 4px;}")
@@ -405,7 +403,6 @@ class UnselectedWidget(QWidget):
         
         self.setLayout(layout)
         
-        self.saved_tracker = saved_tracker
         self.saved_state_changed_signal = saved_state_changed_signal
     
     def add_self(self):
@@ -427,7 +424,7 @@ class UnselectedWidget(QWidget):
         
         self.host.id_mapping = self.id_mapping
         
-        widget = SelectedWidget(self.text, self.host, self.id_mapping, self.id, self.saved_tracker, self.saved_state_changed_signal)
+        widget = SelectedWidget(self.text, self.host, self.id_mapping, self.id, self.saved_state_changed_signal)
         # Find the last selected widget or insert at beginning
         insert_index = 0
         for i in range(self.host.container_layout.count()):
@@ -436,8 +433,7 @@ class UnselectedWidget(QWidget):
         
         self.host.add_item(widget, insert_index)
         
-        self.host.saved = self.saved_tracker == self.host.get()
-        self.saved_state_changed_signal.emit(self.host.saved)
+        self.saved_state_changed_signal.emit()
         
         for widg in self.host.selected_widgets + self.host.unselected_widgets:
             if isinstance(widg, SelectedWidget) or isinstance(widg, UnselectedWidget):

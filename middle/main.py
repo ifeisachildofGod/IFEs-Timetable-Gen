@@ -248,7 +248,7 @@ class School:
                                 
                                 subjectInsert.TOTAL = perDay
                                 subjectInsert.PERWEEK = perWeek
-                                
+                                print(cls.name + ":", remainderAmount)
                                 if remainderAmount:
                                     cls.timetable.remainderContent.append(Subject(subjectID, subjectName, coordTotal, remainderAmount, teacher))
                                 

@@ -31,7 +31,8 @@ class FileManager:
         self.path = path
         self.parent = parent
         self.file_filter = file_filter
-
+        self._from_save = False
+        
         # Hooks: user-defined callbacks for file read/write
         self.save_callback: Optional[Callable[[str | None], str]] = None
         self.open_callback: Optional[Callable[[], None] | Callable[[str, Any], None]] = None
@@ -57,20 +58,21 @@ class FileManager:
                 if self.open_callback:
                     self.open_callback(file_path)
             except Exception as e:
-                QMessageBox.critical(self.parent, str(e.__class__), str(e))
+                QMessageBox.critical(self.parent, type(e).__name__, str(e))
 
     def save(self):
         if self.path:
-            try:
+            # try:
                 if self.save_callback:
                     self.save_callback(self.path)
-            except Exception as e:
-                QMessageBox.critical(self.parent, str(e.__class__), str(e))
+            # except Exception as e:
+            #     QMessageBox.critical(self.parent, type(e).__name__, str(e))
         else:
+            self._from_save = True
             self.save_as()
 
     def save_as(self):
-        file_path, _ = QFileDialog.getSaveFileName(self.parent, "Save File As", "", self.file_filter)
+        file_path, _ = QFileDialog.getSaveFileName(self.parent, ("Save File" if self._from_save else "Save File As"), "", self.file_filter)
         
         if file_path:
             try:
@@ -78,5 +80,8 @@ class FileManager:
                     self.path = file_path
                     self.save_callback(self.path)
             except Exception as e:
-                QMessageBox.critical(self.parent, str(e.__class__), str(e))
+                QMessageBox.critical(self.parent, type(e).__name__, str(e))
+        
+        if self._from_save:
+            self._from_save = False
 

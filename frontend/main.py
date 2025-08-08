@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QFileDialog, QLineEdit
 )
 from PyQt6.QtGui import QAction
-from PyQt6.QtCore import QThread
+from PyQt6.QtCore import pyqtSignal
 from matplotlib.cbook import flatten
 from frontend.setting_widgets import SettingWidget, Subjects, Teachers, Classes
 from frontend.editing_widgets import TimeTableEditor
@@ -18,8 +18,12 @@ from middle.main import School
 
 
 class Window(QMainWindow):
+    saved_state_changed = pyqtSignal()
+    
     def __init__(self, path: str | None):
         super().__init__()
+        self.title = "IFEs Timetable Generator"
+        
         self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME});;JSON Files (*.json)")
         self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback)
         
@@ -34,23 +38,8 @@ class Window(QMainWindow):
         self.children_saved_tracker = {}
         
         # Get saved data
-        self.uncompressed_path = None
-        self.saved = False
-        self.save_data = deepcopy(self.default_save_data)
-        self.orig_data = deepcopy(self.save_data)
-        
-        self.setWindowTitle(f"IFEs Timetable Generator")
-        
-        if self.file.path is not None:
-            self.file.path, self.uncompressed_path = gzip_file(self.file.path)
-            
-            self.save_data = self.file.get_data()
-            
-            self._fix_data()
-            
-            self.setWindowTitle(self.windowTitle() + " - " + self.file.path)
-            
-            self.saved = True
+        self._init_data()
+        self.saved_state_changed.connect(self.unsaved_callback)
         
         # Initialize school data
         self.school = School(self.save_data)
@@ -96,13 +85,9 @@ class Window(QMainWindow):
         timetable_btn.setCheckable(True)
         
         # Add widgets to stack
-        self.subjects_widget = Subjects(self, self.saved, self.save_data.get("subjectsInfo"))
-        self.teachers_widget = Teachers(self, self.saved, self.save_data.get("teachersInfo"))
-        self.classes_widget = Classes(self, self.saved, self.save_data.get("classesInfo"))
-        
-        self.subjects_widget.saved_state_changed.connect(self._make_set_saved_state_func("subjects"))
-        self.teachers_widget.saved_state_changed.connect(self._make_set_saved_state_func("teachers"))
-        self.classes_widget.saved_state_changed.connect(self._make_set_saved_state_func("classes"))
+        self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"), self.saved_state_changed)
+        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
+        self.classes_widget = Classes(self, self.save_data.get("classesInfo"), self.saved_state_changed)
         
         self.timetable_widget = TimeTableEditor(self, self.school)
         
@@ -134,17 +119,28 @@ class Window(QMainWindow):
         
         self.orig_data = deepcopy(self.save_data)
     
-    def _make_set_saved_state_func(self, _id: str):
-        def func(val: bool):
-            self.children_saved_tracker[_id] = val
-            self.saved = False not in list(self.children_saved_tracker.values())
-            
-            if not self.saved:
-                self.setWindowTitle(self.windowTitle() + " *Unsaved")
-            else:
-                self.setWindowTitle(self.windowTitle().replace(" *Unsaved", ""))
+    def _init_data(self):
+        self.saved = False
+        self.uncompressed_path = None
+        self.save_data = deepcopy(self.default_save_data)
+        self.orig_data = deepcopy(self.save_data)
         
-        return func
+        if self.file.path is not None:
+            self.file.path, self.uncompressed_path = gzip_file(self.file.path)
+            
+            self.save_data = self.file.get_data()
+            
+            self._fix_data()
+            
+            self.setWindowTitle(f"{self.title} - {self.file.path}")
+            
+            self.saved = True
+        else:
+            self.setWindowTitle(self.title)
+    
+    def unsaved_callback(self):
+        self.saved = False
+        self.setWindowTitle(f"{self.title} - {self.file.path} *Unsaved")
     
     def _fix_data(self):
         subjects_data = self.save_data.get("subjectsInfo")
@@ -187,28 +183,24 @@ class Window(QMainWindow):
         # self._file_dialog(func, "open")
     
     def save_callback(self, path: str):
-        self.subjects_widget.saved_state_changed.emit(True)
-        self.teachers_widget.saved_state_changed.emit(True)
-        self.classes_widget.saved_state_changed.emit(True)
-        
-        self.save_data.update(self.get_settings_info())
+        self.saved = True
         
         self.file.path = path
         
-        self.update_interaction(self.prev_display_index, self.display_index)
         self.update_interaction(self.display_index, self.prev_display_index)
         
-        data = self.save_data.copy()
-        data.update(self.get_settings_info())
+        self.save_data.update(self.get_settings_info())
         
         with gzip.open(self.file.path, "wb") as file:
-            file.write(json.dumps(data, indent=2).encode())
+            file.write(json.dumps(self.save_data, indent=2).encode())
         
         if self.uncompressed_path is not None:
             with open(self.uncompressed_path, "w") as u_file:
-                json.dump(data, u_file, indent=2)
+                json.dump(self.save_data, u_file, indent=2)
         
         self.orig_data = deepcopy(self.save_data)
+        
+        self.setWindowTitle(f"{self.title} - {self.file.path}")
     
     def undo(self):
         undo_func = self.focusWidget().__dict__.get("undo")
@@ -264,9 +256,6 @@ class Window(QMainWindow):
         }
     
     def closeEvent(self, event):
-        for thread in self.timetable_widget.THREADS:
-            thread.quit()
-        
         if not self.saved:
             reply = QMessageBox.question(self, "Save", "Save before quitting?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
             
@@ -326,3 +315,6 @@ class Window(QMainWindow):
                     self.subjects_widget.update_data_interaction(prev_index, curr_index)
                     self.teachers_widget.update_data_interaction(prev_index, curr_index)
                 self.timetable_widget.update_data_interaction()
+
+
+

@@ -1,12 +1,12 @@
 from copy import deepcopy
-from typing import Callable
+from typing import Any, Callable
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QScrollArea, QPushButton, QHBoxLayout,
     QFrame, QDialog, QCheckBox,
     QComboBox, QGridLayout
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtBoundSignal
 from frontend.theme import *
 from frontend.theme import (
     _main_bg_color_1, _widgets_bg_color_2, _widget_border_radius_1,
@@ -16,9 +16,7 @@ from frontend.base_widgets import SelectedWidget, UnselectedWidget, CustomLabel,
 
 
 class SelectionList(QDialog):
-    saved_state_changed = pyqtSignal(bool)
-    
-    def __init__(self, title: str, info: dict, saved: bool):
+    def __init__(self, title: str, info: dict, saved_state_changed: pyqtBoundSignal):
         super().__init__()
         
         self.setStyleSheet(THEME[SELECTION_LIST])
@@ -26,14 +24,14 @@ class SelectionList(QDialog):
         self.setWindowTitle(title)
         self.setFixedSize(400, 300)
         
+        self.saved_state_changed = saved_state_changed
+        
         self.middle_line_thickness = 4
         self.normal_line_thickness = 1
         
         self.selected_widgets = []
         self.unselected_widgets = []
         self.separators = []
-        
-        self.saved = saved
         
         self.content = info["content"]
         self.id_mapping = deepcopy(info["id_mapping"])
@@ -60,7 +58,7 @@ class SelectionList(QDialog):
         
         # Add selected items
         for index, item in enumerate(selected_items):
-            widget = SelectedWidget(item, self, self.id_mapping, self.id_mapping[index], self.id_mapping, self.saved_state_changed)
+            widget = SelectedWidget(item, self, self.id_mapping, self.id_mapping[index], self.saved_state_changed)
             self.add_item(widget)
             self.selected_widgets.append(widget)
             if item != selected_items[-1]:
@@ -72,14 +70,11 @@ class SelectionList(QDialog):
         
         # Add unselected items
         for index, item in enumerate(unselected_items):
-            widget = UnselectedWidget(item, self, self.id_mapping, self.id_mapping[index + len(selected_items) + 1], self.id_mapping, self.saved_state_changed)
+            widget = UnselectedWidget(item, self, self.id_mapping, self.id_mapping[index + len(selected_items) + 1], self.saved_state_changed)
             self.add_item(widget)
             self.unselected_widgets.append(widget)
             if item != unselected_items[-1]:
                 self.add_separator(self.normal_line_thickness, isSelected=False)
-    
-    def save(self):
-        self.saved_tracker = deepcopy(self.get()["id_mapping"])
     
     def get(self):
         content = []
@@ -173,25 +168,22 @@ class SelectionList(QDialog):
             unselected_positions = [p + 1 if p > unselected_positions[i] else p 
                                   for p in unselected_positions]
 
-class DropDownCheckBoxes(QDialog):
-    saved_state_changed = pyqtSignal([bool])
-    
-    def __init__(self, title: str, info: dict[str, dict[str, dict[str, dict[str, str | bool]]] | dict[int, str]], saved: bool):
+class SubjectDropDownCheckBoxes(QDialog):
+    def __init__(self, title: str, info: dict[str, dict[str, dict[str, dict[str, str | bool]]] | dict[int, str]], saved_state_changed: pyqtBoundSignal, general_data: dict):
         super().__init__()
+        
+        self.info = info
+        self.general_data = general_data
         
         self.setStyleSheet(THEME[DROPDOWN_CHECK_BOXES_THEME])
         
         self.setWindowTitle(title)
         self.setFixedSize(400, 300)
         
-        self.content = info["content"]
-        self.id_mapping = info["id_mapping"]
-        self.saved_tracker = {}
-        self.class_check_box_tracker = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "widget": {}}
+        self.saved_state_changed = saved_state_changed
         
         self.main_guy_is_clicked = False
         self.mini_guy_is_clicked = False
-        self.saved = saved
         
         main_layout = QVBoxLayout(self)
         
@@ -200,24 +192,42 @@ class DropDownCheckBoxes(QDialog):
         
         container = QWidget()
         container.setStyleSheet(f"background-color: {_main_bg_color_1};")
-        container_layout = QVBoxLayout(container)
-        container_layout.setContentsMargins(0, 0, 0, 0)
+        self.container_layout = QVBoxLayout(container)
+        self.container_layout.setContentsMargins(0, 0, 0, 0)
         
         main_layout.addWidget(scroll_area)
         scroll_area.setWidget(container)
         
         self.setLayout(main_layout)
         
+        self.init()
+        
+        self.container_layout.addStretch()
+    
+    def init(self):
+        self.class_check_box_tracker = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "widget": {}}
+        
+        for widget in self._create_checkbox_widgets(self.info, self.general_data, self.class_check_box_tracker):
+            self.container_layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignTop)
+    
+    def _create_checkbox_widgets(self, data: dict[str, dict[str, str | bool]], general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
+        updated_data = deepcopy(general_data)
+        for class_id, options_info in data.items():
+            updated_data["content"][class_id].update(options_info)
+        
+        id_mapping = updated_data["id_mapping"]
+        
+        widgets: list[QWidget] = []
         all_clicked_checkboxes: list[QCheckBox] = []
         
-        for class_id, class_options in self.content.items():
+        for class_id, class_options in updated_data["content"].items():
             main_widget = QWidget()
             
             widget_wrapper_layout = QVBoxLayout()
             widget_wrapper_layout.setSpacing(0)
             main_widget.setLayout(widget_wrapper_layout)
             
-            open_dp_func = self.make_open_dp_func(class_id, widget_wrapper_layout, class_options)
+            open_dp_func = self.make_open_dp_func(class_id, widget_wrapper_layout, class_check_box_tracker)
             
             def make_open_dp_func(odp_param_func):
                 def odp_func(event):
@@ -241,58 +251,268 @@ class DropDownCheckBoxes(QDialog):
             dp_icon.mouseclicked.connect(open_dp_func)
             dp_icon.setContentsMargins(0, 0, 10, 0)
             
-            title = QLabel(self.id_mapping["main"][class_id])
+            title = QLabel(id_mapping["main"][class_id])
             
             check_box = QCheckBox()
-            check_box.clicked.connect(self.make_main_checkbox_func(class_id))
+            check_box.clicked.connect(self.make_main_checkbox_func(class_id, class_check_box_tracker))
             all_clicked = False not in list(class_options.values()) and class_options
-            if all_clicked:
-                all_clicked_checkboxes.append(check_box)
             
             header_layout.addWidget(dp_icon)
             header_layout.addWidget(title)
             header_layout.addStretch()
             header_layout.addWidget(check_box)
             
-            self.class_check_box_tracker["icon"][class_id] = dp_icon
-            self.class_check_box_tracker["sub_cbs"][class_id] = {}
-            self.class_check_box_tracker["main_cb"][class_id] = check_box
-            self.class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, all_clicked)
+            class_check_box_tracker["icon"][class_id] = dp_icon
+            class_check_box_tracker["sub_cbs"][class_id] = {}
+            class_check_box_tracker["main_cb"][class_id] = check_box
+            class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, all_clicked, data, updated_data, class_check_box_tracker)
             
             all_clicked_checkboxes.extend(to_be_clicked)
             
-            container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
-        
-        self.saved_tracker = deepcopy(self.content)
+            widgets.append(main_widget)
         
         for cb in all_clicked_checkboxes:
             cb.click()
         
-        container_layout.addStretch()
-    
-    def save(self):
-        self.saved_tracker = deepcopy(self.content)
+        return widgets
     
     def get(self):
-        return {"content": self.content, "id_mapping": self.id_mapping}
+        return self.info
     
-    def make_open_dp_func(self, class_id: str, parent_layout: QVBoxLayout, options: dict[str, bool]):
+    def make_open_dp_func(self, class_id: str, parent_layout: QVBoxLayout, class_check_box_tracker: dict[str, Any]):
         def open_dp():
-            widget = self.class_check_box_tracker["widget"][class_id]
+            widget = class_check_box_tracker["widget"][class_id]
             
-            self.class_check_box_tracker["icon"][class_id].setAngle(0 if self.class_check_box_tracker["icon"][class_id].angle != 0 else 270)
+            class_check_box_tracker["icon"][class_id].setAngle(0 if class_check_box_tracker["icon"][class_id].angle != 0 else 270)
             
             if parent_layout.itemAt(1) is None:
                 parent_layout.addWidget(widget)
             else:
                 parent_layout.removeWidget(widget)
-                widget.deleteLater()
-                
-                self.class_check_box_tracker["widget"][class_id] = self.make_dp_widget(class_id, options, self.class_check_box_tracker["main_cb"][class_id].isChecked())
         
         return open_dp
     
-    def make_dp_widget(self, class_id: str, options: dict[str, bool], all_clicked: bool):
+    def make_dp_widget(self, class_id: str, options: dict[str, bool], all_clicked: bool, info, updated_data, class_check_box_tracker: dict[str, Any]):
+        dp_widget = QWidget()
+        dp_widget.setObjectName("dropdownContent")
+        
+        dp_layout = QVBoxLayout()
+        dp_layout.setSpacing(2)
+        dp_widget.setLayout(dp_layout)
+        
+        clicked_cbs: list[QCheckBox] = []
+        
+        for optionID, optionState in options.items():
+            option_layout = QHBoxLayout()            
+            
+            dp_title = QLabel(updated_data["id_mapping"]["sub"][class_id][optionID])
+            dp_checkbox = QCheckBox()
+            
+            class_check_box_tracker["sub_cbs"][class_id][optionID] = dp_checkbox
+            
+            dp_checkbox.clicked.connect(self.make_sub_checkbox_func(class_id, info, updated_data, options, class_check_box_tracker))
+            
+            if optionState and not dp_checkbox.isChecked():
+                clicked_cbs.append(dp_checkbox)
+            # print(optionState, all_clicked, dp_checkbox.isChecked())
+            option_layout.addSpacing(50)
+            option_layout.addWidget(dp_title)
+            option_layout.addStretch()
+            option_layout.addWidget(dp_checkbox)
+            
+            dp_layout.addLayout(option_layout)
+        
+        return dp_widget, clicked_cbs
+    
+    def make_main_checkbox_func(self, class_id: str, class_check_box_tracker: dict[str, Any]):
+        def checkbox_func(is_on):
+            if not self.mini_guy_is_clicked:
+                self.main_guy_is_clicked = True
+                
+                if is_on:
+                    for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
+                        if not c_box.isChecked():
+                            c_box.click()
+                else:
+                    for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
+                        if c_box.isChecked():
+                            c_box.click()
+                
+                self.main_guy_is_clicked = False
+        
+        return checkbox_func
+    
+    def make_sub_checkbox_func(self, class_id: str, content, updated_data, options: dict[str, bool], class_check_box_tracker: dict[str, Any]):
+        def checkbox_func(on):
+            if class_id not in content:
+                content[class_id] = {}
+            
+            for checkBoxID, checkBox in class_check_box_tracker["sub_cbs"][class_id].items():
+                if not checkBox.isChecked() and class_id in content and checkBoxID in content[class_id]:
+                    content[class_id].pop(checkBoxID)
+                elif checkBox.isChecked():
+                    if class_id not in content:
+                        content[class_id] = {}
+                    content[class_id][checkBoxID] = True
+            
+            # new_options = dict.fromkeys(options, False)
+            # new_options.update(content[class_id])
+            
+            # options.update(new_options)
+            
+            if not sum(list(content[class_id].values())):
+                content.pop(class_id)
+            
+            if not self.main_guy_is_clicked:
+                self.mini_guy_is_clicked = True
+                
+                if on:
+                    if len(content[class_id]) == len(updated_data["content"][class_id]) and not class_check_box_tracker["main_cb"][class_id].isChecked():
+                        class_check_box_tracker["main_cb"][class_id].click()
+                else:
+                    if class_check_box_tracker["main_cb"][class_id].isChecked():
+                        class_check_box_tracker["main_cb"][class_id].click()
+                
+                self.mini_guy_is_clicked = False
+            
+            self.saved_state_changed.emit()
+        
+        return checkbox_func
+
+class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
+    def __init__(self, title, info: dict[str, dict[str, dict[str, tuple[bool, dict[str, str | bool]]]]] | dict[int, str], saved_state_changed, general_data):
+        super().__init__(title, info, saved_state_changed, general_data)
+    
+    def init(self):
+        self.subject_check_box_tracker = {}
+        self.class_check_box_tracker = {}
+        
+        for subject_id, info in self.info["content"].items():
+            self.subject_check_box_tracker[subject_id] = {}
+            self.class_check_box_tracker[subject_id] = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "widget": {}}
+            
+            main_widget = QWidget()
+            main_layout = QVBoxLayout()
+            main_widget.setLayout(main_layout)
+            
+            open_dp_func = self.make_open_subject_func(main_layout, info, self.general_data[subject_id], self.subject_check_box_tracker[subject_id], self.class_check_box_tracker[subject_id])
+            
+            def make_open_dp_func(odp_param_func):
+                def odp_func(event):
+                    if event.button() == Qt.MouseButton.LeftButton:
+                        odp_param_func()
+                
+                return odp_func
+            
+            header = QWidget()
+            header.setObjectName("dropdownHeader")
+            header.setFixedHeight(50)
+            header.mousePressEvent = make_open_dp_func(open_dp_func)
+            
+            header_layout = QHBoxLayout(header)
+            header_layout.setContentsMargins(12, 0, 12, 0)
+            
+            dp_icon = CustomLabel("▼", 270)
+            dp_icon.setObjectName("arrow")
+            dp_icon.mouseclicked.connect(open_dp_func)
+            dp_icon.setContentsMargins(0, 0, 10, 0)
+            
+            title = QLabel(self.info["id_mapping"][subject_id])
+
+            header_layout.addWidget(dp_icon)
+            header_layout.addWidget(title)
+            header_layout.addStretch()
+            
+            main_layout.addWidget(header)
+            
+            self.subject_check_box_tracker[subject_id]["icon"] = dp_icon
+            self.subject_check_box_tracker[subject_id]["widget"] = self.make_subject_widget(info, self.general_data[subject_id], self.class_check_box_tracker[subject_id])
+            
+            self.container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
+    
+    def make_subject_widget(self, info, general_data, class_check_box_tracker):
+        container_widget = QWidget()
+        container_layout = QVBoxLayout()
+        container_widget.setLayout(container_layout)
+        
+        for widget in self._create_checkbox_widgets(info, general_data, class_check_box_tracker):
+            container_layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignTop)
+        
+        return container_widget
+    
+    def _create_checkbox_widgets(self, data: dict[str, dict[str, dict[str, str | bool]]] | dict[int, str], general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
+        updated_data = deepcopy(general_data)
+        for class_id, (random_on, options_info) in data.items():
+            updated_data["content"][class_id][0] = random_on
+            updated_data["content"][class_id][1].update(options_info)
+        
+        id_mapping = updated_data["id_mapping"]
+        
+        widgets: list[QWidget] = []
+        random_on_checkboxes: list[QCheckBox] = []
+        
+        for class_id, (random_on, class_options) in updated_data["content"].items():
+            main_widget = QWidget()
+            
+            widget_wrapper_layout = QVBoxLayout()
+            widget_wrapper_layout.setSpacing(0)
+            main_widget.setLayout(widget_wrapper_layout)
+            
+            open_dp_func = self.make_odp_func(data, class_id, widget_wrapper_layout, class_check_box_tracker)
+            
+            def make_open_dp_func(odp_param_func):
+                def odp_func(event):
+                    if event.button() == Qt.MouseButton.LeftButton:
+                        odp_param_func()
+                
+                return odp_func
+            
+            header = QWidget()
+            header.setObjectName("dropdownHeader")
+            header.setFixedHeight(50)
+            header.mousePressEvent = make_open_dp_func(open_dp_func)
+            
+            widget_wrapper_layout.addWidget(header)
+            
+            header_layout = QHBoxLayout(header)
+            header_layout.setContentsMargins(12, 0, 12, 0)
+            
+            dp_icon = CustomLabel("▼", 270)
+            dp_icon.setObjectName("arrow")
+            dp_icon.mouseclicked.connect(open_dp_func)
+            dp_icon.setContentsMargins(0, 0, 10, 0)
+            
+            title = QLabel(id_mapping["main"][class_id])
+            
+            check_box = QCheckBox("Random")
+            check_box.clicked.connect(self.make_main_checkbox_func(class_id, data, class_check_box_tracker))
+            
+            if random_on:
+                random_on_checkboxes.append(check_box)
+            
+            header_layout.addWidget(dp_icon)
+            header_layout.addWidget(title)
+            header_layout.addStretch()
+            header_layout.addWidget(check_box)
+            
+            class_check_box_tracker["icon"][class_id] = dp_icon
+            class_check_box_tracker["sub_cbs"][class_id] = {}
+            class_check_box_tracker["main_cb"][class_id] = check_box
+            class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, random_on, data, updated_data, class_check_box_tracker)
+            
+            random_on_checkboxes.extend(to_be_clicked)
+            
+            widgets.append(main_widget)
+        
+        for cb in random_on_checkboxes:
+            cb.click()
+        
+        return widgets
+    
+    def get(self):
+        return self.info
+    
+    def make_dp_widget(self, class_id: str, options: dict[str, bool], random_clicked: bool, content, updated_data, class_check_box_tracker):
         dp_widget = QWidget()
         dp_widget.setObjectName("dropdownContent")
         
@@ -305,14 +525,16 @@ class DropDownCheckBoxes(QDialog):
         for optionID, optionState in options.items():
             option_layout = QHBoxLayout()
             
-            dp_title = QLabel(self.id_mapping["sub"][class_id][optionID])
+            dp_title = QLabel(updated_data["id_mapping"]["sub"][class_id][optionID])
+            
             dp_checkbox = QCheckBox()
+            dp_checkbox.setDisabled(random_clicked)
             
-            self.class_check_box_tracker["sub_cbs"][class_id][optionID] = dp_checkbox
+            class_check_box_tracker["sub_cbs"][class_id][optionID] = dp_checkbox
             
-            dp_checkbox.clicked.connect(self.make_sub_checkbox_func(class_id, optionID))
+            dp_checkbox.clicked.connect(self.make_sub_checkbox_func(class_id, content, optionID))
             
-            if optionState:
+            if optionState and not random_clicked:
                 clicked_cbs.append(dp_checkbox)
             
             option_layout.addSpacing(50)
@@ -322,56 +544,73 @@ class DropDownCheckBoxes(QDialog):
             
             dp_layout.addLayout(option_layout)
         
-        return dp_widget, clicked_cbs if not all_clicked else []
+        return dp_widget, clicked_cbs
     
-    def make_main_checkbox_func(self, class_id: str):
+    def make_main_checkbox_func(self, class_id: str, content, class_check_box_tracker):
         def checkbox_func(is_on):
-            if not self.mini_guy_is_clicked:
-                self.main_guy_is_clicked = True
-                
-                if is_on:
-                    for cb_id, c_box in self.class_check_box_tracker["sub_cbs"][class_id].items():
-                        if not c_box.isChecked():
-                            c_box.click()
-                        self.content[class_id][cb_id] = True
-                else:
-                    for cb_id, c_box in self.class_check_box_tracker["sub_cbs"][class_id].items():
-                        if c_box.isChecked():
-                            c_box.click()
-                        self.content[class_id][cb_id] = False
-                
-                self.content[class_id][cb_id] = is_on
-                
-                self.main_guy_is_clicked = False
+            if class_id not in content:
+                content[class_id] = [False, {}]
+            
+            if is_on:
+                for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
+                    if c_box.isChecked():
+                        c_box.click()
+                    # c_box.setDisabled(True)
+                if class_check_box_tracker["icon"][class_id].angle != 270:
+                    class_check_box_tracker["icon"][class_id].mouseclicked.emit()
+                class_check_box_tracker["icon"][class_id].setDisabled(True)
+            else:
+                for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
+                    c_box.setDisabled(False)
+            
+            content[class_id][0] = is_on
         
         return checkbox_func
     
-    def make_sub_checkbox_func(self, class_id: str, optionID: str):
-        def checkbox_func(on):
-            if not self.main_guy_is_clicked:
-                self.mini_guy_is_clicked = True
+    def make_sub_checkbox_func(self, class_id: str, content, option_id: str):
+        def checkbox_func(is_on):
+            if is_on:
+                if class_id not in content:
+                    content[class_id] = [False, {}]
                 
-                for checkBoxID, checkBox in self.class_check_box_tracker["sub_cbs"][class_id].items():
-                    self.content[class_id][checkBoxID] = checkBox.isChecked()
-                
-                if on:
-                    if False not in [state for state in list(self.content[class_id].values())] and not self.class_check_box_tracker["main_cb"][class_id].isChecked():
-                        self.class_check_box_tracker["main_cb"][class_id].click()
-                else:
-                    if self.class_check_box_tracker["main_cb"][class_id].isChecked():
-                        self.class_check_box_tracker["main_cb"][class_id].click()
-                
-                self.mini_guy_is_clicked = False
+                content[class_id][1][option_id] = True
+            else:
+                content[class_id][1].pop(option_id)
             
-            self.saved = self.saved_tracker == self.content
-            self.saved_state_changed.emit(self.saved)
+            self.saved_state_changed.emit()
         
         return checkbox_func
+    
+    def make_open_subject_func(self, parent_layout: QVBoxLayout, info, general_data, subject_dp_tracker: dict[str, Any], class_check_box_tracker):
+        def open_subject():
+            widget = subject_dp_tracker["widget"]
+            
+            subject_dp_tracker["icon"].setAngle(0 if subject_dp_tracker["icon"].angle != 0 else 270)
+            
+            if parent_layout.itemAt(1) is None:
+                parent_layout.addWidget(widget)
+            else:
+                parent_layout.removeWidget(widget)
+                widget.deleteLater()
+                
+                subject_dp_tracker["widget"] = self.make_subject_widget(info, general_data, class_check_box_tracker)
+        
+        return open_subject
+    
+    
+    def make_odp_func(self, content, class_id: str, widget_wrapper_layout, class_check_box_tracker):
+        open_dp_func = self.make_open_dp_func(class_id, widget_wrapper_layout, class_check_box_tracker)
+        
+        def func():
+            if class_id in content and content[class_id][0]:
+                return
+            
+            open_dp_func()
+        
+        return func
 
 class SubjectSelection(QDialog):
-    saved_state_changed = pyqtSignal(bool)
-    
-    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], default_per_day: int, default_per_week: int, saved: bool):
+    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], saved_state_changed: pyqtBoundSignal, default_per_day: int, default_per_week: int):
         super().__init__()
         
         self.setStyleSheet(THEME[SUBJECT_SELECTION])
@@ -379,10 +618,10 @@ class SubjectSelection(QDialog):
         self.setWindowTitle(title)
         self.setFixedSize(600, 400)
         
+        self.saved_state_changed = saved_state_changed
+        
         self.default_per_day = default_per_day
         self.default_per_week = default_per_week
-        self.saved = saved
-        self.saved_tracker = {}
         
         self.content = info["content"]
         self.id_mapping = info["id_mapping"]
@@ -423,10 +662,6 @@ class SubjectSelection(QDialog):
         
         for subject_id, subject_info in self.content.items():
             self.add_subject(subject_id, subject_info)
-            self.saved_tracker = deepcopy(self.content)
-    
-    def save(self):
-        self.saved_tracker = deepcopy(self.content)
     
     def _add_new_subject(self):
         subject_id = next(
@@ -437,8 +672,7 @@ class SubjectSelection(QDialog):
         
         self.add_subject(subject_id, {"per_day": str(self.default_per_day), "per_week": str(self.default_per_week), "teachers": self.available_subject_teachers[subject_id]["teachers"]})
         
-        self.saved = self.saved_tracker == self.info
-        self.saved_state_changed.emit(self.saved)
+        self.saved_state_changed.emit()
     
     def get(self):
         return {"content": self.info, "id_mapping": self.id_mapping, "available_subject_teachers": self.available_subject_teachers}
@@ -502,10 +736,9 @@ class SubjectSelection(QDialog):
         def temp_show_teacher_popup():
             info = self.info[subject_id]
             
-            teachers = SelectionList("Teachers", info["teachers"], self.saved)
+            teachers = SelectionList("Teachers", info["teachers"])
             teachers.exec()
             info["teachers"] = teachers.get()
-            self.saved = False if not teachers.saved else self.saved
         
         return temp_show_teacher_popup
     
@@ -513,8 +746,7 @@ class SubjectSelection(QDialog):
         def text_changed_func():
             self.info[subject_id][key] = input_edit.edit.text()
             
-            self.saved = self.saved_tracker == self.info
-            self.saved_state_changed.emit(self.saved)
+            self.saved_state_changed.emit()
         
         return text_changed_func
 
@@ -559,8 +791,7 @@ class SubjectSelection(QDialog):
             self.del_widg_func_tracker[new_subject_id] = self.make_dp_destroy_func(new_subject_id)
             main_widget.delete_button.clicked.connect(self.del_widg_func_tracker[new_subject_id])
             
-            self.saved = self.saved_tracker == self.info
-            self.saved_state_changed.emit(self.saved)
+            self.saved_state_changed.emit()
         
         return dp_clicked_func
 
@@ -570,23 +801,21 @@ class SubjectSelection(QDialog):
             self.info.pop(subject_id)
             self.dp_tracker.pop(subject_id)
             
-            self.saved = self.saved_tracker == self.info
-            self.saved_state_changed.emit(self.saved)
+            self.saved_state_changed.emit()
         
         return dp_destroy_func
 
 class OptionSelection(QDialog):
-    saved_state_changed = pyqtSignal(bool)
-    
-    def __init__(self, title: str, info: dict[str, str]):
+    def __init__(self, title: str, info: dict[str, str], saved_state_changed: pyqtBoundSignal | None = None):
         super().__init__()
+        
         self.title = title
+        self.info = info
+        self.saved_state_changed = saved_state_changed
         
         self.setWindowTitle(self.title)
         
-        self.info = info
         self.options = []
-        self.saved_tracker = {}
         self.current_row = 0
         self.current_col = 0
         self.max_cols = 4  # Maximum number of columns before wrapping
@@ -617,7 +846,6 @@ class OptionSelection(QDialog):
         # Load existing options
         for option_id, option_name in self.info.items():
             self.add_option(option_id, option_name)
-            self.saved_tracker = deepcopy(self.content)
         
         self.setStyleSheet("""
             QDialog {
@@ -641,9 +869,6 @@ class OptionSelection(QDialog):
             """ + _general_scrollbar_theme
             )
     
-    def save(self):
-        self.saved_tracker = deepcopy(self.content)
-    
     def get(self):
         return self.info
     
@@ -655,8 +880,8 @@ class OptionSelection(QDialog):
         def update_option():
             self.info[_id] = option.get_text()
             
-            self.saved = self.saved_tracker == self.info
-            self.saved_state_changed.emit(self.saved)
+            if self.saved_state_changed is not None:
+                self.saved_state_changed.emit()
         
         update_option()
         
@@ -704,60 +929,5 @@ class OptionSelection(QDialog):
                 self.current_col = 0
                 self.current_row += 1
 
-class WarningDialog(QDialog):
-    button_clicked = pyqtSignal([bool])
-    checkbox_on = pyqtSignal()
-    
-    def __init__(self, title: str, warning: str):
-        super().__init__()
-        
-        self.ok_clicked = False
-        
-        self.setStyleSheet(THEME[GENERAL_DIALOGS] + THEME[GENERAL_BUTTON] + THEME[GENERAL_CHECKBOXES] + "QLabel{color: white; font-size: 25px; margin: 10px;}")
-        
-        self.title = title
-        self.warning = warning
-        
-        self.setWindowTitle(self.title)
-        
-        self.main_layout = QVBoxLayout()
-        self.setLayout(self.main_layout)
-        
-        self.button_widget = QWidget()
-        
-        self.button_layout = QHBoxLayout()
-        self.button_widget.setLayout(self.button_layout)
-        
-        self.label = QLabel(self.warning)
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.setWordWrap(True)
-        
-        self.ok_button = QPushButton("Ok")
-        self.ok_button.clicked.connect(lambda: self.on_clicked(True))
-        self.ok_button.setProperty("class", "safety")
-        
-        self.cancel_button = QPushButton("Cancel")
-        self.cancel_button.clicked.connect(lambda: self.on_clicked(False))
-        self.cancel_button.setProperty("class", "danger")
-        
-        self.dont_ask_again_cb = QCheckBox("Don't ask again")
-        self.dont_ask_again_cb.clicked.connect(self.checkbox_on.emit)
-        
-        self.button_layout.addWidget(self.ok_button)
-        self.button_layout.addWidget(self.cancel_button)
-        self.button_layout.addStretch()
-        self.button_layout.addWidget(self.dont_ask_again_cb)
-        
-        self.main_layout.addWidget(self.label)
-        self.main_layout.addWidget(self.button_widget)
-    
-    def on_clicked(self, ok_clicked: bool):
-        self.button_clicked.emit(ok_clicked)
-        self.ok_clicked = ok_clicked
-        self.close()
-    
-    def closeEvent(self, _):
-        if not self.ok_clicked:
-            self.button_clicked.emit(False)
-        self.ok_clicked = False
+
 
