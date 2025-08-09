@@ -15,8 +15,6 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PyQt6.QtCore import Qt, QMimeData, QThread, QTimer, pyqtSignal
-from frontend.theme import *
-from frontend.theme import _widgets_bg_color_6
 
 from middle.main import School, Class
 from middle.objects import Subject
@@ -111,11 +109,13 @@ class _TimetableSettings(QWidget):
         options_widget.setLayout(options_layout)
         
         self.toogle_button = CustomLabel("▼", 0)
-        self.toogle_button.setStyleSheet("QLabel{background-color: " + _widgets_bg_color_6 + "; padding: 10px; border-top-right-radius: 10px; border-bottom-right-radius: 10px;} QLabel:hover{background-color: " + get_hover_color(_widgets_bg_color_6) +";}")
+        self.toogle_button.setProperty("class", "Timetable_DP_OptionText")
+        self.toogle_button.setStyleSheet("border-top-right-radius: 10px; border-bottom-right-radius: 10px;")
         self.toogle_button.mouseclicked.connect(self._toogle)
         
         self.options_info = CustomLabel("Expand Options")
-        self.options_info.setStyleSheet("QLabel{background-color: " + _widgets_bg_color_6 + "; padding: 10px; border-top-left-radius: 10px; border-bottom-left-radius: 10px;} QLabel:hover{background-color: " + get_hover_color(_widgets_bg_color_6) +";}")
+        self.options_info.setProperty("class", "Timetable_DP_OptionText")
+        self.options_info.setStyleSheet("border-top-left-radius: 10px; border-bottom-left-radius: 10px;")
         self.options_info.mouseclicked.connect(self._toogle)
         
         options_layout.addStretch()
@@ -132,7 +132,6 @@ class _TimetableSettings(QWidget):
         general_settings_widget = QWidget()
         general_settings_layout = QHBoxLayout()
         general_settings_widget.setLayout(general_settings_layout)
-        general_settings_widget.setStyleSheet(THEME[TIMETABLE_SETTINGS])
         
         self.progress_bar = progress_bar
         
@@ -634,8 +633,6 @@ class TimeTableEditor(QWidget):
         self._can_generate_new_timetable = True
         self.timetable_warning_dont_ask_again = True
         
-        self.setStyleSheet(THEME[TIMETABLE_EDITOR])
-        
         self.main_layout = QVBoxLayout(self)
         
         self.external_source_ref = None
@@ -955,14 +952,13 @@ class TimeTableEditor(QWidget):
             layout.addWidget(separator)
         
         class_header = QLabel(f"Class: {cls.name}")
-        class_header.setStyleSheet("font-weight: bold; padding: 10px;")
+        class_header.setProperty("class", "Title")
         
         # Create timetable
         class_widget = QWidget()
         class_widget_layout = QHBoxLayout(class_widget)
         
         sidebar_widget = QWidget()
-        sidebar_widget.setStyleSheet(THEME[GENERAL_SCROLLBARS])
         sidebar_widget_layout = QVBoxLayout(sidebar_widget)
         
         remainder_scroll_area = QScrollArea()
@@ -985,8 +981,6 @@ class TimeTableEditor(QWidget):
         settings_widget = QWidget()
         settings_widget.setFixedWidth(settings_width)
         settings_scroll_area.setWidget(settings_widget)
-        
-        settings_widget.setStyleSheet(THEME[GENERAL_BUTTON] + THEME[GENERAL_CHECKBOXES] + THEME[GENERAL_DIALOGS])
         
         settings_widget_layout = QVBoxLayout(settings_widget)
         

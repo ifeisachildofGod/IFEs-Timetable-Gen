@@ -11,14 +11,13 @@ from PyQt6.QtWidgets import (
     QMainWindow
 )
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtBoundSignal
-from frontend.theme import *
 
 class SettingWidget(QWidget):
     def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[str], saved_state_changed: pyqtBoundSignal, data: dict | None = None):
         super().__init__()
-        
         self.main_window = main_window
         
+        self.setProperty("class", "SettingOptionEntry")
         self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
         
         self.info = {}
@@ -47,7 +46,6 @@ class SettingWidget(QWidget):
         
         self.setLayout(self.main_layout)
         self.setObjectName(name)
-        self.setStyleSheet(THEME[SUBJECT_TEACHERS_CLASSES])
         
         if data is not None:
             self.__dict__.update(data["constants"])
@@ -91,10 +89,9 @@ class SettingWidget(QWidget):
         text_edits = self._make_inputs(_id, input_placeholders, data)
         
         delete_button = QPushButton("×")
-        delete_button.setProperty('class', 'warning')
+        delete_button.setProperty('class', 'Close')
         delete_button.clicked.connect(self._make_delete_func(_id, widget))
         delete_button.setFixedSize(30, 30)
-        delete_button.setStyleSheet("padding: 3px;")
         
         for edit in text_edits:
             header_layout.addWidget(edit)
@@ -132,7 +129,6 @@ class SettingWidget(QWidget):
             edit = QLineEdit(text)
             edit.setPlaceholderText(placeholder)
             edit.setFixedHeight(80)
-            edit.setStyleSheet("font-size: 40px;")
             
             if data is None:
                 self.info[_id]["text"].append(text)

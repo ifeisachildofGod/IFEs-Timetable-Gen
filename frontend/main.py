@@ -1,11 +1,10 @@
-import subprocess, gzip, json, shutil
+import gzip, json
 
 from copy import deepcopy
-from typing import Callable
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout,
     QVBoxLayout, QPushButton, QStackedWidget,
-    QMessageBox, QFileDialog, QLineEdit
+    QMessageBox
 )
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import pyqtSignal
@@ -13,7 +12,7 @@ from matplotlib.cbook import flatten
 from frontend.setting_widgets import SettingWidget, Subjects, Teachers, Classes
 from frontend.editing_widgets import TimeTableEditor
 from frontend.others import *
-from frontend.theme import *
+
 from middle.main import School
 
 
@@ -44,9 +43,6 @@ class Window(QMainWindow):
         # Initialize school data
         self.school = School(self.save_data)
         
-        # Set application style
-        self.setStyleSheet(THEME[WINDOW])
-        
         # Misc
         self.display_index = 0
         self.prev_display_index = 0
@@ -63,7 +59,6 @@ class Window(QMainWindow):
         # Create sidebar with modern styling
         sidebar = QWidget()
         sidebar.setFixedWidth(200)
-        sidebar.setStyleSheet(THEME[WINDOW_SIDEBAR])
         
         # Create sidebar layout
         sidebar_layout = QVBoxLayout()
@@ -78,6 +73,11 @@ class Window(QMainWindow):
         teachers_btn = QPushButton("Teachers")
         classes_btn = QPushButton("Classes")
         timetable_btn = QPushButton("Timetable")
+        
+        subjects_btn.setProperty("class", "Sidebar")
+        teachers_btn.setProperty("class", "Sidebar")
+        classes_btn.setProperty("class", "Sidebar")
+        timetable_btn.setProperty("class", "Sidebar")
         
         subjects_btn.setCheckable(True)
         teachers_btn.setCheckable(True)

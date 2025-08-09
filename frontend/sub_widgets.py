@@ -7,19 +7,13 @@ from PyQt6.QtWidgets import (
     QComboBox, QGridLayout
 )
 from PyQt6.QtCore import Qt, pyqtBoundSignal
-from frontend.theme import *
-from frontend.theme import (
-    _main_bg_color_1, _widgets_bg_color_2, _widget_border_radius_1,
-    _general_scrollbar_theme, _widgets_bg_color_5, _widget_text_color_2
-)
 from frontend.base_widgets import SelectedWidget, UnselectedWidget, CustomLabel, OptionTag, NumberTextEdit
 
 
 class SelectionList(QDialog):
     def __init__(self, title: str, info: dict, saved_state_changed: pyqtBoundSignal):
         super().__init__()
-        
-        self.setStyleSheet(THEME[SELECTION_LIST])
+        self.setProperty("class", "SelectionList")
         
         self.setWindowTitle(title)
         self.setFixedSize(400, 300)
@@ -40,13 +34,11 @@ class SelectionList(QDialog):
         
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setObjectName("selectionlistscrollarea")
         
         self.container = QWidget()
         self.container_layout = QVBoxLayout()
         self.container_layout.setContentsMargins(0, 0, 0, 0)
         self.container.setLayout(self.container_layout)
-        self.container.setStyleSheet("background-color: " + _widgets_bg_color_2 + ";")
         
         self.scroll_area.setWidget(self.container)
         main_layout.addWidget(self.scroll_area)
@@ -103,7 +95,6 @@ class SelectionList(QDialog):
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet(f"background-color: {_main_bg_color_1}; height: {thickness}px;")
         separator.setFixedHeight(thickness)
         
         if index is None:
@@ -175,8 +166,6 @@ class SubjectDropDownCheckBoxes(QDialog):
         self.info = info
         self.general_data = general_data
         
-        self.setStyleSheet(THEME[DROPDOWN_CHECK_BOXES_THEME])
-        
         self.setWindowTitle(title)
         self.setFixedSize(400, 300)
         
@@ -191,7 +180,6 @@ class SubjectDropDownCheckBoxes(QDialog):
         scroll_area.setWidgetResizable(True)
         
         container = QWidget()
-        container.setStyleSheet(f"background-color: {_main_bg_color_1};")
         self.container_layout = QVBoxLayout(container)
         self.container_layout.setContentsMargins(0, 0, 0, 0)
         
@@ -222,6 +210,8 @@ class SubjectDropDownCheckBoxes(QDialog):
         
         for class_id, class_options in updated_data["content"].items():
             main_widget = QWidget()
+            main_widget.setProperty("class", "Bordered")
+            main_widget.setProperty("class", "DropdownCheckboxes")
             
             widget_wrapper_layout = QVBoxLayout()
             widget_wrapper_layout.setSpacing(0)
@@ -237,7 +227,7 @@ class SubjectDropDownCheckBoxes(QDialog):
                 return odp_func
             
             header = QWidget()
-            header.setObjectName("dropdownHeader")
+            header.setProperty("class", "DPC_Header")
             header.setFixedHeight(50)
             header.mousePressEvent = make_open_dp_func(open_dp_func)
             
@@ -294,7 +284,7 @@ class SubjectDropDownCheckBoxes(QDialog):
     
     def make_dp_widget(self, class_id: str, options: dict[str, bool], all_clicked: bool, info, updated_data, class_check_box_tracker: dict[str, Any]):
         dp_widget = QWidget()
-        dp_widget.setObjectName("dropdownContent")
+        dp_widget.setProperty("class", "DPC_Body")
         
         dp_layout = QVBoxLayout()
         dp_layout.setSpacing(2)
@@ -432,6 +422,9 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
     
     def make_subject_widget(self, info, general_data, class_check_box_tracker):
         container_widget = QWidget()
+        container_widget.setProperty("class", "DropdownCheckboxes")
+        container_widget.setProperty("class", "Bordered")
+        
         container_layout = QVBoxLayout()
         container_widget.setLayout(container_layout)
         
@@ -468,7 +461,7 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
                 return odp_func
             
             header = QWidget()
-            header.setObjectName("dropdownHeader")
+            header.setProperty("class", "DPC_Header")
             header.setFixedHeight(50)
             header.mousePressEvent = make_open_dp_func(open_dp_func)
             
@@ -514,7 +507,7 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
     
     def make_dp_widget(self, class_id: str, options: dict[str, bool], random_clicked: bool, content, updated_data, class_check_box_tracker):
         dp_widget = QWidget()
-        dp_widget.setObjectName("dropdownContent")
+        dp_widget.setProperty("class", "DPC_Body")
         
         dp_layout = QVBoxLayout()
         dp_layout.setSpacing(2)
@@ -591,12 +584,11 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
                 parent_layout.addWidget(widget)
             else:
                 parent_layout.removeWidget(widget)
-                widget.deleteLater()
+                # widget.deleteLater()
                 
-                subject_dp_tracker["widget"] = self.make_subject_widget(info, general_data, class_check_box_tracker)
+                # subject_dp_tracker["widget"] = self.make_subject_widget(info, general_data, class_check_box_tracker)
         
         return open_subject
-    
     
     def make_odp_func(self, content, class_id: str, widget_wrapper_layout, class_check_box_tracker):
         open_dp_func = self.make_open_dp_func(class_id, widget_wrapper_layout, class_check_box_tracker)
@@ -613,8 +605,6 @@ class SubjectSelection(QDialog):
     def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], saved_state_changed: pyqtBoundSignal):
         super().__init__()
         
-        self.setStyleSheet(THEME[SUBJECT_SELECTION])
-        
         self.setWindowTitle(title)
         self.setFixedSize(600, 400)
         
@@ -628,9 +618,6 @@ class SubjectSelection(QDialog):
         self.scroll_area.setWidgetResizable(True)
         
         self.container = QWidget()
-        self.container.setObjectName("subjectscontainer")
-        self.container.setStyleSheet("#subjectscontainer{background-color: " + _widgets_bg_color_2 + "}")
-        
         self.container_layout = QVBoxLayout(self.container)
         self.scroll_area.setWidget(self.container)
         
@@ -646,7 +633,7 @@ class SubjectSelection(QDialog):
     
     def add_subject(self, subject_id: str, subject_name: str, info: dict):
         selection_widget = QWidget()
-        selection_widget.setObjectName("subjectItem")
+        selection_widget.setObjectName("SubjectClassViewEntry")
         
         layout = QHBoxLayout()
         selection_widget.setLayout(layout)
@@ -704,7 +691,7 @@ class OptionSelection(QDialog):
         self.scroll_area.setWidgetResizable(True)
         
         self.container = QWidget()
-        self.container.setObjectName("optionselectorcontainer")
+        self.container.setProperty("OptionSelector")
         self.grid_layout = QGridLayout(self.container)  # Use QGridLayout
         self.grid_layout.setSpacing(4)
         self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
@@ -724,28 +711,6 @@ class OptionSelection(QDialog):
         # Load existing options
         for option_id, option_name in self.info.items():
             self.add_option(option_id, option_name)
-        
-        self.setStyleSheet("""
-            QDialog {
-                background-color: """ + _widgets_bg_color_2 + """;
-            }
-            QPushButton {
-                background-color: """ + _widgets_bg_color_5 + """;
-                color: """ + _widget_text_color_2 + """;
-                border: none;
-                border-radius: """ + _widget_border_radius_1 + """;
-                min-width: 60px;
-                padding: 5px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: """ + get_hover_color(_widgets_bg_color_5) + """;
-            }
-            QWidget #optionselectorcontainer {
-                background-color: """ + _main_bg_color_1 + """
-            }
-            """ + _general_scrollbar_theme
-            )
     
     def get(self):
         return self.info
