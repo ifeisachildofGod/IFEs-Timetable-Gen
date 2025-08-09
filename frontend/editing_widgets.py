@@ -719,22 +719,34 @@ class TimeTableEditor(QWidget):
         subjectTeacherMapping = {}
         for subject_id, subject_info in subjects_info.items():
             teacher_subject_info = {}
+            available_teachers = {}
             
-            for class_id, _ in subject_info["classes"]["content"].items():
+            for class_id, _ in subject_info["classes"].items():
                 class_index = next(index for index, (_id, _) in enumerate(classes_info.items()) if _id == class_id)
-                subject_in_class_info = classes_info[class_id]["subjects"]["content"][subject_id]
+                subject_in_class_info = classes_info[class_id]["subjects"][subject_id][1]
                 
-                teacher_none_index = subject_in_class_info["teachers"]["content"].index(None)
-                available_teachers = [
-                    (index_id, teachers_info[index_id])
-                    for index, index_id in
-                        subject_in_class_info["teachers"]["id_mapping"].items()
-                    if index < teacher_none_index
-                ]
+                for teacher_id, teacher_info_entry in teachers_info.items():
+                    if class_id in teacher_info_entry["classes"]["content"][subject_id]:
+                        if teacher_info_entry["classes"]["content"][subject_id][class_id][0]:
+                            available_teachers[teacher_id] = teacher_info_entry["text"][0], []
+                        elif sum(list(teacher_info_entry["classes"]["content"][subject_id][class_id][1].values())):
+                            class_option_ids = []
+                            
+                            for option_id, option_state in teacher_info_entry["classes"]["content"][subject_id][class_id][1]:
+                                if option_state:
+                                    class_option_ids.append(option_id)
+                            
+                            available_teachers[teacher_id] = teacher_info_entry["text"][0], class_option_ids
                 
-                for teacher_id, teacher_info in available_teachers:
+                # Replace this part with the above code ie. Merge both of them once you've made peace with
+                # yourself breaking and building back some of the systems that took the better part of six
+                # months to build
+                
+                for teacher_id, (teacher_name, selected_class_options) in available_teachers.items():
+                    # Find a way of saving the individual class option in the subjectTeacherMapping
+                    
                     if teacher_id not in teacher_subject_info:
-                        teacher_subject_info[teacher_id] = [teacher_info["text"][0], [class_index]]
+                        teacher_subject_info[teacher_id] = [teacher_name, [class_index]]
                     else:
                         teacher_subject_info[teacher_id][1].append(class_index)
                 
@@ -743,8 +755,8 @@ class TimeTableEditor(QWidget):
                 else:
                     teacher_subject_info["&timings"][str(class_index)] = [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]
                 
-                valid_options = [option_id for option_id, option_state in subject_info["classes"]["content"][class_id].items() if option_state]
-                if len(valid_options) != len(subject_info["classes"]["content"][class_id]):
+                valid_options = [option_id for option_id, option_state in subject_info["classes"][class_id].items() if option_state]
+                if len(valid_options) != len(subject_info["classes"][class_id]):
                     if "&classes" not in teacher_subject_info:
                         teacher_subject_info["&classes"] = {str(class_index): valid_options}
                     else:
@@ -752,10 +764,10 @@ class TimeTableEditor(QWidget):
         
             subjectTeacherMapping[subject_id] = (subject_info["text"][0], teacher_subject_info)
         
-        total_subject_amt = 0
-        for _, subject_info in subjectTeacherMapping.values():
-            for class_index, (_, perWeek) in subject_info["&timings"].items():
-                total_subject_amt += perWeek * len([info["options"] for info in classes_info.values()][int(class_index)])
+        # total_subject_amt = 0
+        # for _, subject_info in subjectTeacherMapping.values():
+        #     for class_index, (_, perWeek) in subject_info["&timings"].items():
+        #         total_subject_amt += perWeek * len([info["options"] for info in classes_info.values()][int(class_index)])
         
         class_levels = []
         for class_index, (class_id, class_info) in enumerate(classes_info.items()):
@@ -766,10 +778,15 @@ class TimeTableEditor(QWidget):
                     (
                         self.school.project["levels"][class_index][1][class_id + option_id]
                         if self._certify_class_level_info(class_index, class_id, option_id) else
-                        [[self.main_window.default_period_amt for _ in range(len(self.main_window.default_weekdays))], [self.main_window.default_breakperiod for _ in range(len(self.main_window.default_weekdays))], self.main_window.default_weekdays]
+                        [
+                            [self.main_window.default_period_amt for _ in range(len(self.main_window.default_weekdays))],
+                            [self.main_window.default_breakperiod for _ in range(len(self.main_window.default_weekdays))],
+                            self.main_window.default_weekdays
+                        ]
                     )
                 ]
                 for option_id, option_text in class_info["options"].items()}
+            
             class_levels.append([class_info["text"][0], level_info])
         
         project_update = {

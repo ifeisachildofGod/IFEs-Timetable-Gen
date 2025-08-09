@@ -1,19 +1,22 @@
 # Current thoughts and ideas
 
-- Considering making the teacher level selection system a dropdown checkbox widget where each teacher can select the level the would like to be in instead of having it in the classes widget
+- ~~Considering making the teacher level selection system a dropdown checkbox widget where each teacher can select the level the would like to be in instead of having it in the classes widget~~**(Completed)**
 
 - ~~Implementing the update of all none widget data as the widgets are changing~~ **(Scrubbed)**
 \
 \
-**Notes:**
-    1. Consider making the system of widget changing and selection that of properties instead of direct change in the interaction funtions
-    2. Consider changing settings information dictionary into dataclasses
+~~**Notes:**~~
+    1. ~~Consider making the system of widget changing and selection that of properties instead of direct change in the interaction funtions~~**(Scrubbed: Not a priority)**
+    2. ~~Consider changing settings information dictionary into dataclasses~~**(Scrubbed: Not a priority)**
 
 - Bring the theming system implemented in the "Graduation App" project to this one and revamp all styles
 
-- Remove the days of the week thing because **(Update)** `days of the week are constant`, the only thing that will be allowed to change is what days of the week are used in the timetable
+- Remove the days of the week thing because days of the week are constant, the only thing that will be allowed to change is what days of the week are used in the timetable
 
 # Future goals
+
+### General
+- Integrate CLI functionality ***ie. A new timetable can be generated, exported and saved via the CLI. All the file managing options should also be able to be done with the CLI***
 
 ### Exports
 - Add an export system that converts timetable files to:
@@ -55,7 +58,7 @@
 - Add a way of clearing timetables
 
 ### Timetable Generator
-- Revamp the algorithm and make it better at avoiding clashes and remainders
+- Update the generating algorithm and make it better at avoiding clashes and remainders
 
 
 

@@ -555,7 +555,7 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
                 for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
                     if c_box.isChecked():
                         c_box.click()
-                    # c_box.setDisabled(True)
+                
                 if class_check_box_tracker["icon"][class_id].angle != 270:
                     class_check_box_tracker["icon"][class_id].mouseclicked.emit()
                 class_check_box_tracker["icon"][class_id].setDisabled(True)
@@ -610,7 +610,7 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
         return func
 
 class SubjectSelection(QDialog):
-    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], saved_state_changed: pyqtBoundSignal, default_per_day: int, default_per_week: int):
+    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], saved_state_changed: pyqtBoundSignal):
         super().__init__()
         
         self.setStyleSheet(THEME[SUBJECT_SELECTION])
@@ -620,19 +620,7 @@ class SubjectSelection(QDialog):
         
         self.saved_state_changed = saved_state_changed
         
-        self.default_per_day = default_per_day
-        self.default_per_week = default_per_week
-        
-        self.content = info["content"]
-        self.id_mapping = info["id_mapping"]
-        self.available_subject_teachers = info["available_subject_teachers"]
-        
-        self.subjects = [subject_info["name"] for _, subject_info in self.available_subject_teachers.items()]
-        
-        self.dp_tracker: dict[str, QComboBox] = {}
-        self.del_widg_func_tracker: dict[str, Callable[[str], None]] = {}
-        
-        self.subject_amount = 0
+        self.info = info
         
         self.main_layout = QVBoxLayout(self)
         
@@ -646,57 +634,28 @@ class SubjectSelection(QDialog):
         self.container_layout = QVBoxLayout(self.container)
         self.scroll_area.setWidget(self.container)
         
-        self.container_layout.addStretch()
-        
-        self.add_button = QPushButton("Add Subject")
-        
-        self.add_button.clicked.connect(self._add_new_subject)
-        
         self.main_layout.addWidget(self.scroll_area)
-        self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
         
-        if not self.subjects:
-            self.add_button.setDisabled(True)
+        for subject_id, (subject_name, subject_info) in self.info.items():
+            self.add_subject(subject_id, subject_name, subject_info)
         
-        self.info = {}
-        
-        for subject_id, subject_info in self.content.items():
-            self.add_subject(subject_id, subject_info)
-    
-    def _add_new_subject(self):
-        subject_id = next(
-            index_id
-            for index, (index_id, _) in enumerate(self.available_subject_teachers.items())
-            if index not in [dp.currentIndex() for dp in self.dp_tracker.values()]
-        )
-        
-        self.add_subject(subject_id, {"per_day": str(self.default_per_day), "per_week": str(self.default_per_week), "teachers": self.available_subject_teachers[subject_id]["teachers"]})
-        
-        self.saved_state_changed.emit()
+        self.container_layout.addStretch()
     
     def get(self):
-        return {"content": self.info, "id_mapping": self.id_mapping, "available_subject_teachers": self.available_subject_teachers}
+        return self.info
     
-    def add_subject(self, subject_id: str, info: dict):
+    def add_subject(self, subject_id: str, subject_name: str, info: dict):
         selection_widget = QWidget()
         selection_widget.setObjectName("subjectItem")
         
-        layout = QVBoxLayout()
+        layout = QHBoxLayout()
         selection_widget.setLayout(layout)
         
-        subjects_dp = QComboBox()
-        if self.subjects:
-            subjects_dp.addItems(self.subjects)
-        else:
-            subjects_dp.setDisabled(True)
+        subjects_label = QLabel(subject_name)
         
-        subjects_dp.setCurrentIndex(next((s_i for s_i, s_id in self.id_mapping.items() if s_id == subject_id)))
-        subjects_dp.currentIndexChanged.connect(self.make_dp_clicked_func(subject_id))
-        self.dp_tracker[subject_id] = subjects_dp
+        sub_layout = QVBoxLayout()
         
-        sub_layout = QHBoxLayout()
-        
-        layout.addWidget(subjects_dp)
+        layout.addWidget(subjects_label)
         layout.addLayout(sub_layout)
         
         per_day_edit = NumberTextEdit()
@@ -711,99 +670,18 @@ class SubjectSelection(QDialog):
         per_week_edit.edit.setText(info["per_week"])
         per_week_edit.edit.textChanged.connect(self.make_text_changed_func(subject_id, "per_week", per_week_edit))
         
-        teacher_button = QPushButton("Teachers")
-        teacher_button.setMaximumWidth(60)
-        teacher_button.clicked.connect(self.make_show_teacher_popup_func(subject_id))
-        
         sub_layout.addWidget(per_day_edit, alignment=Qt.AlignmentFlag.AlignLeft)
         sub_layout.addWidget(per_week_edit, alignment=Qt.AlignmentFlag.AlignLeft)
-        sub_layout.addWidget(teacher_button, alignment=Qt.AlignmentFlag.AlignLeft)
         
-        self.del_widg_func_tracker[subject_id] = self.make_dp_destroy_func(subject_id)
-        
-        widget = SelectedWidget(selection_widget, self.container_layout)
-        widget.setFixedHeight(100)
-        widget.delete_button.clicked.connect(self.del_widg_func_tracker[subject_id])
-        
-        self.container_layout.insertWidget(0, widget, alignment=Qt.AlignmentFlag.AlignTop)
-        
-        self.info[subject_id] = info
-        
-        if len(self.dp_tracker) == len(self.subjects):
-            self.add_button.setDisabled(True)
-    
-    def make_show_teacher_popup_func(self, subject_id: str):
-        def temp_show_teacher_popup():
-            info = self.info[subject_id]
-            
-            teachers = SelectionList("Teachers", info["teachers"])
-            teachers.exec()
-            info["teachers"] = teachers.get()
-        
-        return temp_show_teacher_popup
+        self.container_layout.addWidget(selection_widget, alignment=Qt.AlignmentFlag.AlignTop)
     
     def make_text_changed_func(self, subject_id: str, key: str, input_edit: 'NumberTextEdit'):
         def text_changed_func():
-            self.info[subject_id][key] = input_edit.edit.text()
+            self.info[subject_id][1][key] = input_edit.edit.text()
             
             self.saved_state_changed.emit()
         
         return text_changed_func
-
-    def make_dp_clicked_func(self, subject_id: str):
-        def dp_clicked_func(index):
-            dublicate_dp_id = next((dublicate_dp_id for dublicate_dp_id, odp in self.dp_tracker.copy().items() if dublicate_dp_id != subject_id and odp.currentIndex() == index), None)
-            new_subject_id = self.id_mapping[index]
-            
-            if dublicate_dp_id is not None:
-                new_subject_id = dublicate_dp_id
-                
-                odp = self.dp_tracker[dublicate_dp_id]
-                
-                widget = odp.parent().parent()
-                self.container_layout.removeWidget(widget)
-                widget.deleteLater()
-                self.add_button.setDisabled(False)
-            
-            self.info[new_subject_id] = self.info.pop(subject_id)
-            self.info[new_subject_id]["teachers"] = self.available_subject_teachers[new_subject_id]["teachers"]
-            self.dp_tracker[new_subject_id] = self.dp_tracker.pop(subject_id)
-            
-            main_widget = self.dp_tracker[new_subject_id].parent().parent()
-            sub_widget_layout = self.dp_tracker[new_subject_id].parent().layout().itemAt(1).layout()
-            
-            per_day_edit = sub_widget_layout.itemAt(0).widget()
-            per_day_edit.edit.textChanged.disconnect()
-            per_day_edit.edit.textChanged.connect(self.make_text_changed_func(new_subject_id, "per_day", per_day_edit))
-            
-            per_week_edit = sub_widget_layout.itemAt(1).widget()
-            per_week_edit.edit.textChanged.disconnect()
-            per_week_edit.edit.textChanged.connect(self.make_text_changed_func(new_subject_id, "per_week", per_week_edit))
-            
-            teacher_button = sub_widget_layout.itemAt(2).widget()
-            teacher_button.clicked.disconnect()
-            teacher_button.clicked.connect(self.make_show_teacher_popup_func(new_subject_id))
-            
-            self.dp_tracker[new_subject_id].currentIndexChanged.disconnect()
-            self.dp_tracker[new_subject_id].currentIndexChanged.connect(self.make_dp_clicked_func(new_subject_id))
-            
-            main_widget.delete_button.clicked.disconnect(self.del_widg_func_tracker.pop(subject_id))
-            self.del_widg_func_tracker[new_subject_id] = self.make_dp_destroy_func(new_subject_id)
-            main_widget.delete_button.clicked.connect(self.del_widg_func_tracker[new_subject_id])
-            
-            self.saved_state_changed.emit()
-        
-        return dp_clicked_func
-
-    def make_dp_destroy_func(self, subject_id: str):
-        def dp_destroy_func():
-            self.add_button.setDisabled(False)
-            self.info.pop(subject_id)
-            self.dp_tracker.pop(subject_id)
-            
-            self.saved_state_changed.emit()
-        
-        return dp_destroy_func
 
 class OptionSelection(QDialog):
     def __init__(self, title: str, info: dict[str, str], saved_state_changed: pyqtBoundSignal | None = None):

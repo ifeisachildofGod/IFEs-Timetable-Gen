@@ -145,7 +145,6 @@ class Window(QMainWindow):
     def _fix_data(self):
         subjects_data = self.save_data.get("subjectsInfo")
         teachers_data = self.save_data.get("teachersInfo")
-        classes_data = self.save_data.get("classesInfo")
         
         if subjects_data is not None:
             for subject_info in subjects_data["variables"].values():
@@ -156,15 +155,6 @@ class Window(QMainWindow):
             for teacher_info in self.save_data["teachersInfo"]["variables"].values():
                 for k in teacher_info["subjects"]["id_mapping"].copy().keys():
                     teacher_info["subjects"]["id_mapping"][int(k)] = teacher_info["subjects"]["id_mapping"].pop(k)
-        
-        if classes_data is not None:
-            for class_info in self.save_data["classesInfo"]["variables"].values():
-                for k in class_info["subjects"]["id_mapping"].copy().keys():
-                    class_info["subjects"]["id_mapping"][int(k)] = class_info["subjects"]["id_mapping"].pop(k)
-                
-                for subject_in_class_info in class_info["subjects"]["content"].values():
-                    for k in subject_in_class_info["teachers"]["id_mapping"].copy().keys():
-                        subject_in_class_info["teachers"]["id_mapping"][int(k)] = subject_in_class_info["teachers"]["id_mapping"].pop(k)
     
     def load_callback(self, path: str):
         with gzip.open(path, "rb") as file:

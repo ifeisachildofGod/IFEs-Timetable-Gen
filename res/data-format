@@ -84,7 +84,7 @@
                 "content":{
                     subjectID: {
                         classID: (isRandomlySelectedState, {optionID: optionState, ...}),
-                        ...}
+                        ...
                     },
                     ...
                 },
@@ -112,31 +112,14 @@
                 ...
                 },
             "subjects": {
-                "content": {
-                    subjectID: {
+                subjectID: (
+                    subjectName,
+                    {
                         "per_day": perDayAmtInStr,
-                        "per_week": perWeekAmtInStr,
-                        "teachers": {
-                            "content": [selectedTeacher, ..., None, unselectedTeacher, ...],
-                            "id_mapping": {
-                                selectedTeacherIndex: selectedTeacherID,
-                                ...
-                            }
-                        }
-                    },
-                    ...
-                    },
-                "id_mapping": {
-                    subjectIndex: subjectID,
-                    ...
-                    },
-                "available_subject_teachers": {
-                    subjectID: {
-                        "name": subjectName,
-                        "teachers": subjectInfo-subjectID-selectedTeachers
-                    },
-                    ...
+                        "per_week": perWeekAmtInStr
                     }
+                ),
+                ...
             }
         },
         ...
