@@ -139,11 +139,17 @@ class Window(QMainWindow):
         teachers_data = self.save_data.get("teachersInfo")
         
         if subjects_data is not None:
+            for k in subjects_data["constants"]["id_mapping"].copy().keys():
+                subjects_data["constants"]["id_mapping"][int(k)] = subjects_data["constants"]["id_mapping"].pop(k)
+            
             for subject_info in subjects_data["variables"].values():
                 for k in subject_info["teachers"]["id_mapping"].copy().keys():
                     subject_info["teachers"]["id_mapping"][int(k)] = subject_info["teachers"]["id_mapping"].pop(k)
         
         if teachers_data is not None:
+            for k in teachers_data["constants"]["id_mapping"].copy().keys():
+                teachers_data["constants"]["id_mapping"][int(k)] = teachers_data["constants"]["id_mapping"].pop(k)
+            
             for teacher_info in self.save_data["teachersInfo"]["variables"].values():
                 for k in teacher_info["subjects"]["id_mapping"].copy().keys():
                     teacher_info["subjects"]["id_mapping"][int(k)] = teacher_info["subjects"]["id_mapping"].pop(k)

@@ -3,7 +3,7 @@ import random
 from typing import Callable
 from frontend.sub_widgets import (
     SelectionList, SubjectDropDownCheckBoxes, SubjectSelection,
-    OptionSelection, TeacherDropDownCheckBoxes
+    OptionsMaker, TeacherDropDownCheckBoxes
 )
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
@@ -17,7 +17,6 @@ class SettingWidget(QWidget):
         super().__init__()
         self.main_window = main_window
         
-        self.setProperty("class", "SettingOptionEntry")
         self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
         
         self.info = {}
@@ -31,7 +30,10 @@ class SettingWidget(QWidget):
         self.scroll_area.setWidgetResizable(True)
         
         self.container = QWidget()
+        self.container.setContentsMargins(20, 20, 20, 20)
+        
         self.container_layout = QVBoxLayout(self.container)
+        self.container_layout.setSpacing(20)
         self.scroll_area.setWidget(self.container)
         
         def add_func():
@@ -70,8 +72,8 @@ class SettingWidget(QWidget):
     
     def add(self, input_placeholders: list[str], _id: str | None = None, data: dict | None = None):
         widget = QWidget()
-        widget.setObjectName("itemContainer")
-        widget.setMaximumHeight(150)
+        widget.setProperty("class", "SettingOptionEntry")
+        widget.setContentsMargins(20, 5, 20, 5)
         
         layout = QVBoxLayout()
         widget.setLayout(layout)
@@ -82,7 +84,7 @@ class SettingWidget(QWidget):
         _id = str(hex(id(widget)).upper()) if _id is None else _id
         
         if data is None:
-            self.add_id_to_info(_id)
+            self.info[_id] = self.get_new_data()
         else:
             self.info[_id] = data
         
@@ -114,7 +116,7 @@ class SettingWidget(QWidget):
     def make_popups(self, _id: str, layout: QHBoxLayout):
         pass
     
-    def add_id_to_info(self, _id: str, info_value: dict):
+    def get_new_data(self):
         pass
     
     def update_data_interaction(self, prev_index: int, curr_index: int):
@@ -154,7 +156,7 @@ class SettingWidget(QWidget):
         
         return del_widget
     
-    def _make_popup(self, _id: str, title: str, layout: QHBoxLayout, popup_class: type[SelectionList] | type[SubjectSelection] | type[OptionSelection] | type[SubjectDropDownCheckBoxes], var_name: str, button_name: str | None = None, closed_func: Callable[[str], None] | None = None, alignment: Qt.AlignmentFlag = None, *args, **kwargs):
+    def _make_popup(self, _id: str, title: str, layout: QHBoxLayout, popup_class: type[SelectionList] | type[SubjectSelection] | type[OptionsMaker] | type[SubjectDropDownCheckBoxes], var_name: str, button_name: str | None = None, closed_func: Callable[[str], None] | None = None, alignment: Qt.AlignmentFlag = None, *args, **kwargs):
         button = QPushButton(button_name if button_name is not None else title)
         
         button.setFixedWidth(100)
@@ -166,7 +168,7 @@ class SettingWidget(QWidget):
         else:
             layout.addWidget(button)
     
-    def _make_popup_func(self, _id: str, title: str, popup_class: type[SelectionList] | type[SubjectSelection] | type[OptionSelection] | type[SubjectDropDownCheckBoxes], var_name: str, closed_func: Callable[[str], None] | None, *args, **kwargs):
+    def _make_popup_func(self, _id: str, title: str, popup_class: type[SelectionList] | type[SubjectSelection] | type[OptionsMaker] | type[SubjectDropDownCheckBoxes], var_name: str, closed_func: Callable[[str], None] | None, *args, **kwargs):
         def show_popup():
             popup = popup_class(title=title, info=self.info[_id].get(var_name, {}), saved_state_changed=self.saved_state_changed, *args, **kwargs)
             
@@ -295,8 +297,8 @@ class Subjects(SettingWidget):
         if class_update_condition:
             self.update_classes()
     
-    def add_id_to_info(self, _id):
-        self.info[_id] = {
+    def get_new_data(self):
+        return {
             "text": [],
             "classes": {},
             "teachers": {
@@ -367,15 +369,10 @@ class Teachers(SettingWidget):
         self.main_window.teachers_widget.id_mapping = id_mapping
         
         for subject_index, (subject_id, subject_info_entry) in enumerate(subject_info.items()):
-            subject_teacher_index_id_mapping = dict(
-                zip(
-                    list(subject_info_entry["teachers"]["id_mapping"].values()),
-                    list(subject_info_entry["teachers"]["id_mapping"].keys())
-                    )
-                )
+            subject_teacher_index_id_mapping = {v: k for k, v in subject_info_entry["teachers"]["id_mapping"].items()}
             
             for index, (teacher_id, teacher_info_entry) in enumerate(self.info.items()):
-                teacher_subject_index_id_mapping = dict(zip(list(teacher_info_entry["subjects"]["id_mapping"].values()), list(teacher_info_entry["subjects"]["id_mapping"].keys())))
+                teacher_subject_index_id_mapping = {v: k for k, v in teacher_info_entry["subjects"]["id_mapping"].items()}
                 
                 subject_index_in_teacher = teacher_subject_index_id_mapping.get(subject_id)
                 teacher_index_in_subject = subject_teacher_index_id_mapping[teacher_id]  # The teaacher must always be in the subject list, if not there is a problem
@@ -447,8 +444,8 @@ class Teachers(SettingWidget):
             if class_update_condition:
                 self._update_classes(teacher_id)
     
-    def add_id_to_info(self, _id: str):
-        self.info[_id] = {
+    def get_new_data(self):
+        return {
             "text": [],
             "classes": {"content": {}, "id_mapping": {}},
             "subjects": {
@@ -540,8 +537,8 @@ class Classes(SettingWidget):
                 if subject_id not in subject_info:
                     class_info_entry["subjects"].pop(subject_id)
     
-    def add_id_to_info(self, _id: str):
-        self.info[_id] = {
+    def get_new_data(self):
+        return {
             "text": [],
             "options": {},
             "subjects": {}
@@ -551,7 +548,7 @@ class Classes(SettingWidget):
         return {}
     
     def make_popups(self, _id, layout):
-        self._make_popup(_id, "Option Selector", layout, OptionSelection, "options", button_name="Options", closed_func=lambda _: self.main_window.subjects_widget.update_classes())
+        self._make_popup(_id, "Option Selector", layout, OptionsMaker, "options", button_name="Options", closed_func=lambda _: self.main_window.subjects_widget.update_classes())
         self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
 
 

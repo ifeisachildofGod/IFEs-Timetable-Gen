@@ -24,7 +24,7 @@ class TimeTableItem(QTableWidgetItem):
         
         if self.break_time:
             color = QColor(THEME_MANAGER.get_current_palette()["fg1"]).toRgb()
-            self.setBackground(QColor(*[int(col_val * 255) for col_val in color]))
+            self.setBackground(color)
         elif self.free_period:
             self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
         
@@ -260,12 +260,8 @@ class SelectedWidget(QWidget):
         
         main_layout = QHBoxLayout()
         main_layout.setSpacing(8)
-        main_layout.setContentsMargins(8, 4, 8, 4)
         
         self.setContentsMargins(5, 5, 5, 5)
-        
-        widget_layout = QHBoxLayout()
-        widget_layout.setSpacing(8)
         
         metrics = QFontMetrics(self.font())
         self.label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))

@@ -3,7 +3,7 @@ from typing import Callable
 from matplotlib.cbook import flatten
 from frontend.base_widgets import DraggableSubjectLabel, TimeTableItem
 from frontend.sub_widgets import (
-    CustomLabel, OptionSelection, NumberTextEdit
+    CustomLabel, OptionsMaker, NumberTextEdit
     )
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
@@ -152,7 +152,7 @@ class _TimetableSettings(QWidget):
         left_sub_option_widget.setLayout(left_sub_option_layout)
         
         if self.editor.school.classes:
-            temp_option_selector = OptionSelection("", {})
+            temp_option_selector = OptionsMaker("", {})
             for day in list(self.editor.school.classes.values())[0].weekdays:
                 temp_option_selector.add_option(text=day)
             self.set_days_of_the_week = temp_option_selector.get()
@@ -317,7 +317,7 @@ class _TimetableSettings(QWidget):
         self._refresh()
     
     def show_dotw_editor(self):
-        options_selector = OptionSelection("Days of the Week", self.set_days_of_the_week)
+        options_selector = OptionsMaker("Days of the Week", self.set_days_of_the_week)
         options_selector.exec()
         self.set_days_of_the_week = options_selector.get()
     
@@ -534,7 +534,7 @@ class _ClassTimetable(QTableWidget):
     def populate_timetable(self):
         """Load the timetable data into the grid"""
         
-        print(self.cls.name + ":", len(self.remainder_labels))
+        # print(self.cls.name + ":", len(self.remainder_labels))
         
         for col, (day, _, _) in enumerate(self.timetable.weekInfo):
             total_s_names = list(flatten([[subj for _ in range(subj.total)] for subj in self.timetable.table[day]]))
@@ -548,7 +548,7 @@ class _ClassTimetable(QTableWidget):
             self.remove_remainder(label)
         
         rem_subjects = list(flatten([[subj for _ in range(subj.perWeek)] for subj in self.cls.timetable.remainderContent if subj.teacher is not None]))
-        print(self.cls.name + ":", len(rem_subjects))
+        # print(self.cls.name + ":", len(rem_subjects))
         
         for subject in rem_subjects:
             subject_label = DraggableSubjectLabel(subject, self.cls)
@@ -556,8 +556,8 @@ class _ClassTimetable(QTableWidget):
             
             self.add_remainder(subject_label)
         
-        print(self.cls.name + ":", len(self.remainder_labels))
-        print()
+        # print(self.cls.name + ":", len(self.remainder_labels))
+        # print()
     
     def show_context_menu(self, pos):
         item = self.itemAt(pos)
@@ -886,7 +886,7 @@ class TimeTableEditor(QWidget):
                 self.generate_new.start()
         
         def weekdays_func():
-            option_selector = OptionSelection("Days of the Week", self.option_selectors[timetable.cls.uniqueID])
+            option_selector = OptionsMaker("Days of the Week", self.option_selectors[timetable.cls.uniqueID])
             option_selector.exec()
             self.option_selectors[timetable.cls.uniqueID] = option_selector.get()
         
@@ -989,7 +989,7 @@ class TimeTableEditor(QWidget):
         self.timetable_parent_widget[cls.uniqueID] = widget
         set_days_of_the_week = timetable.cls.weekdays
         
-        temp_option_selector = OptionSelection("", {}, None)
+        temp_option_selector = OptionsMaker("", {}, None)
         for day in set_days_of_the_week:
             temp_option_selector.add_option(text=day)
         self.option_selectors[cls.uniqueID] = temp_option_selector.get()

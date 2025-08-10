@@ -14,6 +14,7 @@ STYLESHEET = '''
     QWidget, QScrollArea {{
         background-color: {bg2};
         color: {text}; 
+        border: none;
     }}
     
     QWidget {{
@@ -172,6 +173,7 @@ STYLESHEET = '''
     
     QCheckBox, QRadioButton {{
         spacing: 6px;
+        background: none;
     }}
     
     
@@ -289,6 +291,7 @@ STYLESHEET = '''
         background-color: {success};
         font-weight: bold;
         padding: 4px;
+        border-radius: 8px;
     }}
     QPushButton.SelectionAdd:hover {{
         background-color: {hover__success};
@@ -298,6 +301,9 @@ STYLESHEET = '''
     }}
     QPushButton.SelectionDelete {{
         background-color: {error};
+        font-weight: bold;
+        padding: 4px;
+        border-radius: 8px;
     }}
     QPushButton.SelectionDelete:hover {{
         background-color: {hover__error};
@@ -305,28 +311,36 @@ STYLESHEET = '''
     QPushButton.SelectionDelete:pressed {{
         background-color: {pressed__error};
     }}
-    QWidget.SelectionList QLabel {{
-        color: {text};
-        font-size: 20px;
-        font-weight: bold;
-        background: none;
-    }}
-    QWidget.SelectionList QFrame {{
-        background-color: {fg1};
-    }}
+    
+    
     QWidget.SelectionListEntry  {{
-        margin: 2px 4px;
+        background-color: {bg4};
+        border-radius: 8px;
+    }}
+    QWidget.SelectionListEntry QLabel {{
+        color: {text};
+        font-size: 25px;
+        font-weight: bold;
+    }}
+    QWidget.SelectionList QFrame.Seperators {{
+        background-color: {fg1};
+        border-radius: 8px;
     }}
     
     
     QWidget.SubjectClassViewEntry {{
+        border-radius: 8px;
         background-color: {bg4};
     }}
-    QWidget.SubjectClassViewEntry QLabel {{
+    QWidget.SubjectClassViewEntry QLabel.SubjectClassViewEntryName {{
         font-size: 30px;
         font-weight: bold;
+        background: none;
     }}
-    QWidget.SubjectClassViewEntry QLineEdit {{
+    QWidget.SubjectClassViewEntryEdits {{
+        background: none;
+    }}
+    QWidget.SubjectClassViewEntryEdits QLineEdit {{
         min-width: 60px;
         background-color: {bg5};
         border: 1px solid {border2};
@@ -346,7 +360,7 @@ STYLESHEET = '''
         border-radius: 8px;
     }}
     QWidget.OptionTag QPushButton.Close:hover {{
-        color: {hover__none};
+        background-color: {hover__none};
     }}
     QWidget.OptionTag {{
         background-color: {fg1};
@@ -357,21 +371,23 @@ STYLESHEET = '''
     }}
     QWidget.OptionTag QLabel {{
         background-color: {fg1};
+        font-size: 13px;
         border-radius: 8px;
         padding: 4px 8px;
     }}
     QLineEdit.OptionEdit {{
         border: none;
         color: {text};
-        padding: 4px 8px;
-        font-size: 13px;
         max-width: 100px;
+        font-size: 13px;
+        padding: 4px 8px;
+        border-radius: 8px;
     }}
     
     
     QWidget.SettingOptionEntry {{
         background-color: {bg3};
-        padding: 5px;
+        border-radius: 8px;
     }}
     QWidget.SettingOptionEntry QPushButton.Close {{
         background: none;
