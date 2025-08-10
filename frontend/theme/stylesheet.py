@@ -68,21 +68,22 @@ STYLESHEET = '''
     
     
     QWidget.Sidebar {{
-        background-color: {bg4};
-        border-right: 1px solid {border1};
+        background-color: {bg1};
+        border: none;
     }}
     QWidget.Sidebar QPushButton {{
         text-align: left;
         padding: 12px 20px;
         margin: 2px 1px;
         border-radius: 0px;
-        background-color: {bg3};
+        background-color: {bg5};
+        border-left: 2px solid {fg1};
     }}
     QWidget.Sidebar QPushButton:hover {{
-        background-color: {hover__bg3};
+        background-color: {hover__bg5};
     }}
     QWidget.Sidebar QPushButton:checked {{
-        background-color: {pressed__bg3};
+        background-color: {pressed__bg5};
         border-left: 4px solid {fg2};
     }}
     
@@ -235,7 +236,7 @@ STYLESHEET = '''
         width: 18px;
         height: 18px;
         border-radius: 3px;
-        border: 1px solid {border1};
+        border: 1px solid {bg4};
     }}
     QCheckBox::indicator:unchecked {{
         background-color: {bg1};
@@ -253,27 +254,31 @@ STYLESHEET = '''
         background-color: {bg4};
         margin: 0px 8px 4px 8px;
         padding: 4px;
+        border: 1px solid {border1};
+        border-radius: 8px;
     }}
     QWidget.DPC_Header {{
-        background-color: {bg5};
         margin: 2px 4px;
-    }}
-    QWidget.DPC_Header:hover {{
-        background-color: {hover__bg5};
+        background-color: {bg4};
     }}
     QWidget.DPC_Header QLabel {{
         font-size: 20px;
+        background-color: {bg4};
     }}
-    QWidget.DPC_Header QLabel#Arrow {{
+    QWidget.DPC_Header QLabel.Arrow {{
         color: {fg2};
         font-size: 16px;
         font-weight: bold;
+        background: none;
     }}
-    QWidget.DPC_Header QLabel#Arrow:hover {{
+    QWidget.DPC_Header QLabel.Arrow:hover {{
         color: {hover__fg2};
     }}
-    QWidget.DPC_Header QLabel#Arrow:disabled {{
+    QWidget.DPC_Header QLabel.Arrow:disabled {{
         color: {disabled__fg2};
+    }}
+    QWidget.DPC_Header * QCheckbox {{
+        background-color: {bg4};
     }}
     QWidget.DPC_Body QLabel {{
         font-size: 15px;
@@ -304,6 +309,7 @@ STYLESHEET = '''
         color: {text};
         font-size: 20px;
         font-weight: bold;
+        background: none;
     }}
     QWidget.SelectionList QFrame {{
         background-color: {fg1};
@@ -330,16 +336,16 @@ STYLESHEET = '''
     }}
     
     
-    QWidget.OptionSelector QPushButton.Close {{
-        background: transparent;
+    QWidget.OptionTag QPushButton.Close {{
+        background-color: transparent;
         color: {text};
-        padding: 4px;
+        padding: 2px;
         min-width: 20px;
         font-weight: bold;
         font-size: 16px;
         border-radius: 8px;
     }}
-    QWidget.OptionSelector QPushButton.Close:hover {{
+    QWidget.OptionTag QPushButton.Close:hover {{
         color: {hover__none};
     }}
     QWidget.OptionTag {{
@@ -356,7 +362,7 @@ STYLESHEET = '''
     }}
     QLineEdit.OptionEdit {{
         border: none;
-        color: black;
+        color: {text};
         padding: 4px 8px;
         font-size: 13px;
         max-width: 100px;
@@ -368,7 +374,7 @@ STYLESHEET = '''
         padding: 5px;
     }}
     QWidget.SettingOptionEntry QPushButton.Close {{
-        background-color: transparent;
+        background: none;
         color: {text};
         border-radius: 15px;
         min-width: 30px;

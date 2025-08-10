@@ -46,7 +46,7 @@ class DraggableSubjectLabel(QLabel):
         self.cls = cls
         
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setProperty('class', 'RemSubjectItem')
+        self.setProperty("class", 'RemSubjectItem')
         self.setToolTip(f"Teacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}")
         
         self.setFixedSize(150, 40)
@@ -181,7 +181,7 @@ class OptionTag(QWidget):
         
         # Input mode widgets
         self.input = QLineEdit()
-        self.input.setProperty("OptionEdit")
+        self.input.setProperty("class", "OptionEdit")
         self.input.setText(self.text)
         self.input.setPlaceholderText("Enter option")
         self.input.setFixedWidth(80)  # Fix input width
@@ -189,7 +189,7 @@ class OptionTag(QWidget):
         self.input.editingFinished.connect(self.finish_editing)
         
         self.close_btn = QPushButton("×")
-        self.close_btn.setObjectName("Close")
+        self.close_btn.setProperty("class", "Close")
         self.close_btn.clicked.connect(self.remove)
         self.close_btn.setFixedSize(20, 20)
         
@@ -206,7 +206,7 @@ class OptionTag(QWidget):
         self.input.hide()
         
         self.setFixedHeight(28)
-        self.setFixedWidth(120)
+        self.setFixedWidth(130)
     
     def setup_display_mode(self):
         self.label.show()
@@ -277,7 +277,7 @@ class SelectedWidget(QWidget):
         
         # Always create delete button regardless of text type
         self.delete_button = QPushButton("Delete")
-        self.delete_button.setProperty('class', 'SelectionDelete')
+        self.delete_button.setProperty("class", 'SelectionDelete')
         self.delete_button.clicked.connect(self.delete_self)
         main_layout.addWidget(self.delete_button)
         
@@ -350,7 +350,7 @@ class UnselectedWidget(QWidget):
         self.label.setToolTip(text)
         
         self.button = QPushButton("Add")
-        self.button.setProperty('class', 'SelectionAdd')
+        self.button.setProperty("class", 'SelectionAdd')
         self.button.setFixedSize(24, 24)
         self.button.clicked.connect(self.add_self)
         

@@ -89,7 +89,7 @@ class SettingWidget(QWidget):
         text_edits = self._make_inputs(_id, input_placeholders, data)
         
         delete_button = QPushButton("×")
-        delete_button.setProperty('class', 'Close')
+        delete_button.setProperty("class", 'Close')
         delete_button.clicked.connect(self._make_delete_func(_id, widget))
         delete_button.setFixedSize(30, 30)
         
@@ -158,7 +158,7 @@ class SettingWidget(QWidget):
         button = QPushButton(button_name if button_name is not None else title)
         
         button.setFixedWidth(100)
-        button.setProperty('class', 'action')
+        button.setProperty("class", 'action')
         button.clicked.connect(self._make_popup_func(_id, title, popup_class, var_name, closed_func, *args, **kwargs))
         
         if alignment is not None:

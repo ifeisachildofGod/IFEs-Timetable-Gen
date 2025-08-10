@@ -56,12 +56,14 @@ class Window(QMainWindow):
         main_layout = QHBoxLayout()
         container.setLayout(main_layout)
         
-        # Create sidebar with modern styling
+        # Create sidebar
         sidebar = QWidget()
-        sidebar.setFixedWidth(200)
-        
-        # Create sidebar layout
         sidebar_layout = QVBoxLayout()
+        
+        sidebar.setFixedWidth(200)
+        sidebar.setLayout(sidebar_layout)
+        sidebar.setProperty("class", "Sidebar")
+        
         sidebar_layout.setSpacing(0)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         
@@ -73,16 +75,6 @@ class Window(QMainWindow):
         teachers_btn = QPushButton("Teachers")
         classes_btn = QPushButton("Classes")
         timetable_btn = QPushButton("Timetable")
-        
-        subjects_btn.setProperty("class", "Sidebar")
-        teachers_btn.setProperty("class", "Sidebar")
-        classes_btn.setProperty("class", "Sidebar")
-        timetable_btn.setProperty("class", "Sidebar")
-        
-        subjects_btn.setCheckable(True)
-        teachers_btn.setCheckable(True)
-        classes_btn.setCheckable(True)
-        timetable_btn.setCheckable(True)
         
         # Add widgets to stack
         self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"), self.saved_state_changed)
@@ -100,6 +92,7 @@ class Window(QMainWindow):
         
         # Connect buttons
         for index, button in enumerate(self.option_buttons):
+            button.setCheckable(True)
             button.clicked.connect(self.make_option_button_func(index))
         
         # Add buttons to sidebar
@@ -108,7 +101,6 @@ class Window(QMainWindow):
         sidebar_layout.addWidget(classes_btn)
         sidebar_layout.addStretch()
         sidebar_layout.addWidget(timetable_btn)
-        sidebar.setLayout(sidebar_layout)
         
         # Add widgets to main layout
         main_layout.addWidget(sidebar)
