@@ -716,36 +716,39 @@ class TimeTableEditor(QWidget):
         subjectTeacherMapping = {}
         for subject_id, subject_info in subjects_info.items():
             teacher_subject_info = {}
-            available_teachers = {}
             
             for class_id, _ in subject_info["classes"].items():
-                class_index = next(index for index, (_id, _) in enumerate(classes_info.items()) if _id == class_id)
+                class_index = next(index for index, _id in enumerate(classes_info.values()) if _id == class_id)
                 subject_in_class_info = classes_info[class_id]["subjects"][subject_id][1]
                 
                 for teacher_id, teacher_info_entry in teachers_info.items():
                     if class_id in teacher_info_entry["classes"]["content"][subject_id]:
+                        teacher_name = teacher_info_entry["text"][0]
+                        
                         if teacher_info_entry["classes"]["content"][subject_id][class_id][0]:
-                            available_teachers[teacher_id] = teacher_info_entry["text"][0], []
+                            selected_class_options = []
                         elif sum(list(teacher_info_entry["classes"]["content"][subject_id][class_id][1].values())):
-                            class_option_ids = []
+                            selected_class_options = []
                             
                             for option_id, option_state in teacher_info_entry["classes"]["content"][subject_id][class_id][1]:
                                 if option_state:
-                                    class_option_ids.append(option_id)
-                            
-                            available_teachers[teacher_id] = teacher_info_entry["text"][0], class_option_ids
+                                    selected_class_options.append(option_id)
+                        else:
+                            continue
+                        
+                        max_random_classes_amt = teacher_info_entry["classes"]["content"][subject_id][class_id][0]
+                        
+                        if teacher_id not in teacher_subject_info:
+                            teacher_subject_info[teacher_id] = [teacher_name, {class_index: [max_random_classes_amt, selected_class_options]}]
+                        else:
+                            teacher_subject_info[teacher_id][1][class_index][1] = [max_random_classes_amt, selected_class_options]
+                # XXX Done
                 
                 # Replace this part with the above code ie. Merge both of them once you've made peace with
                 # yourself breaking and building back some of the systems that took the better part of six
                 # months to build
                 
-                for teacher_id, (teacher_name, selected_class_options) in available_teachers.items():
-                    # Find a way of saving the individual class option in the subjectTeacherMapping
-                    
-                    if teacher_id not in teacher_subject_info:
-                        teacher_subject_info[teacher_id] = [teacher_name, [class_index]]
-                    else:
-                        teacher_subject_info[teacher_id][1].append(class_index)
+                # XXX Done
                 
                 if "&timings" not in teacher_subject_info:
                     teacher_subject_info["&timings"] = {str(class_index): [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]}
@@ -800,7 +803,7 @@ class TimeTableEditor(QWidget):
                 
                 cls_lvls_taught = list(
                     flatten(
-                        [class_lvls_info[1] for t_ids, class_lvls_info in subject_info.items() if not t_ids.startswith("&")]
+                        [list(class_lvls_info.keys()) for t_ids, (_, class_lvls_info) in subject_info.items() if not t_ids.startswith("&")]
                     )
                 )
                 

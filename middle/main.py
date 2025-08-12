@@ -3,7 +3,10 @@ import json
 import random
 from typing import Union
 from matplotlib.cbook import flatten
-from middle.objects import *
+if __name__ == "__main__":
+    from objects import *
+else:
+    from middle.objects import *
 
 PotentialOptionType = Union[
     dict[str,
@@ -48,33 +51,64 @@ class School:
         subjects = {}
         
         for subjectID, (subjectName, subjectInfo) in mappings.items():
+            subjectTimingMappings = subjectInfo.pop("&timings")
+            subjectClassesMappings = subjectInfo.pop("&classes", {})
+            
             subjects[subjectID] = [subjectName, {}]
             
-            for index in range(len(classOptions)):
-                teachersMapping = {}
-                availableTeachers = []
-                for potAvailableTeacherID, potAvailableTeacherData in subjectInfo.items():
-                    if not potAvailableTeacherID.startswith("&"):
-                        potAvailableTeacherName, indexOfClassLevelsTaught = potAvailableTeacherData
-                        if index in indexOfClassLevelsTaught:
-                            availableTeachers.append((potAvailableTeacherID, potAvailableTeacherName))
-                
-                if len(availableTeachers):
-                    if random.choice([True, False, False, False, False]):
-                        random.shuffle(availableTeachers)
+            randomTeachers = []
+            for teacherID, (teacherName, levelIndexesMapping) in subjectInfo.items():
+                for classIndex, (maxRandomClassesAmt, options) in levelIndexesMapping.items():
+                    teachersMapping = {}
                     
-                    options = subjectInfo.get("&classes", {}).get(str(index), classOptions[index])
-                    
-                    optionIndex = 0
-                    for optionID in options:
-                        teacherData = availableTeachers[optionIndex % len(availableTeachers)]
+                    timings = subjectTimingMappings[str(classIndex)]
+                    if options:
+                        for optionID in options:
+                            teachersMapping[optionID] = [[teacherID, teacherName], []]
                         
-                        teachersMapping[optionID] = [teacherData, []]
-                        optionIndex += 1
+                        subjects[subjectID][1][str(classIndex)] = [timings[0], timings[1], teachersMapping]
+                    else:
+                        randomTeachers.append([str(classIndex), [teacherID, teacherName], timings, maxRandomClassesAmt])
+            
+            for strClassIndex, t_data, timings, maxClasses in randomTeachers:
+                classAmt = 0
+                
+                options = subjectClassesMappings.get(strClassIndex, classOptions[int(strClassIndex)])
+                if random.choice([True, False, True, True, True, False, False, True, False, False]):
+                    random.shuffle(options)
+                
+                subjects[subjectID][1][strClassIndex] = subjects[subjectID][1].get(strClassIndex, [timings[0], timings[1], {}])
+                
+                for option in options:
+                    if option not in subjects[subjectID][1][strClassIndex][2] and classAmt < maxClasses:
+                        subjects[subjectID][1][strClassIndex][2][option] = [t_data, []]
+                        classAmt += 1
+            
+            # for index in range(len(classOptions)):
+            #     teachersMapping = {}
+            #     availableTeachers = []
+            #     for potAvailableTeacherID, potAvailableTeacherData in subjectInfo.items():
+            #         if not potAvailableTeacherID.startswith("&"):
+            #             potAvailableTeacherName, indexOfClassLevelsTaught = potAvailableTeacherData
+            #             if index in indexOfClassLevelsTaught:
+            #                 availableTeachers.append((potAvailableTeacherID, potAvailableTeacherName))
+                
+            #     if len(availableTeachers):
+            #         if random.choice([True, False, False, False, False]):
+            #             random.shuffle(availableTeachers)
                     
-                    timings = subjectInfo.get("&timings")[str(index)]
+            #         options = subjectInfo.get("&classes", {}).get(str(index), classOptions[index])
                     
-                    subjects[subjectID][1][str(index)] = [timings[0], timings[1], teachersMapping]
+            #         optionIndex = 0
+            #         for optionID in options:
+            #             teacherData = availableTeachers[optionIndex % len(availableTeachers)]
+                        
+            #             teachersMapping[optionID] = [teacherData, []]
+            #             optionIndex += 1
+                    
+            #         timings = subjectInfo.get("&timings")[str(index)]
+                    
+            #         subjects[subjectID][1][str(index)] = [timings[0], timings[1], teachersMapping]
         
         return subjects
     
@@ -126,7 +160,6 @@ class School:
             for classID, (className, _) in levelInfo.items():
                 classIDNameMapping[classID] = className
         
-        classOptions = [[_id for _id, _ in classInfo.items()] for _, classInfo in self.project['levels']]
         periods = [{_id: p for _id, (_, (p, _, _)) in classInfo.items()} for _, classInfo in self.project['levels']]
         breakperiods = [{_id: b for _id, (_, (_, b, _))  in classInfo.items()} for _, classInfo in self.project['levels']]
         weekdays = [{_id: w for _id, (_, (_, _, w))  in classInfo.items()} for _, classInfo in self.project['levels']]
@@ -134,6 +167,7 @@ class School:
         
         subjects = self.project.get("subjects")
         if subjects is None:
+            classOptions = [[_id for _id, _ in classInfo.items()] for _, classInfo in self.project['levels']]
             subjects = self.project["subjects"] = self._getSubjects(classOptions, self.project["subjectTeacherMapping"])
         
         for subjectID, (subjectName, subjectInfo) in subjects.items():
@@ -178,12 +212,17 @@ class School:
                 if subjectTeacherMapping.get(subject.id) is None:
                     subjectTeacherMapping[subject.id] = [subject.name, {"&timings": {}, "&classes": {}}]
                 
-                if subjectTeacherMapping[subject.id][1].get(t_id) is None:
-                    subjectTeacherMapping[subject.id][1][t_id] = [teacher.name, [cls.index]]
-                else:
-                    subjectTeacherMapping[subject.id][1][t_id][1].append(cls.index)
+                maxRandomAmt = self.project["subjectTeacherMapping"][subject.id][1][t_id][1][str(cls.index)][0]
                 
-                subjectTeacherMapping[subject.id][1][t_id][1] = list(set(subjectTeacherMapping[subject.id][1][t_id][1]))
+                if subjectTeacherMapping[subject.id][1].get(t_id) is None:
+                    subjectTeacherMapping[subject.id][1][t_id] = [teacher.name, {str(cls.index): [maxRandomAmt, [cls.classID]]}]
+                else:
+                    if subjectTeacherMapping[subject.id][1][t_id][1].get(str(cls.index)) is None:
+                        subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)] = [maxRandomAmt, [cls.classID]]
+                    else:
+                        subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)][1].append(cls.classID)
+                
+                subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)][1] = list(set(subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)][1]))
                 
                 if subjectTeacherMapping[subject.id][1]["&classes"].get(str(cls.index)) is None:
                     subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)] = [cls.classID]
@@ -248,7 +287,7 @@ class School:
                                 
                                 subjectInsert.TOTAL = perDay
                                 subjectInsert.PERWEEK = perWeek
-                                print(cls.name + ":", remainderAmount)
+                                
                                 if remainderAmount:
                                     cls.timetable.remainderContent.append(Subject(subjectID, subjectName, coordTotal, remainderAmount, teacher))
                                 
@@ -354,7 +393,7 @@ def _display_school(school, drawType: int = 1):
 def test():
     orig_time = time.time()
 
-    with open("../res/project.json") as file:
+    with open("test_project.json") as file:
         project = json.load(file)
 
     print(f"Project loaded after {time.time() - orig_time} seconds")

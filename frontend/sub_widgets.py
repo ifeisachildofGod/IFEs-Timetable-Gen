@@ -792,7 +792,7 @@ class OptionsMaker(QDialog):
                 self.current_row += 1
 
 class OptionSelector(QDialog):
-    def __init__(self, title: str, info: dict[str, str], saved_state_changed: pyqtBoundSignal):
+    def __init__(self, title: str, info: dict[str, list[str | None] | dict[int, str]], saved_state_changed: pyqtBoundSignal):
         self.title = title
         self.info = info
         self.saved_state_changed = saved_state_changed
