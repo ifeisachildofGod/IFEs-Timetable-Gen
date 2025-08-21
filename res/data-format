@@ -66,13 +66,7 @@
                 },
                 ...
             },
-            "teachers": {
-                "content": [selectedTeacher, ..., None, unselectedTeacher, ...],
-                "id_mapping": {
-                    teacherIndex: teacherID,
-                    ...
-                }
-            }
+            "teachers": [(selectedTeacherID, selectedTeacher), ..., None, (unselectedTeacherID, unselectedTeacher), ...]
         },
         ...
     },
@@ -93,12 +87,7 @@
                     ...
                 }
             },
-            "subjects": {
-                "content": [selectedSubject, ..., None, unselectedSubject, ...],
-                "id_mapping": {
-                    subjectIndex: subjectID,
-                    ...
-                }
+            "subjects": [(selectedSubjectID, selectedSubject), ..., None, (unselectedSubjectID, unselectedSubject), ...]
             }
         },
         ...
