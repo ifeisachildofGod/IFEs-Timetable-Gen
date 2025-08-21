@@ -1,14 +1,11 @@
-from copy import deepcopy
-from typing import Any
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
     QPushButton, QHBoxLayout, QLineEdit,
     QTableWidgetItem, QMenu
 )
 from PyQt6.QtGui import QFontMetrics, QIntValidator, QPainter, QColor, QMouseEvent
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtBoundSignal
 from frontend.theme.theme import THEME_MANAGER
-
 from middle.objects import Class, Subject
 
 
@@ -23,7 +20,7 @@ class TimeTableItem(QTableWidgetItem):
         self.setFlags(self.flags() & Qt.ItemFlag.ItemIsEnabled)
         
         if self.break_time:
-            color = QColor(THEME_MANAGER.get_current_palette()["fg1"]).toRgb()
+            color = QColor(THEME_MANAGER.parse_stylesheet("{fg1}"))
             self.setBackground(color)
         elif self.free_period:
             self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
@@ -33,9 +30,15 @@ class TimeTableItem(QTableWidgetItem):
         if self.subject is None or self.break_time:
             self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsDropEnabled)
         elif not self.free_period and not self.break_time and self.subject.teacher is not None:
+            locked = self.subject.lockedPeriod is not None
+            
+            if locked:
+                color = QColor(THEME_MANAGER.parse_stylesheet("{fg4}"))
+                self.setBackground(color)
+            
             self.setText(self.subject.name)
             self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.setToolTip(f"Teacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}\nLocked: {self.subject.lockedPeriod is not None}")
+            self.setToolTip(f"Teacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}{"\nSubject Locked" if locked else ""}")
 
 class DraggableSubjectLabel(QLabel):
     clicked = pyqtSignal(QMouseEvent)
@@ -77,41 +80,55 @@ class DraggableSubjectLabel(QLabel):
             self.subject.lockedPeriod = None
 
 class NumberTextEdit(QWidget):
-    def __init__(self, min_validatorAmt: int = 0, max_validatorAmt: int = 10):
+    def __init__(self, min_validatorAmt: int = 0, max_validatorAmt: int = 10, empty: int | None = None):
         super().__init__()
         
         self.min_num = min_validatorAmt
         self.max_num = max_validatorAmt
+        self.empty = empty
         
         self.edit = QLineEdit()
+        self.edit.textChanged.connect(self._text_changed)
+        self.text = ""
         
         layout = QHBoxLayout()
         self.setLayout(layout)
         
         buttons_widget = QWidget()
         buttons_layout = QVBoxLayout()
+        
+        buttons_widget.setStyleSheet("background: none;")
         buttons_widget.setLayout(buttons_layout)
         
-        layout.addWidget(self.edit, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(buttons_widget, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(self.edit, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(buttons_widget, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
         
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         
-        increment_button = CustomLabel("▽", 180)
+        increment_button = CustomLabel("▼", 180)
         increment_button.setContentsMargins(0, 0, 0, 0)
         increment_button.mouseclicked.connect(lambda: self._change_number(1))
         
-        decrement_button = CustomLabel("▽", 0)
+        decrement_button = CustomLabel("▼", 0)
         increment_button.setContentsMargins(0, 0, 0, 0)
         decrement_button.mouseclicked.connect(lambda: self._change_number(-1))
         
-        buttons_layout.addWidget(increment_button, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-        buttons_layout.addWidget(decrement_button, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        buttons_layout.addWidget(increment_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
+        buttons_layout.addWidget(decrement_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
         
         self.edit.setValidator(QIntValidator(0, max_validatorAmt))
         
         self.setFixedHeight(50)
         self.edit.setFixedHeight(30)
+    
+    def _text_changed(self, text):
+        if not text:
+            self.edit.setText(str(self.min_num))
+            self.text = str(self.min_num)
+        elif text and int(text) > self.max_num:
+            self.edit.setText(self.text)
+        else:
+            self.text = text
     
     def _change_number(self, direction: int):
         if not self.edit.text():
@@ -166,13 +183,14 @@ class CustomLabel(QLabel):
 
 class OptionTag(QWidget):
     deleted = pyqtSignal()
-    done_editing = pyqtSignal()
+    started_editing_signal = pyqtSignal()
+    finished_editing_signal = pyqtSignal()
     
-    def __init__(self, initial_text: str = ""):
+    def __init__(self, initial_text: str | None = None):
         super().__init__()
         self.setProperty("class", "OptionTag")
         
-        self.text = str(initial_text)
+        self.text = initial_text if initial_text is not None else ""
         self.is_editing = False
         
         self.main_layout = QHBoxLayout(self)
@@ -193,11 +211,15 @@ class OptionTag(QWidget):
         self.close_btn.clicked.connect(self.remove)
         self.close_btn.setFixedSize(20, 20)
         
+        self.deleted.connect(self.deleteLater)
+        self.started_editing_signal.connect(self.start_editing)
+        self.finished_editing_signal.connect(self._finished_editing)
+        
         # Label mode widget
         self.label = QLabel(self.text)
         self.label.setMinimumWidth(80)
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.mousePressEvent = lambda _: self.start_editing()
+        self.label.mousePressEvent = lambda _: self.started_editing_signal.emit()
         
         # Initialize both widgets but hide input initially
         self.main_layout.addWidget(self.label)
@@ -205,8 +227,16 @@ class OptionTag(QWidget):
         self.main_layout.addWidget(self.close_btn)
         self.input.hide()
         
-        self.setFixedHeight(28)
+        self.setFixedHeight(30)
         self.setFixedWidth(130)
+    
+    def _finished_editing(self):
+        if self.is_editing:
+            self.text = self.input.text().strip()
+            self.is_editing = False
+            self.setup_display_mode()
+            self.label.setText(self.text)
+            self.label.show()
     
     def setup_display_mode(self):
         self.label.show()
@@ -220,186 +250,129 @@ class OptionTag(QWidget):
     
     def start_editing(self):
         if not self.is_editing:
-            self.is_editing = True
             self.input.setText(self.text)
             self.setup_edit_mode()
             self.input.setFocus()
+            
+            self.is_editing = True
     
     def finish_editing(self):
-        if self.is_editing:
-            new_text = self.input.text().strip()
-            if new_text:
-                self.text = new_text
-                self.is_editing = False
-                self.done_editing.emit()
-                self.setup_display_mode()
-                self.label.setText(self.text)
-                self.label.show()
-            else:
-                self.remove()
+        self.finished_editing_signal.emit()
     
     def remove(self):
         self.deleted.emit()
-        self.deleteLater()
     
     def get_text(self):
         return self.text
 
 
 class SelectedWidget(QWidget):
-    def __init__(self, text: str, host, id_mapping: dict, _id: str, saved_state_changed_signal: pyqtSignal):
+    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal):
         super().__init__()
-        self.setProperty("class", "SelectionListEntry")
+        layout = QHBoxLayout()
+        layout.setSpacing(8)
+        layout.setContentsMargins(10, 0, 0, 0)
         
-        self.text = text
-        self.host = host
+        self.setLayout(layout)
         
-        self.id_mapping = id_mapping
+        container = QWidget()
+        container_layout = QHBoxLayout()
+        
+        container.setProperty("class", "SelectedSelectionListEntry")
+        container.setLayout(container_layout)
+        
+        layout.addWidget(container)
         
         self.id = _id
-        
-        main_layout = QHBoxLayout()
-        main_layout.setSpacing(8)
-        
-        self.setContentsMargins(5, 5, 5, 5)
+        self.text = text
+        self.host_container_layout = host_container_layout
         
         metrics = QFontMetrics(self.font())
-        self.label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
-        self.label.setFont(self.font())
-        self.label.setToolTip(self.text)
-        main_layout.addWidget(self.label)
+        label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
+        label.setFont(self.font())
+        label.setToolTip(self.text)
         
-        main_layout.addStretch()
+        delete_button = QPushButton("Delete")
+        delete_button.setProperty("class", 'SelectionDelete')
+        delete_button.setFixedSize(24, 24)
+        delete_button.clicked.connect(self.delete_self)
         
-        # Always create delete button regardless of text type
-        self.delete_button = QPushButton("Delete")
-        self.delete_button.setProperty("class", 'SelectionDelete')
-        self.delete_button.clicked.connect(self.delete_self)
-        main_layout.addWidget(self.delete_button)
-        
-        main_layout.setContentsMargins(10, 0, 0, 0)
-        self.setLayout(main_layout)
+        container_layout.addWidget(label)
+        container_layout.addStretch()
+        container_layout.addWidget(delete_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         
         self.saved_state_changed_signal = saved_state_changed_signal
     
     def delete_self(self):
-        self.index = {v: k for k, v in self.id_mapping.items()}[self.id]
+        self.host_container_layout.removeWidget(self)
         
-        self.content = [v for v in self.host.get()["content"]]
-        self.content.append(self.content.pop(self.index))
-        
-        self.host.selected_widgets.remove(self)
-        self.host.container_layout.removeWidget(self)
-        
-        sep_index = self.content.index(None)
-        
-        self.id_mapping.update({index - 1: index_id for index, index_id in self.id_mapping.items() if self.index < index})
-        
-        self.id_mapping.pop(sep_index)
-        self.id_mapping[len(self.content) - 1] = self.id
-        self.host.id_mapping = self.id_mapping
-        
-        widget = UnselectedWidget(self.text, self.host, self.id_mapping, self.id, self.saved_state_changed_signal)
+        widget = UnselectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal)
         
         # Find the last unselected widget or append at the end
-        insert_index = self.host.container_layout.count()
-        for i in range(self.host.container_layout.count() - 1, -1, -1):
-            if isinstance(self.host.container_layout.itemAt(i).widget(), UnselectedWidget):
-                insert_index = i + 1
+        insert_index = self.host_container_layout.count() - 1
+        for i in range(self.host_container_layout.count() - 1, -1, -1):
+            if isinstance(self.host_container_layout.itemAt(i).widget(), UnselectedWidget):
+                insert_index = i
                 break
         
-        self.host.add_item(widget, insert_index)
-        for widg in self.host.selected_widgets + self.host.unselected_widgets:
-            if isinstance(widg, SelectedWidget) or isinstance(widg, UnselectedWidget):
-                widg.id_mapping = self.id_mapping
-        
-        self.host.unselected_widgets.append(widget)
-        
-        self.host.update_separators()
+        self.host_container_layout.insertWidget(insert_index, widget)
         
         self.deleteLater()
         
         self.saved_state_changed_signal.emit()
-        
 
 class UnselectedWidget(QWidget):
-    def __init__(self, text: str, host, id_mapping: dict, _id: str, saved_state_changed_signal: pyqtSignal):
+    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal):
         super().__init__()
-        self.setProperty("class", "SelectionListEntry")
-        
-        self.id_mapping = id_mapping
-        
-        self.id = _id
-        
         layout = QHBoxLayout()
         layout.setSpacing(8)
-        layout.setContentsMargins(8, 4, 8, 4)
-        
-        self.setContentsMargins(5, 5, 5, 5)
-        
-        self.text = text
-        self.host = host
-        
-        metrics = QFontMetrics(self.font())
-        self.label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
-        self.label.setFont(self.font())
-        self.label.setToolTip(text)
-        
-        self.button = QPushButton("Add")
-        self.button.setProperty("class", 'SelectionAdd')
-        self.button.setFixedSize(24, 24)
-        self.button.clicked.connect(self.add_self)
-        
-        layout.addWidget(self.label)
-        layout.addStretch()
-        
-        layout.addWidget(self.button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        
         layout.setContentsMargins(10, 0, 0, 0)
-        layout.setSpacing(0)
         
         self.setLayout(layout)
+        
+        container = QWidget()
+        container_layout = QHBoxLayout()
+        
+        container.setProperty("class", "UnselectedSelectionListEntry")
+        container.setLayout(container_layout)
+        
+        layout.addWidget(container)
+        
+        self.id = _id
+        self.text = text
+        self.host_container_layout = host_container_layout
+        
+        metrics = QFontMetrics(self.font())
+        label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
+        label.setFont(self.font())
+        label.setToolTip(text)
+        
+        add_button = QPushButton("Add")
+        add_button.setProperty("class", 'SelectionAdd')
+        add_button.setFixedSize(24, 24)
+        add_button.clicked.connect(self.add_self)
+        
+        container_layout.addWidget(label)
+        container_layout.addStretch()
+        container_layout.addWidget(add_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         
         self.saved_state_changed_signal = saved_state_changed_signal
     
     def add_self(self):
-        self.index = {v: k for k, v in self.id_mapping.items()}[self.id]
+        self.host_container_layout.removeWidget(self)
         
-        self.content = [v for v in self.host.get()["content"]]
-        
-        sep_index = self.content.index(None)
-        
-        self.content.insert(sep_index, self.content[self.index])
-        self.content.pop()
-        
-        self.host.unselected_widgets.remove(self)
-        self.host.container_layout.removeWidget(self)
-        
-        self.id_mapping.update({index + 1: index_id for index, index_id in self.id_mapping.items() if sep_index < index < self.index})
-        self.id_mapping.pop(sep_index + 1)
-        self.id_mapping[sep_index] = self.id
-        
-        self.host.id_mapping = self.id_mapping
-        
-        widget = SelectedWidget(self.text, self.host, self.id_mapping, self.id, self.saved_state_changed_signal)
+        widget = SelectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal)
         
         insert_index = 0
-        for i in range(self.host.container_layout.count()):
-            if isinstance(self.host.container_layout.itemAt(i).widget(), SelectedWidget):
+        for i in range(self.host_container_layout.count()):
+            if isinstance(self.host_container_layout.itemAt(i).widget(), SelectedWidget):
                 insert_index = i + 1
         
-        self.host.add_item(widget, insert_index)
-        
-        self.saved_state_changed_signal.emit()
-        
-        for widg in self.host.selected_widgets + self.host.unselected_widgets:
-            if isinstance(widg, SelectedWidget) or isinstance(widg, UnselectedWidget):
-                widg.id_mapping = self.id_mapping
-        
-        self.host.selected_widgets.append(widget)
-        self.host.update_separators()
+        self.host_container_layout.insertWidget(insert_index, widget)
         
         self.deleteLater()
+        
+        self.saved_state_changed_signal.emit()
 
 
 

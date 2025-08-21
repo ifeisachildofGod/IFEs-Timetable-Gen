@@ -67,24 +67,26 @@ STYLESHEET = '''
         width: 0px;
     }}
     
-    
     QWidget.Sidebar {{
+        background-color: none;
+        border: 1px solid {text};
+    }}
+    QWidget.SubSidebar {{
         background-color: {bg1};
         border: none;
     }}
-    QWidget.Sidebar QPushButton {{
+    QWidget.SubSidebar QPushButton {{
         text-align: left;
         padding: 12px 20px;
-        margin: 2px 1px;
         border-radius: 0px;
-        background-color: {bg5};
-        border-left: 2px solid {fg1};
+        background-color: {bg1};
+        border-left: 0px solid {fg1};
     }}
-    QWidget.Sidebar QPushButton:hover {{
-        background-color: {hover__bg5};
+    QWidget.SubSidebar QPushButton:hover {{
+        background-color: {hover__bg1};
     }}
-    QWidget.Sidebar QPushButton:checked {{
-        background-color: {pressed__bg5};
+    QWidget.SubSidebar QPushButton:checked {{
+        background-color: {pressed__bg1};
         border-left: 4px solid {fg2};
     }}
     
@@ -252,6 +254,24 @@ STYLESHEET = '''
     }}
     
     
+    QFrame.Seperators {{
+        background-color: {fg1};
+        border-radius: 8px;
+    }}
+    
+    
+    QLabel.Arrow {{
+        background: none;
+        font-weight: bold;
+    }}
+    
+    
+    QWidget.TimetableWidget {{
+        background-color: {bg5};
+        border-radius: 8px;
+    }}
+    
+    
     QWidget.DropdownCheckboxes {{
         background-color: {bg4};
         margin: 0px 8px 4px 8px;
@@ -270,8 +290,6 @@ STYLESHEET = '''
     QWidget.DPC_Header QLabel.Arrow {{
         color: {fg2};
         font-size: 16px;
-        font-weight: bold;
-        background: none;
     }}
     QWidget.DPC_Header QLabel.Arrow:hover {{
         color: {hover__fg2};
@@ -287,6 +305,23 @@ STYLESHEET = '''
     }}
     
     
+    QLabel.SidebarToggleButton {{
+        background-color: {bg2};
+    }}
+    QLabel.SidebarToggleButton:hover {{
+        background-color: {hover__bg2};
+    }}
+    QPushButton.Close {{
+        background-color: transparent;
+        color: {text};
+        font-weight: bold;
+        padding: 0px;
+        min-width: 0px;
+        min-height: 0px;
+    }}
+    QPushButton.Close:hover {{
+        color: {hover__text};
+    }}
     QPushButton.SelectionAdd {{
         background-color: {success};
         font-weight: bold;
@@ -313,18 +348,22 @@ STYLESHEET = '''
     }}
     
     
-    QWidget.SelectionListEntry  {{
-        background-color: {bg4};
-        border-radius: 8px;
+    QWidget.SelectedSelectionListEntry, QWidget.UnselectedSelectionListEntry  {{
+        background-color: transparent;
+        border-radius: 0px;
+        border: none;
     }}
-    QWidget.SelectionListEntry QLabel {{
+    QWidget.SelectedSelectionListEntry QLabel, QWidget.UnselectedSelectionListEntry QLabel {{
         color: {text};
         font-size: 25px;
         font-weight: bold;
+        background: none;
     }}
-    QWidget.SelectionList QFrame.Seperators {{
-        background-color: {fg1};
-        border-radius: 8px;
+    QWidget.SelectedSelectionListEntry {{
+        border-bottom: 1px solid {fg2};
+    }}
+    QWidget.UnselectedSelectionListEntry {{
+        border-top: 1px solid {fg2};
     }}
     
     
@@ -351,16 +390,8 @@ STYLESHEET = '''
     
     
     QWidget.OptionTag QPushButton.Close {{
-        background-color: transparent;
-        color: {text};
-        padding: 2px;
-        min-width: 20px;
-        font-weight: bold;
         font-size: 16px;
         border-radius: 8px;
-    }}
-    QWidget.OptionTag QPushButton.Close:hover {{
-        background-color: {hover__none};
     }}
     QWidget.OptionTag {{
         background-color: {fg1};
@@ -384,23 +415,33 @@ STYLESHEET = '''
         border-radius: 8px;
     }}
     
+    QMessageBox {{
+        background-color: white;
+    }}
+    QMessageBox * {{
+        color: black;
+        background-color: white;
+    }}
+    QMessageBox QPushButton {{
+        color: black;
+        border-radius: 0px;
+        border: 1px solid grey;
+        background-color: whitesmoke;
+        padding: 0px;
+    }}
+    QMessageBox QPushButton:hover {{
+        border: 1px solid #2c59d3;
+        background-color: #eefbff;
+    }}
+    
     
     QWidget.SettingOptionEntry {{
         background-color: {bg3};
         border-radius: 8px;
     }}
     QWidget.SettingOptionEntry QPushButton.Close {{
-        background: none;
-        color: {text};
-        border-radius: 15px;
-        min-width: 30px;
-        min-height: 30px;
         font-size: 30px;
-        padding: 3px;
-    }}
-    QWidget.SettingOptionEntry QPushButton.Close:hover {{
-        background-color: {hover__none};
-        color: {text};
+        border-radius: 15px;
     }}
     QWidget.SettingOptionEntry QLineEdit {{
         background-color: {bg4};
@@ -412,11 +453,27 @@ STYLESHEET = '''
         margin: 4px 0px;
     }}
     
+    
+    QLabel.OptionSelectorNotSelected {{
+        background-color: {bg4};
+        border-radius: 8px;
+        color: {text};
+        padding: 8px;
+        margin: 2px;
+    }}
+    QWidget.MainOptionSelector, QWidget.SubOptionSelector {{
+        background-color: {bg3};
+        border: none;
+        border-radius: 10px;
+    }}
+    
+    QWidget.OptionSelectorRow {{background: none;}}
+    
     QTableWidget {{
         background-color: {bg4};
         border: none;
         border-radius: 8px;
-        gridline-color: {fg3};
+        gridline-color: {border2};
     }}
     QHeaderView::section {{
         background-color: {bg4};
@@ -435,9 +492,16 @@ STYLESHEET = '''
         background-color: {hover__bg3};
     }}
     
+    
+    .NoBackground {{
+        background: none;
+    }}
+    
+    
     QLabel.Title {{
         font-weight: bold;
         padding: 10px;
+        background: none;
     }}
     
     QLabel.Timetable_DP_Button {{
@@ -447,5 +511,7 @@ STYLESHEET = '''
     QLabel.Timetable_DP_Button:hover {{
         background-color: {hover__bg4};
     }}
+    
 '''
+
 

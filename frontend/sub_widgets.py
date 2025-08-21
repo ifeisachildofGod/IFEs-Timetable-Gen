@@ -2,30 +2,21 @@ from copy import deepcopy
 from typing import Any
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel,
+    QDialog, QCheckBox, QGridLayout,
     QScrollArea, QPushButton, QHBoxLayout,
-    QFrame, QDialog, QCheckBox, QGridLayout
+    QMessageBox
 )
-from PyQt6.QtCore import Qt, pyqtBoundSignal
+from PyQt6.QtCore import Qt, pyqtBoundSignal, pyqtSignal
 from frontend.base_widgets import SelectedWidget, UnselectedWidget, CustomLabel, OptionTag, NumberTextEdit
 
 
 class SelectionList(QDialog):
-    def __init__(self, title: str, info: dict, saved_state_changed: pyqtBoundSignal):
+    def __init__(self, title: str, info: list, saved_state_changed: pyqtBoundSignal):
         super().__init__()
         self.setWindowTitle(title)
         self.setFixedSize(400, 300)
         
         self.saved_state_changed = saved_state_changed
-        
-        self.middle_line_thickness = 6
-        self.normal_line_thickness = 1
-        
-        self.selected_widgets = []
-        self.unselected_widgets = []
-        self.separators = []
-        
-        self.content = info["content"]
-        self.id_mapping = deepcopy(info["id_mapping"])
         
         main_layout = QVBoxLayout(self)
         
@@ -33,133 +24,58 @@ class SelectionList(QDialog):
         self.scroll_area.setWidgetResizable(True)
         
         self.container = QWidget()
-        self.container.setProperty("class", "SelectionList")
-        self.container.setContentsMargins(10, 10, 10, 10)
         self.container_layout = QVBoxLayout()
-        self.container_layout.setSpacing(10)
+        
         self.container.setLayout(self.container_layout)
+        self.container.setProperty("class", "SelectionList")
+        
+        self.container_layout.setContentsMargins(10, 20, 20, 5)
+        self.container_layout.setSpacing(30)
         
         self.scroll_area.setWidget(self.container)
         main_layout.addWidget(self.scroll_area)
         
         # Initialize widgets
-        split_index = self.content.index(None)
-        selected_items = self.content[:split_index]
-        unselected_items = self.content[split_index+1:]
+        split_index = info.index(None)
+        selected_items = info[:split_index]
+        unselected_items = info[split_index+1:]
         
         # Add selected items
-        for index, item in enumerate(selected_items):
-            widget = SelectedWidget(item, self, self.id_mapping, self.id_mapping[index], self.saved_state_changed)
-            self.add_item(widget)
-            self.selected_widgets.append(widget)
-            # if item != selected_items[-1]:
-            #     self.add_separator(self.normal_line_thickness, isSelected=True)
-        
-        # Add middle separator if there are unselected items
-        if selected_items and unselected_items:
-            self.add_separator(self.middle_line_thickness)
+        for item_id, item_name in selected_items:
+            widget = SelectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
+            self.container_layout.addWidget(widget)
         
         # Add unselected items
-        for index, item in enumerate(unselected_items):
-            widget = UnselectedWidget(item, self, self.id_mapping, self.id_mapping[index + len(selected_items) + 1], self.saved_state_changed)
-            self.add_item(widget)
-            self.unselected_widgets.append(widget)
-            # if item != unselected_items[-1]:
-            #     self.add_separator(self.normal_line_thickness, isSelected=False)
+        for item_id, item_name in unselected_items:
+            widget = UnselectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
+            self.container_layout.addWidget(widget)
+        
+        self.container_layout.addStretch()
     
     def get(self):
         content = []
         
-        for widget in self.selected_widgets:
+        for widget in self.container.children():
             if isinstance(widget, SelectedWidget):
-                content.append(widget.label.text())
+                content.append((widget.id, widget.text))
         
         content.append(None)
         
-        for widget in self.unselected_widgets:
+        for widget in self.container.children():
             if isinstance(widget, UnselectedWidget):
-                content.append(widget.label.text())
+                content.append((widget.id, widget.text))
         
-        info = {"content": content, "id_mapping": self.id_mapping}
-        
-        return info
+        return content
     
-    def add_item(self, custom_widget, index: int = None):
-        if index is not None:
-            self.container_layout.insertWidget(index, custom_widget)
-        else:
-            self.container_layout.addWidget(custom_widget)
-    
-    def add_separator(self, thickness=1, index: int = None, isSelected: bool = None):
-        separator = QFrame()
-        separator.setProperty("class", "Seperators")
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setFixedHeight(thickness)
+    @staticmethod
+    def fix_none_selection_content_problem(problem_content_list: list):
+        fixed_content_list = problem_content_list.copy()
+        fixed_content_list.insert(fixed_content_list.index(None), (None, None))
+        fixed_content_list.remove(None)
         
-        if index is None:
-            self.container_layout.addWidget(separator)
-        else:
-            self.container_layout.insertWidget(index, separator)
-        
-        self.separators.append(separator)
-        if isSelected is not None:
-            if isSelected:
-                self.selected_widgets.append(separator)
-            else:
-                self.unselected_widgets.append(separator)
+        return fixed_content_list
 
-    def clear_separators(self):
-        for separator in self.separators:
-            self.container_layout.removeWidget(separator)
-            separator.deleteLater()
-        self.separators.clear()
-
-    def update_separators(self):
-        self.clear_separators()
-        
-        # Get all widgets and their positions
-        selected_positions = []
-        unselected_positions = []
-        
-        for i in range(self.container_layout.count()):
-            item = self.container_layout.itemAt(i)
-            if isinstance(item.widget(), SelectedWidget):
-                selected_positions.append(i)
-            elif isinstance(item.widget(), UnselectedWidget):
-                unselected_positions.append(i)
-        
-        # Add separators between selected items
-        for i in range(len(selected_positions) - 1):
-            self.add_separator(
-                thickness=self.normal_line_thickness,
-                index=selected_positions[i] + 1,
-                isSelected=True
-            )
-            # Update positions after inserting separator
-            selected_positions = [p + 1 if p > selected_positions[i] else p 
-                               for p in selected_positions]
-            unselected_positions = [p + 1 for p in unselected_positions]
-        
-        # Add middle separator if we have both types
-        if selected_positions and unselected_positions:
-            self.add_separator(
-                thickness=self.middle_line_thickness,
-                index=selected_positions[-1] + 1
-            )
-            unselected_positions = [p + 1 for p in unselected_positions]
-        
-        # Add separators between unselected items
-        for i in range(len(unselected_positions) - 1):
-            self.add_separator(
-                thickness=self.normal_line_thickness,
-                index=unselected_positions[i] + 1,
-                isSelected=False
-            )
-            unselected_positions = [p + 1 if p > unselected_positions[i] else p 
-                                  for p in unselected_positions]
-
-class SubjectDropDownCheckBoxes(QDialog):
+class SubjectDropdownCheckBoxes(QDialog):
     def __init__(self, title: str, info: dict[str, dict[str, dict[str, dict[str, str | bool]]] | dict[int, str]], saved_state_changed: pyqtBoundSignal, general_data: dict):
         super().__init__()
         
@@ -188,15 +104,12 @@ class SubjectDropDownCheckBoxes(QDialog):
         
         self.setLayout(main_layout)
         
-        self.init()
-        
-        self.container_layout.addStretch()
-    
-    def init(self):
         self.class_check_box_tracker = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "widget": {}}
         
         for widget in self._create_checkbox_widgets(self.info, self.general_data, self.class_check_box_tracker):
             self.container_layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignTop)
+        
+        self.container_layout.addStretch()
     
     def _create_checkbox_widgets(self, data: dict[str, dict[str, str | bool]], general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
         updated_data = deepcopy(general_data)
@@ -223,7 +136,6 @@ class SubjectDropDownCheckBoxes(QDialog):
                 def odp_func(event):
                     if event.button() == Qt.MouseButton.LeftButton:
                         odp_param_func()
-                        print(class_check_box_tracker["widget"][class_id].parent() == main_widget)
                 
                 return odp_func
             
@@ -325,9 +237,14 @@ class SubjectDropDownCheckBoxes(QDialog):
                 self.main_guy_is_clicked = True
                 
                 if is_on:
-                    for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
-                        if not c_box.isChecked():
-                            c_box.click()
+                    if not class_check_box_tracker["sub_cbs"][class_id]:
+                        QMessageBox.critical(self, "Setting SDCB Error", "No class level option has been made for this class level")
+                        self.main_guy_is_clicked = False
+                        class_check_box_tracker["main_cb"][class_id].click()
+                    else:
+                        for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
+                            if not c_box.isChecked():
+                                c_box.click()
                 else:
                     for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
                         if c_box.isChecked():
@@ -374,17 +291,42 @@ class SubjectDropDownCheckBoxes(QDialog):
         
         return checkbox_func
 
-class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
-    def __init__(self, title, info, saved_state_changed, general_data):
-        super().__init__(title, info, saved_state_changed, general_data)
-    
-    def init(self):
+class TeacherDropdownCheckBoxes(QDialog):
+    def __init__(self, title, info, saved_state_changed, teacher_id, general_data, default_max_classes):
+        super().__init__()
+        
+        self.info = info
+        self.teacher_id = teacher_id
+        self.general_data = general_data
+        self.default_max_classes = default_max_classes
+        self.saved_state_changed = saved_state_changed
+        
+        self.setWindowTitle(title)
+        self.setFixedSize(400, 300)
+        
+        self.main_guy_is_clicked = False
+        self.mini_guy_is_clicked = False
+        
+        main_layout = QVBoxLayout(self)
+        
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        
+        container = QWidget()
+        self.container_layout = QVBoxLayout(container)
+        self.container_layout.setContentsMargins(0, 0, 0, 0)
+        
+        main_layout.addWidget(scroll_area)
+        scroll_area.setWidget(container)
+        
+        self.setLayout(main_layout)
+        
         self.subject_check_box_tracker = {}
         self.class_check_box_tracker = {}
         
         for subject_id, info in self.info["content"].items():
             self.subject_check_box_tracker[subject_id] = {}
-            self.class_check_box_tracker[subject_id] = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "widget": {}}
+            self.class_check_box_tracker[subject_id] = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "max_random": {}, "widget": {}}
             
             main_widget = QWidget()
             main_layout = QVBoxLayout()
@@ -428,12 +370,17 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
             main_layout.addWidget(self.subject_check_box_tracker[subject_id]["widget"])
             
             self.container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
+        
+        self.container_layout.addStretch()
     
     def _create_checkbox_widgets(self, data: dict[str, dict[str, dict[str, str | bool]]] | dict[int, str], general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
         updated_data = deepcopy(general_data)
+        
         for class_id, (random_on, options_info) in data.items():
             updated_data["content"][class_id][0] = random_on
-            updated_data["content"][class_id][1].update(options_info)
+            for opt_id, opt_state in options_info.items():
+                if not isinstance(updated_data["content"][class_id][1][opt_id], str) or opt_state:
+                    updated_data["content"][class_id][1][opt_id] = options_info[opt_id]
         
         id_mapping = updated_data["id_mapping"]
         
@@ -474,6 +421,12 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
             
             title = QLabel(id_mapping["main"][class_id])
             
+            max_random_text_input = NumberTextEdit(min_validatorAmt=1, max_validatorAmt=len(class_options))
+            max_random_text_input.edit.setToolTip("Max Classes")
+            max_random_text_input.edit.setText(str(random_on) if random_on is not None else "")
+            max_random_text_input.setVisible(False)
+            max_random_text_input.edit.textChanged.connect(self.make_random_text_changed_func(class_id, data))
+            
             check_box = QCheckBox("Random")
             check_box.clicked.connect(self.make_main_checkbox_func(class_id, data, class_check_box_tracker))
             
@@ -483,12 +436,14 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
             header_layout.addWidget(dp_icon)
             header_layout.addWidget(title)
             header_layout.addStretch()
+            header_layout.addWidget(max_random_text_input)
             header_layout.addWidget(check_box)
             
             class_check_box_tracker["icon"][class_id] = dp_icon
             class_check_box_tracker["sub_cbs"][class_id] = {}
             class_check_box_tracker["main_cb"][class_id] = check_box
-            class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, random_on, data, updated_data, class_check_box_tracker)
+            class_check_box_tracker["max_random"][class_id] = max_random_text_input
+            class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, random_on, data, general_data, updated_data, class_check_box_tracker)
             
             widget_wrapper_layout.addWidget(header)
             widget_wrapper_layout.addWidget(class_check_box_tracker["widget"][class_id])
@@ -505,6 +460,25 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
     def get(self):
         return self.info
     
+    def make_open_dp_func(self, class_id: str, class_check_box_tracker: dict[str, Any]):
+        def open_dp():
+            widget: QWidget = class_check_box_tracker["widget"][class_id]
+            
+            class_check_box_tracker["icon"][class_id].setAngle(0 if class_check_box_tracker["icon"][class_id].angle != 0 else 270)
+            
+            if widget.isVisible():
+                widget.setVisible(False)
+            else:
+                widget.setVisible(True)
+        
+        return open_dp
+    
+    def make_random_text_changed_func(self, class_id, data):
+        def func(text):
+            data[class_id][0] = int(text) if text else None
+        
+        return func
+    
     def make_subject_widget(self, info, general_data, class_check_box_tracker):
         container_widget = QWidget()
         
@@ -518,7 +492,7 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
         
         return container_widget
     
-    def make_dp_widget(self, class_id: str, options: dict[str, bool], random_clicked: bool, content, updated_data, class_check_box_tracker):
+    def make_dp_widget(self, class_id: str, options: dict[str, bool], random_clicked: int | None, content, general_data, updated_data, class_check_box_tracker):
         dp_widget = QWidget()
         dp_widget.setProperty("class", "DPC_Body")
         
@@ -529,18 +503,21 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
         clicked_cbs: list[QCheckBox] = []
         
         for optionID, optionState in options.items():
+            option_widget = QWidget()
             option_layout = QHBoxLayout()
+            
+            option_widget.setLayout(option_layout)
+            option_widget.setDisabled(isinstance(optionState, str))
             
             dp_title = QLabel(updated_data["id_mapping"]["sub"][class_id][optionID])
             
             dp_checkbox = QCheckBox()
-            dp_checkbox.setDisabled(random_clicked)
             
             class_check_box_tracker["sub_cbs"][class_id][optionID] = dp_checkbox
             
-            dp_checkbox.clicked.connect(self.make_sub_checkbox_func(class_id, content, optionID))
+            dp_checkbox.clicked.connect(self.make_sub_checkbox_func(class_id, content, general_data, optionID))
             
-            if optionState and not random_clicked:
+            if optionState and random_clicked is None:
                 clicked_cbs.append(dp_checkbox)
             
             option_layout.addSpacing(50)
@@ -548,7 +525,7 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
             option_layout.addStretch()
             option_layout.addWidget(dp_checkbox)
             
-            dp_layout.addLayout(option_layout)
+            dp_layout.addWidget(option_widget)
         
         dp_widget.setVisible(False)
         
@@ -557,7 +534,7 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
     def make_main_checkbox_func(self, class_id: str, content, class_check_box_tracker):
         def checkbox_func(is_on):
             if class_id not in content:
-                content[class_id] = [False, {}]
+                content[class_id] = [None, {}]
             
             if is_on:
                 for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
@@ -566,25 +543,28 @@ class TeacherDropDownCheckBoxes(SubjectDropDownCheckBoxes):
                 
                 if class_check_box_tracker["icon"][class_id].angle != 270:
                     class_check_box_tracker["icon"][class_id].mouseclicked.emit()
-            else:
-                for c_box in class_check_box_tracker["sub_cbs"][class_id].values():
-                    c_box.setDisabled(False)
+                
+                if not class_check_box_tracker["max_random"][class_id].edit.text():
+                    class_check_box_tracker["max_random"][class_id].edit.setText(str(self.default_max_classes))
             
             class_check_box_tracker["icon"][class_id].setDisabled(is_on)
+            class_check_box_tracker["max_random"][class_id].setVisible(is_on)
             
-            content[class_id][0] = is_on
+            content[class_id][0] = int(class_check_box_tracker["max_random"][class_id].edit.text()) if is_on else None
         
         return checkbox_func
     
-    def make_sub_checkbox_func(self, class_id: str, content, option_id: str):
+    def make_sub_checkbox_func(self, class_id: str, content, general_data, option_id: str):
         def checkbox_func(is_on):
             if is_on:
                 if class_id not in content:
-                    content[class_id] = [False, {}]
+                    content[class_id] = [None, {}]
                 
                 content[class_id][1][option_id] = True
+                general_data["content"][class_id][1][option_id] = self.teacher_id
             else:
                 content[class_id][1].pop(option_id)
+                general_data["content"][class_id][1][option_id] = False
             
             self.saved_state_changed.emit()
         
@@ -700,7 +680,7 @@ class OptionsMaker(QDialog):
         
         self.setWindowTitle(self.title)
         
-        self.options = []
+        self.options: list[OptionTag] = []
         self.current_row = 0
         self.current_col = 0
         self.max_cols = 4  # Maximum number of columns before wrapping
@@ -722,7 +702,7 @@ class OptionsMaker(QDialog):
         self.main_layout.addWidget(self.scroll_area)
         self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
         
-        temp_option = OptionTag("IFe")
+        temp_option = OptionTag("IFE")
         self.setFixedSize((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.grid_layout.spacing()) * self.max_cols, 300)
         
         del temp_option
@@ -734,20 +714,18 @@ class OptionsMaker(QDialog):
     def get(self):
         return self.info
     
-    def add_option(self, _id: str | None = None, text: str = ""):
+    def add_option(self, _id: str | None = None, text: str | None = None):
         option = OptionTag(text)
         
         _id = str(hex(id(option)).upper()) if _id is None else _id
         
         def update_option():
             self.info[_id] = option.get_text()
-            
-            if self.saved_state_changed is not None:
-                self.saved_state_changed.emit()
+            self.saved_state_changed.emit()
         
         update_option()
         
-        option.done_editing.connect(update_option)
+        option.finished_editing_signal.connect(update_option)
         
         def remove_option():
             self.options.remove(option)
@@ -766,15 +744,18 @@ class OptionsMaker(QDialog):
             self.current_col = 0
             self.current_row += 1
         
-        if not text:
+        if text is None:
             option.start_editing()
     
-    def close(self):
+    def closeEvent(self, a0):
         for option in self.options:
             if option.is_editing:
-                option.finish_editing()
+                QMessageBox.critical(self, "Setting OM Error", "Please finish edting the option")
+                a0.ignore()
+                option.start_editing()
+                return
         
-        return super().close()
+        return super().closeEvent(a0)
     
     def reflow_items(self):
         # Remove all widgets from grid
@@ -792,72 +773,217 @@ class OptionsMaker(QDialog):
                 self.current_row += 1
 
 class OptionSelector(QDialog):
+    closed = pyqtSignal()
+    
     def __init__(self, title: str, info: dict[str, list[str | None] | dict[int, str]], saved_state_changed: pyqtBoundSignal):
+        super().__init__()
+        
+        self.setFixedHeight(400)
+        
         self.title = title
         self.info = info
         self.saved_state_changed = saved_state_changed
-        
-        self.max_cols = 4
         
         self.setWindowTitle(self.title)
         
         self.content = self.info["content"]
         self.id_mapping = self.info["id_mapping"]
         
+        self.main_options_rows_layout_list: list[QHBoxLayout] = []
+        self.sub_options_rows_layout_list: list[QHBoxLayout] = []
+        
+        self.main_options_tracker: list[list[OptionTag]] = []
+        self.sub_options_tracker: list[list[QLabel]] = []
+        
         layout = QVBoxLayout()
         self.setLayout(layout)
         
         self.container = QWidget()
         self.main_layout = QVBoxLayout()
+        self.main_layout.setSpacing(10)
         
-        self.container.setContentsMargins(10, 20, 10, 20)
+        self.container.setContentsMargins(10, 10, 10, 10)
         self.container.setLayout(self.main_layout)
         
+        
+        self.main_max_cols = 4
+        
         main_options_widget = QWidget()
-        self.main_options_layout = QGridLayout()
+        self.main_options_layout = QVBoxLayout(main_options_widget)
+        
+        # main_options_scroll_area = QScrollArea()
+        # main_options_scroll_area.setProperty("class", "MainOptionSelector")
+        # main_options_scroll_area.setWidget(main_options_widget)
+        
+        main_options_widget.setProperty("class", "MainOptionSelector")
         main_options_widget.setLayout(self.main_options_layout)
         
-        for index, option_name in enumerate(self.content[:self.content.index(None)]):
-            self.add_option(option_name, index)
+        for index, option_name in enumerate(self.content[:self.content.index(None)].copy()):
+            self._add_new_option(option_name, index)
+        
+        
+        self.sub_max_cols = 6
         
         sub_options_widget = QWidget()
-        self.sub_options_layout = QVBoxLayout()
+        self.sub_options_layout = QVBoxLayout(sub_options_widget)
+        
+        # sub_options_scroll_area = QScrollArea()
+        # sub_options_scroll_area.setProperty("class", "SubOptionSelector")
+        # sub_options_scroll_area.setWidget(sub_options_widget)
+        
+        sub_options_widget.setProperty("class", "SubOptionSelector")
         sub_options_widget.setLayout(self.sub_options_layout)
         
-        for index, option_name in enumerate(self.content[self.content.index(None) + 1:]):
-            self.remove_option(option_name, index)
+        for index, option_name in enumerate(self.content[self.content.index(None) + 1:].copy()):
+            self._remove_new_option(option_name, index)
         
         self.main_layout.setSpacing(20)
         
-        self.main_layout.addWidget(main_options_widget, 7)
-        self.main_layout.addWidget(sub_options_widget, 3)
+        self.main_layout.addWidget(QLabel("Selected"))
+        self.main_layout.addWidget(main_options_widget, 8)
+        self.main_layout.addWidget(QLabel("Unselected"))
+        self.main_layout.addWidget(sub_options_widget, 2)
+        # self.main_layout.addWidget(main_options_scroll_area, 7)
+        # self.main_layout.addWidget(sub_options_scroll_area, 3)
         
-        temp_option = OptionTag("IFe")
-        self.setFixedWidth((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.main_options_layout.spacing()) * self.max_cols)
         
         layout.addWidget(self.container)
+        
+        temp_option = OptionTag("Ife")
+        self.setFixedWidth((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.main_options_layout.spacing()) * self.sub_max_cols)
     
-    def add_option(self, name: str, index: int):
+    def _make_add_option_func_in_remove_opt(self, name: str, option: QLabel):
+        def add_option(_):
+            opt_index = None
+            
+            for row_index, option_row in enumerate(self.sub_options_tracker):
+                if option in option_row:
+                    opt_index = option_row.index(option) + self.sub_max_cols*row_index
+                    break
+            else:
+                raise ValueError(f"{option} is not in the sub options tracker")
+            
+            row = opt_index // self.sub_max_cols
+            col = opt_index % self.sub_max_cols
+            
+            self.sub_options_rows_layout_list[row].removeWidget(self.sub_options_tracker[row][col])
+            old_option = self.sub_options_tracker[row].pop(col)
+            old_option.deleteLater()
+            
+            self._add_new_option(name, opt_index)
+            
+            none_index = self.content.index(None)
+            
+            content_sub_opt_index = opt_index + none_index + 1
+            
+            id_mapping_copy = self.id_mapping.copy()
+            for i in id_mapping_copy:
+                if none_index < i < content_sub_opt_index:
+                    self.id_mapping[i + 1] = id_mapping_copy[i]
+            
+            self.id_mapping[none_index] = self.id_mapping.pop(none_index + 1)
+            
+            self.content.insert(none_index, self.content.pop(content_sub_opt_index))
+        
+        return add_option
+    
+    def _make_remove_option_func_in_add_opt(self, name: str, option: OptionTag):
+        def remove_option():
+            opt_index = None
+            
+            for row_index, option_row in enumerate(self.main_options_tracker):
+                if option in option_row:
+                    opt_index = option_row.index(option) + self.main_max_cols*row_index
+                    break
+            else:
+                raise ValueError(f"{option} is not in the main options tracker")
+            
+            row = opt_index // self.main_max_cols
+            col = opt_index % self.main_max_cols
+            
+            self.main_options_rows_layout_list[row].removeWidget(self.main_options_tracker[row][col])
+            old_option = self.main_options_tracker[row].pop(col)
+            old_option.deleteLater()
+            
+            self._remove_new_option(name, opt_index)
+            
+            id_mapping_copy = self.id_mapping.copy()
+            for i in id_mapping_copy:
+                if i > opt_index:
+                    self.id_mapping[i - 1] = id_mapping_copy[i]
+            
+            self.id_mapping[len(self.content) - 1] = self.id_mapping.pop(opt_index)
+            
+            self.content.append(self.content.pop(opt_index))
+        
+        return remove_option
+    
+    def _add_new_option(self, name: str, index: int):
         option = OptionTag(name)
-        option.deleted.connect(self.remove_option)
-        option.mousePressEvent = lambda _: ()
         
-        row = index // self.max_cols
-        col = index % self.max_cols
+        option.deleted.disconnect()
+        option.deleted.connect(self._make_remove_option_func_in_add_opt(name, option))
+        option.started_editing_signal.disconnect()
         
-        self.main_options_layout.addWidget(option, row, col)
+        row = index // self.main_max_cols
+        col = index % self.main_max_cols
+        
+        if row + 1 >= len(self.main_options_tracker):
+            row_widget = QWidget()
+            row_layout = QHBoxLayout()
+            
+            row_widget.setProperty("class", "OptionSelectorRow")
+            row_widget.setLayout(row_layout)
+            
+            self.main_options_layout.addWidget(row_widget)
+            
+            self.main_options_rows_layout_list.append(row_layout)
+            self.main_options_tracker.append([])
+        
+        if col < len(self.main_options_tracker[row]):
+            self.main_options_rows_layout_list[row].insertWidget(col, option)
+            self.main_options_tracker[row].insert(col, option)
+        else:
+            self.main_options_rows_layout_list[row].addWidget(option)
+            self.main_options_tracker[row].append(option)
     
-    def remove_option(self, name: str, index: int):
+    def _remove_new_option(self, name: str, index: int):
         option = QLabel(name)
-        option.mousePressEvent = lambda: self.add_option(name, len(self.content[:self.content.index(None)]) - 1)
         
-        max_cols = self.sub_options_layout.widget().width() // (option.width() + self.sub_options_layout.spacing() * 2)
+        option.setFixedWidth(150)
+        option.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        option.setProperty("class", "OptionSelectorNotSelected")
+        option.mousePressEvent = self._make_add_option_func_in_remove_opt(name, option)
         
-        row = index // max_cols
-        col = index % max_cols
+        row = index // self.sub_max_cols
+        col = index % self.sub_max_cols
         
-        self.sub_options_layout.addWidget(option, row, col)
+        if row + 1 >= len(self.sub_options_rows_layout_list):
+            row_widget = QWidget()
+            row_layout = QHBoxLayout()
+            
+            row_widget.setProperty("class", "OptionSelectorRow")
+            row_widget.setLayout(row_layout)
+            
+            self.sub_options_layout.addWidget(row_widget)
+            
+            self.sub_options_rows_layout_list.append(row_layout)
+            self.sub_options_tracker.append([])
+        
+        if col < len(self.sub_options_tracker[row]):
+            self.sub_options_rows_layout_list[row].insertWidget(col, option)
+            self.sub_options_tracker[row].insert(col, option)
+        else:
+            self.sub_options_rows_layout_list[row].addWidget(option)
+            self.sub_options_tracker[row].append(option)
     
     def get(self):
         return self.info
+    
+    def get_selected(self):
+        return self.info["content"][:self.info["content"].index(None)]
+    
+    def close(self):
+        self.closed.emit()
+        return super().close()
 

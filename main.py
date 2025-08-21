@@ -9,7 +9,7 @@ if __name__ == "__main__":
     
     THEME_MANAGER.apply_theme(app, "dark-blue")
     
-    window = Window(len(app.arguments()) > 1 and app.arguments()[1] or None)
+    window = Window(app.arguments())
     window.showMaximized()
     
     sys.exit(app.exec())

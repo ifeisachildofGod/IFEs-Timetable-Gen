@@ -14,7 +14,7 @@
         subjectID: (
             subjectName,
             {
-                teachersID: (teachersName, {classLevelIndex: (maxRandomClassesAmt, classID)}),
+                teachersID: (teachersName, {classLevelIndex: (maxRandomClassesAmt, *classID)}),
                 ...,
                 "&timings": {
                     classLevelIndex: (maxPerDay, maxPerWeek),
@@ -83,7 +83,7 @@
             "classes": {
                 "content":{
                     subjectID: {
-                        classID: (isRandomlySelectedState, {optionID: optionState, ...}),
+                        classID: (randomlySelectedMaxAmt, {optionID: optionState, ...}),
                         ...
                     },
                     ...
@@ -123,5 +123,15 @@
             }
         },
         ...
+    }
+
+    "timetableInfo": {
+        "DOTW": {
+            "content": [Monday, Tuesday, ..., None, ..., Saturday, Sunday],
+            "id_mapping": {
+                dayIndex: dayID,
+                ...
+            }
+        }
     }
 }

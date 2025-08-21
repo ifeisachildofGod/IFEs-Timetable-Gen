@@ -24,7 +24,7 @@ class Subject:
     def teacher(self, teacher: 'Teacher'):
         self._teacher = teacher
         self.uniqueID = (self.id + (self._teacher.id if self._teacher is not None else "")).lower()
-        self.uniqueID = self.uniqueID.replace("0x", "").upper()
+        self.uniqueID = self.uniqueID.lower().replace("0x", "").upper()
     
     def copy(self):
         subject = Subject(self.id, self.name, self.total, self.perWeek, self.teacher)
@@ -50,7 +50,7 @@ class Subject:
         self.perWeek -= amount
 
 class Class:
-    def __init__(self, index: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolTeachers: dict[str, Any], weekdays: list[str], breakTimePeriods: list[int]) -> None:
+    def __init__(self, index: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolTeachers: dict[str, "Teacher"], weekdays: list[str], breakTimePeriods: list[int]) -> None:
         self.school = school
         self.schoolDict = schoolDict
         self.schoolTeachers = schoolTeachers
@@ -59,7 +59,7 @@ class Class:
         
         self.index = index
         self.classID = classID
-        self.uniqueID = self.classID + str(self.index + 1)
+        self.uniqueID = Class.getUniqueID(self.index, self.classID)
         self.className = className
         self.namingConvention = namingConvention
         
@@ -70,9 +70,13 @@ class Class:
         
         self.breakTimePeriods = breakTimePeriods
         
-        self.updateTeachers()
+        # self.updateTeachers()
         
         self.timetable = Timetable(self, [subject.copy() for subject in self.subjects], self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
+    
+    @staticmethod
+    def getUniqueID(index, classID):
+        return classID + str(index + 1)
     
     def updateTeachers(self):
         for subjs in self.subjects:
@@ -84,14 +88,13 @@ class Class:
                         self.teachers[teacher] = subjs
 
 class Teacher:
-    def __init__(self, _id: str, name: str, subjects: dict[Subject, Class], schoolTeachers: dict[str, Any]) -> None:
+    def __init__(self, _id: str, name: str, subjects: dict[Subject, Class]) -> None:
         self.id = _id
         self.name = name
         self.subjects = subjects
-        # schoolTeachers[self.name] = self
 
 class Timetable:
-    def __init__(self, cls: Class, subjects: list[Subject], periodsPerDay: list[int], breakTimePeriods: list[int], schoolDict: dict[Class, Any]) -> None:
+    def __init__(self, cls: Class, subjects: list[Subject], periodsPerDay: list[int], breakTimePeriods: list[int], schoolDict: dict[Class, "Timetable"]) -> None:
         self.cls = cls
         self.schoolDict = schoolDict
         
@@ -128,7 +131,7 @@ class Timetable:
     
     def reset(self):
         self.subjects = self._subjects
-        self._subjects = [subject.copy() for subject in self.subjects]
+        self._subjects = [subject.copy() for subject in self.subjects if subject.id != self.freePeriodID]
         
         self.table: dict[str, list[Subject]] = {day: [] for day in self.cls.weekdays}
         self.remainderContent = []

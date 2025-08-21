@@ -111,21 +111,25 @@ class ThemeManager:
         if name not in self.themes:
             raise ValueError(f"Theme '{name}' not loaded.")
         
-        theme = self.themes[name]
         self.current_theme = name
-
-        palette_vars = theme.get("palette")
+        
+        theme = self.themes[self.current_theme]
+        
         stylesheet_template = theme.get("stylesheet")
         
-        # Inject palette variables into stylesheet using string formatting
-        try:
-            stylesheet_template = self._process_stylesheet_func_pointers("__", stylesheet_template, palette_vars)
-            applied_stylesheet = stylesheet_template.format(**palette_vars)
-        except KeyError as e:
-            raise KeyError(f"Missing color value for: {e} on line {stylesheet_template[:stylesheet_template.find(str(e)) + 1].count("\n") + 1}")
+        app.setStyleSheet(self.parse_stylesheet(stylesheet_template))
+    
+    def parse_stylesheet(self, stylesheet: str):
+        assert self.current_theme is not None, "No theme has been set"
         
-        app.setStyleSheet(applied_stylesheet)
-
+        palette_vars = self.themes[self.current_theme].get("palette")
+        
+        try:
+            stylesheet = self._process_stylesheet_func_pointers("__", stylesheet, palette_vars)
+            return stylesheet.format(**palette_vars)
+        except KeyError as e:
+            raise KeyError(f"Missing color value for: {e} on line {stylesheet[:stylesheet.find(str(e)) + 1].count("\n") + 1}")
+    
     def get_current_theme(self) -> dict[str, dict[str, str] | str]:
         return self.themes.get(self.current_theme, None)
     
@@ -136,5 +140,5 @@ class ThemeManager:
         return list(self.themes.keys())
 
 THEME_MANAGER = ThemeManager()
-THEME_MANAGER.load_theme_from_file("src/theme.json", STYLESHEET)
+THEME_MANAGER.load_theme_from_file("frontend/theme/theme.json", STYLESHEET)
 

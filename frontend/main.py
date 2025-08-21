@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import pyqtSignal
-from matplotlib.cbook import flatten
+from frontend.base_widgets import CustomLabel
 from frontend.setting_widgets import SettingWidget, Subjects, Teachers, Classes
 from frontend.editing_widgets import TimeTableEditor
 from frontend.others import *
@@ -19,25 +19,28 @@ from middle.main import School
 class Window(QMainWindow):
     saved_state_changed = pyqtSignal()
     
-    def __init__(self, path: str | None):
+    def __init__(self, arguments: list[str]):
         super().__init__()
+        path = len(arguments) > 1 and arguments[1] or None
+        
         self.title = "IFEs Timetable Generator"
         
         self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME});;JSON Files (*.json)")
         self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback)
         
         # Default data
-        self.default_period_amt = 10  # Being used by the timetable editor and settings editor
-        self.default_breakperiod = 7  #   "     "   "  "      "       "     "     "       "
-        self.default_per_day = 2      # Being used by the settings editors
-        self.default_per_week = 4     #   "     "   "  "     "        "
-        self.default_save_data = {"levels": [], "subjectTeacherMapping": {}, 'subjects': {}}
-        self.default_weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        self.default_period_amt   =   10  # Being used by the timetable editor
+        self.default_breakperiod  =   7   #   "     "   "  "      "       "
+        self.default_per_day      =   2   # Being used by the classes editor
+        self.default_per_week     =   4   #   "     "   "  "     "       "
+        self.default_max_classes  =   3   # Being used by the teachers editor
+        self.default_save_data    = {"levels": [], "subjectTeacherMapping": {}}
+        self.default_weekdays     = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         
         self.children_saved_tracker = {}
         
         # Get saved data
-        self._init_data()
+        self._init_save_data()
         self.saved_state_changed.connect(self.unsaved_callback)
         
         # Initialize school data
@@ -47,25 +50,35 @@ class Window(QMainWindow):
         self.display_index = 0
         self.prev_display_index = 0
         
-        self.setGeometry(100, 100, 1000, 700)
-        
         self.create_menu_bar()
         
         # Create main container
         container = QWidget()
         main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(0, 10, 5, 5)
         container.setLayout(main_layout)
         
         # Create sidebar
-        sidebar = QWidget()
-        sidebar_layout = QVBoxLayout()
+        main_sidebar_widget = QWidget()
+        main_sidebar_layout = QHBoxLayout()
         
-        sidebar.setFixedWidth(200)
-        sidebar.setLayout(sidebar_layout)
-        sidebar.setProperty("class", "Sidebar")
+        main_sidebar_widget.setLayout(main_sidebar_layout)
+        main_sidebar_widget.setProperty("class", "Sidebar")
         
-        sidebar_layout.setSpacing(0)
-        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        # self.toggle_sidebar_button = CustomLabel("▼", 90)
+        # self.toggle_sidebar_button.setProperty("class", "SidebarToggleButton")
+        # self.toggle_sidebar_button.mouseclicked.connect(self.toggle_sidebar)
+        # self.toggle_sidebar_button.setFixedSize(20, 150)
+        
+        self.sub_sidebar_widget = QWidget()
+        sub_sidebar_layout = QVBoxLayout()
+        
+        self.sub_sidebar_widget.setFixedWidth(200)
+        self.sub_sidebar_widget.setLayout(sub_sidebar_layout)
+        self.sub_sidebar_widget.setProperty("class", "SubSidebar")
+        
+        sub_sidebar_layout.setSpacing(0)
+        sub_sidebar_layout.setContentsMargins(0, 0, 0, 0)
         
         # Create stacked widget for content
         self.stack = QStackedWidget()
@@ -81,7 +94,7 @@ class Window(QMainWindow):
         self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
         self.classes_widget = Classes(self, self.save_data.get("classesInfo"), self.saved_state_changed)
         
-        self.timetable_widget = TimeTableEditor(self, self.school)
+        self.timetable_widget = TimeTableEditor(self, self.school, self.save_data.get("timetableInfo"), self.saved_state_changed)
         
         self.option_buttons = [subjects_btn, teachers_btn, classes_btn, timetable_btn]
         
@@ -96,14 +109,18 @@ class Window(QMainWindow):
             button.clicked.connect(self.make_option_button_func(index))
         
         # Add buttons to sidebar
-        sidebar_layout.addWidget(subjects_btn)
-        sidebar_layout.addWidget(teachers_btn)
-        sidebar_layout.addWidget(classes_btn)
-        sidebar_layout.addStretch()
-        sidebar_layout.addWidget(timetable_btn)
+        sub_sidebar_layout.addWidget(subjects_btn)
+        sub_sidebar_layout.addWidget(teachers_btn)
+        sub_sidebar_layout.addWidget(classes_btn)
+        sub_sidebar_layout.addStretch()
+        sub_sidebar_layout.addWidget(timetable_btn)
+        
+        # Add sub sidebar widgets to main sidebar layout
+        main_sidebar_layout.addWidget(self.sub_sidebar_widget)
+        # main_sidebar_layout.addWidget(self.toggle_sidebar_button)
         
         # Add widgets to main layout
-        main_layout.addWidget(sidebar)
+        main_layout.addWidget(main_sidebar_widget)
         main_layout.addWidget(self.stack)
         
         self.setCentralWidget(container)
@@ -111,8 +128,8 @@ class Window(QMainWindow):
         
         self.orig_data = deepcopy(self.save_data)
     
-    def _init_data(self):
-        self.saved = False
+    def _init_save_data(self):
+        self.saved = True
         self.uncompressed_path = None
         self.save_data = deepcopy(self.default_save_data)
         self.orig_data = deepcopy(self.save_data)
@@ -125,10 +142,29 @@ class Window(QMainWindow):
             self._fix_data()
             
             self.setWindowTitle(f"{self.title} - {self.file.path}")
-            
-            self.saved = True
         else:
             self.setWindowTitle(self.title)
+    
+    # def toggle_sidebar(self):
+    #     if self.sub_sidebar_widget.isVisible():
+    #         self.toggle_sidebar_button.setAngle(270)
+    #         self.sub_sidebar_widget.setVisible(False)
+            
+    #         b1 = 0
+    #         b2 = 15
+    #     else:
+    #         self.toggle_sidebar_button.setAngle(90)
+    #         self.sub_sidebar_widget.setVisible(True)
+            
+    #         b1 = 15
+    #         b2 = 0
+        
+    #     self.toggle_sidebar_button.setStyleSheet(f"""
+    #         border-top-left-radius: {b1}px;
+    #         border-bottom-left-radius: {b1}px;
+    #         border-top-right-radius: {b2}px;
+    #         border-bottom-right-radius: {b2}px;
+    #     """)
     
     def unsaved_callback(self):
         self.saved = False
@@ -161,14 +197,12 @@ class Window(QMainWindow):
         return content
     
     def open_callback(self, path: str):
-        # def func(path):
-        win = Window([path])
+        win = Window(path)
         win.showMaximized()
         
         if not hasattr(self, '_windows'):
             self._windows = []
         self._windows.append(win)
-        # self._file_dialog(func, "open")
     
     def save_callback(self, path: str):
         self.saved = True
@@ -231,13 +265,15 @@ class Window(QMainWindow):
         setting_widgets: dict[str, SettingWidget] = {
             "subjectsInfo": self.subjects_widget,
             "teachersInfo": self.teachers_widget,
-            "classesInfo": self.classes_widget
+            "classesInfo": self.classes_widget,
+            "timetableInfo": self.timetable_widget
         }
         
         return {
+            
             widget_name: {
                 "variables": widget.get(),
-                "constants": widget.get_constants()
+                "constants": getattr(widget, "get_constants", lambda: {})()
             }
             for widget_name, widget in
             setting_widgets.items()

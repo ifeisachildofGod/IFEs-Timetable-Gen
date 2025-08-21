@@ -3,10 +3,10 @@ import json
 import random
 from typing import Union
 from matplotlib.cbook import flatten
-if __name__ == "__main__":
-    from objects import *
-else:
-    from middle.objects import *
+# if __name__ == "__main__":
+#     from objects import *
+# else:
+from middle.objects import *
 
 PotentialOptionType = Union[
     dict[str,
@@ -40,9 +40,7 @@ class School:
         self.teachers: dict[str, Teacher] = {}
         self.schoolDict: dict[Class, Timetable] = {}
         
-        self.project = project
-        
-        self.setSchoolInfoFromProjectDict()
+        self.setProjectData(project)
     
     def _nullCheck(self, value, null_replacement):
         return null_replacement if value is None else value
@@ -58,17 +56,17 @@ class School:
             
             randomTeachers = []
             for teacherID, (teacherName, levelIndexesMapping) in subjectInfo.items():
-                for classIndex, (maxRandomClassesAmt, options) in levelIndexesMapping.items():
+                for strClassIndex, (maxRandomClassesAmt, options) in levelIndexesMapping.items():
                     teachersMapping = {}
                     
-                    timings = subjectTimingMappings[str(classIndex)]
+                    timings = subjectTimingMappings[strClassIndex]
                     if options:
                         for optionID in options:
                             teachersMapping[optionID] = [[teacherID, teacherName], []]
                         
-                        subjects[subjectID][1][str(classIndex)] = [timings[0], timings[1], teachersMapping]
+                        subjects[subjectID][1][strClassIndex] = [timings[0], timings[1], teachersMapping]
                     else:
-                        randomTeachers.append([str(classIndex), [teacherID, teacherName], timings, maxRandomClassesAmt])
+                        randomTeachers.append([strClassIndex, [teacherID, teacherName], timings, maxRandomClassesAmt])
             
             for strClassIndex, t_data, timings, maxClasses in randomTeachers:
                 classAmt = 0
@@ -154,7 +152,14 @@ class School:
         for _, cls in self.classes.items():
             self.generateTimetable(cls)
     
+    def setProjectData(self, project: ProjectType):
+        self.project = project
+    
     def setSchoolInfoFromProjectDict(self):
+        self.classes = {}
+        self.teachers = {}
+        self.schoolDict = {}
+        
         classIDNameMapping = {}
         for _, levelInfo in self.project['levels']:
             for classID, (className, _) in levelInfo.items():
@@ -164,37 +169,35 @@ class School:
         breakperiods = [{_id: b for _id, (_, (_, b, _))  in classInfo.items()} for _, classInfo in self.project['levels']]
         weekdays = [{_id: w for _id, (_, (_, _, w))  in classInfo.items()} for _, classInfo in self.project['levels']]
         levelNames = [name for name, _ in self.project['levels']]
+        classOptions = [[_id for _id, _ in classInfo.items()] for _, classInfo in self.project['levels']]
         
         subjects = self.project.get("subjects")
+        
         if subjects is None:
-            classOptions = [[_id for _id, _ in classInfo.items()] for _, classInfo in self.project['levels']]
             subjects = self.project["subjects"] = self._getSubjects(classOptions, self.project["subjectTeacherMapping"])
         
+        for classIndex, classIDs in enumerate(classOptions):
+            for classID in classIDs:
+                cls = Class(classIndex, classID, classIDNameMapping[classID], [], periods[classIndex][classID], levelNames, self, self.schoolDict, self.teachers, weekdays[classIndex][classID], breakperiods[classIndex][classID])
+                self.classes[cls.uniqueID] = cls
+        
         for subjectID, (subjectName, subjectInfo) in subjects.items():
-            for index, (perDay, perWeek, classTeacherMapping) in subjectInfo.items():
+            for classIndex, (perDay, perWeek, classTeacherMapping) in subjectInfo.items():
                 for classID, ((teacherID, teachersName), _) in classTeacherMapping.items():
-                    index = int(index)
-                    subj = Subject(subjectID, subjectName, perDay, perWeek, None)
+                    teacher = self.teachers[teacherID] = self.teachers.get(teacherID, Teacher(teacherID, teachersName, {}))
                     
-                    teacher = self.teachers.get(teacherID)
-                    if teacher is not None:
-                        subj.teacher = teacher
-                    else:
-                        self.teachers[teacherID] = teacher = subj.teacher = Teacher(teacherID, teachersName, {subj: None}, self.teachers)
+                    subj = Subject(subjectID, subjectName, perDay, perWeek, teacher)
                     
-                    new_cls = Class(index, classID, classIDNameMapping[classID], [subj], periods[index][classID], levelNames, self, self.schoolDict, self.teachers, weekdays[index][classID], breakperiods[index][classID])
-                    cls = self.classes.get(new_cls.uniqueID)
-                    if cls is not None:
-                        cls.subjects.append(subj)
-                        cls.timetable.subjects.append(subj)
-                    else:
-                        self.classes[new_cls.uniqueID] = cls = new_cls
+                    cls = self.classes[Class.getUniqueID(int(classIndex), classID)]
                     
                     teacher.subjects[subj] = cls
-        
-        for _, cls in self.classes.items():
-            cls.timetable._subjects = [s.copy() for s in cls.timetable.subjects]
-            cls.updateTeachers()
+                    
+                    cls.subjects.append(subj)
+                    cls.teachers[teacher] = subj
+                    cls.timetable.subjects.append(subj)
+                    cls.timetable._subjects.append(subj.copy())
+                    
+                    teacher.subjects[subj] = cls
         
         self.setTimetableFromProjectDict()
     
