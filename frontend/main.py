@@ -1,20 +1,7 @@
-import gzip, json
+from frontend.imports import *
 
-from copy import deepcopy
-from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout,
-    QVBoxLayout, QPushButton, QStackedWidget,
-    QMessageBox
-)
-from PyQt6.QtGui import QAction
-from PyQt6.QtCore import pyqtSignal
-from frontend.base_widgets import CustomLabel
-from frontend.setting_widgets import SettingWidget, Subjects, Teachers, Classes
+from frontend.setting_widgets import *
 from frontend.editing_widgets import TimeTableEditor
-from frontend.others import *
-
-from middle.main import School
-
 
 class Window(QMainWindow):
     saved_state_changed = pyqtSignal()

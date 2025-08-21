@@ -1,11 +1,5 @@
+from frontend.imports import *
 
-import gzip
-import json
-import shutil
-from typing import Any, Optional, Callable
-
-# GUI Imports
-from PyQt6.QtWidgets import QWidget, QMessageBox, QFileDialog
 
 EXTENSION_NAME = "ttbl"
 
@@ -24,6 +18,32 @@ def gzip_file(input_file_path: str):
             shutil.copyfileobj(f_in, f_out)
     
     return output_file_path, input_file_path
+
+
+class Thread(QThread):
+    crashed = pyqtSignal(Exception)
+    
+    def __init__(self, main_window: QMainWindow, func: Callable):
+        super().__init__()
+        self.setParent(None)
+        
+        self.func = func is not None and func or (lambda: ())
+        main_window.close = self._window_closed()
+    
+    def _window_closed(self):
+        def window_closed_event(self):
+            self.exit(0)
+            super().close()
+        
+        return window_closed_event
+    
+    def run(self):
+        try:
+            self.func()
+        except Exception as e:
+            self.crashed.emit(e)
+            self.exit(-1)
+
 
 
 class FileManager:

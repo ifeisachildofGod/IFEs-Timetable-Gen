@@ -1,15 +1,5 @@
-from copy import deepcopy
-from typing import Callable
-from frontend.sub_widgets import (
-    SelectionList, SubjectDropdownCheckBoxes, SubjectSelection,
-    OptionsMaker, TeacherDropdownCheckBoxes
-)
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout,
-    QLineEdit, QPushButton, QScrollArea,
-    QMainWindow
-)
-from PyQt6.QtCore import Qt, pyqtBoundSignal
+from frontend.imports import *
+from frontend.sub_widgets import *
 
 class SettingWidget(QWidget):
     def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[str], saved_state_changed: pyqtBoundSignal, data: dict | None = None):

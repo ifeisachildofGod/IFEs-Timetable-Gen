@@ -1,7 +1,4 @@
-import os
-import json
-from copy import deepcopy
-from PyQt6.QtWidgets import QApplication
+from frontend.imports import *
 from frontend.theme.stylesheet import STYLESHEET
 
 def _hex_to_rgb(hex_color: str, brightness: int = 1) -> tuple[int, int, int]:

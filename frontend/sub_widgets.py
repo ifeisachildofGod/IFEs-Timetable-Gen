@@ -1,14 +1,6 @@
-from copy import deepcopy
-from typing import Any
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel,
-    QDialog, QCheckBox, QGridLayout,
-    QScrollArea, QPushButton, QHBoxLayout,
-    QMessageBox
-)
-from PyQt6.QtCore import Qt, pyqtBoundSignal, pyqtSignal
-from frontend.base_widgets import SelectedWidget, UnselectedWidget, CustomLabel, OptionTag, NumberTextEdit
+from frontend.imports import *
 
+from frontend.base_widgets import *
 
 class SelectionList(QDialog):
     def __init__(self, title: str, info: list, saved_state_changed: pyqtBoundSignal):

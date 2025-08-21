@@ -1,7 +1,4 @@
-import sys
-from PyQt6.QtWidgets import QApplication
-from frontend.main import Window
-from frontend.theme.theme import THEME_MANAGER
+from frontend.main import *
 
 
 if __name__ == "__main__":

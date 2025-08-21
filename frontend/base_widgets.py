@@ -1,12 +1,6 @@
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel,
-    QPushButton, QHBoxLayout, QLineEdit,
-    QTableWidgetItem, QMenu
-)
-from PyQt6.QtGui import QFontMetrics, QIntValidator, QPainter, QColor, QMouseEvent
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtBoundSignal
+from frontend.imports import *
+from frontend.others import *
 from frontend.theme.theme import THEME_MANAGER
-from middle.objects import Class, Subject
 
 
 class TimeTableItem(QTableWidgetItem):

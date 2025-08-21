@@ -1,54 +1,12 @@
-import random
-from typing import Callable
-from matplotlib.cbook import flatten
-from frontend.base_widgets import DraggableSubjectLabel, TimeTableItem
-from frontend.sub_widgets import (
-    CustomLabel, OptionSelector, NumberTextEdit
-    )
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout,
-    QLineEdit, QPushButton, QScrollArea,
-    QTableWidget, QLabel, QFrame,
-    QAbstractItemView, QHeaderView, QMenu, QSizePolicy,
-    QProgressBar, QCheckBox, QMainWindow, QMessageBox
-)
+from frontend.imports import *
 
-from PyQt6.QtGui import QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent
-from PyQt6.QtCore import Qt, QMimeData, QThread, QTimer, pyqtSignal, pyqtBoundSignal
-
-from middle.main import School, Class
-from middle.objects import Subject
-
+from frontend.sub_widgets import *
 
 DOTW_DATA = {
     "content": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", None, "Saturday", "Sunday"],
     "id_mapping": {0: "ID:monday3231", 1: "ID:tuesday6456", 2: "ID:wednesday0921", 3: "ID:thursday9182", 4: "ID:friday8765", 6: "ID:saturday8728", 7: "ID:sunday0091"}
 }
 
-
-class Thread(QThread):
-    crashed = pyqtSignal(Exception)
-    
-    def __init__(self, main_window: QMainWindow, func: Callable):
-        super().__init__()
-        self.setParent(None)
-        
-        self.func = func is not None and func or (lambda: ())
-        main_window.close = self._window_closed()
-    
-    def _window_closed(self):
-        def window_closed_event(self):
-            self.exit(0)
-            super().close()
-        
-        return window_closed_event
-    
-    def run(self):
-        try:
-            self.func()
-        except Exception as e:
-            self.crashed.emit(e)
-            self.exit(-1)
 
 class _ProgressBar(QProgressBar):
     def __init__(self, master: QWidget):
