@@ -12,8 +12,15 @@ from PyQt6.QtWidgets import (
     QTableWidget, QHeaderView, QSizePolicy, QProgressBar,
     QFileDialog, QApplication
 )
-from PyQt6.QtGui import QAction, QFontMetrics, QIntValidator, QPainter, QColor, QMouseEvent, QDrag, QDragEnterEvent, QDragMoveEvent, QDropEvent
-from PyQt6.QtCore import Qt, QTimer, QThread, QMimeData, pyqtSignal, pyqtBoundSignal
+from PyQt6.QtGui import (
+    QAction, QFontMetrics, QIntValidator, QPainter,
+    QColor, QMouseEvent, QDrag, QDragEnterEvent,
+    QDragMoveEvent, QDropEvent
+)
+from PyQt6.QtCore import (
+    Qt, QTimer, QThread, QMimeData,
+    pyqtSignal, pyqtBoundSignal, QPoint
+)
 
 
 

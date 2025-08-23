@@ -8,13 +8,13 @@
   "theme":{
     "light":{
       "bg1": "#ffffff",
-      "bg2": "#ddd",
-      "bg3": "#b8b8b8",
-      "bg4": "#f0f0f0",
-      "bg5": "#ffffff",
+      "bg2": "#d0d0d0",
+      "bg3": "#ececec",
+      "bg4": "#b8b8b8",
+      "bg5": "#e9e9e9",
       "text": "#1a1a1a",
-      "border1": "#000",
-      "border2": "#222"
+      "border1": "#131313",
+      "border2": "#202020"
     },
     "dark": {
       "bg1": "#1e1e1e",
@@ -23,8 +23,8 @@
       "bg4": "#3a3a3d",
       "bg5": "#2d2d30",
       "text": "#f0f0f0",
-      "border1": "#fff",
-      "border2": "#ddd"
+      "border1": "#f0f0f0",
+      "border2": "#d0d0d0"
     },
     "red": {
       "bg1": "#3f0000",
@@ -33,8 +33,8 @@
       "bg4": "#7e0000",
       "bg5": "#300000",
       "text": "#f0f0f0",
-      "border1": "#fff",
-      "border2": "#ddd"
+      "border1": "#f0f0f0",
+      "border2": "#d0d0d0"
     },
     "green": {
       "bg1": "#001b01",
@@ -43,8 +43,8 @@
       "bg4": "#00660e",
       "bg5": "#003008",
       "text": "#f0f0f0",
-      "border1": "#fff",
-      "border2": "#ddd"
+      "border1": "#f0f0f0",
+      "border2": "#d0d0d0"
     },
     "lightblue": {
       "bg1": "#001b17",
@@ -53,8 +53,8 @@
       "bg4": "#006666",
       "bg5": "#002d30",
       "text": "#f0f0f0",
-      "border1": "#fff",
-      "border2": "#ddd"
+      "border1": "#f0f0f0",
+      "border2": "#d0d0d0"
     },
     "darkblue": {
       "bg1": "#02001b",
@@ -63,8 +63,8 @@
       "bg4": "#020066",
       "bg5": "#030030",
       "text": "#f0f0f0",
-      "border1": "#fff",
-      "border2": "#ddd"
+      "border1": "#f0f0f0",
+      "border2": "#d0d0d0"
     }
   },
   "color": {
@@ -72,19 +72,22 @@
       "fg1": "#3251ff",
       "fg2": "#1a6aff",
       "fg3": "#0025cc",
-      "fg4": "#5b79ff"
+      "fg4": "#5b79ff",
+      "button_text": "#ffffff"
     },
     "green": {
       "fg1": "#0e9c15",
       "fg2": "#15810b",
       "fg3": "#00cc1b",
-      "fg4": "#004d13"
+      "fg4": "#004d13",
+      "button_text": "#ffffff"
     },
     "red": {
       "fg1": "#9c0e0e",
       "fg2": "#810b0b",
       "fg3": "#cc0000",
-      "fg4": "#ff4848"
+      "fg4": "#ff4848",
+      "button_text": "#ffffff"
     }
   }
 }

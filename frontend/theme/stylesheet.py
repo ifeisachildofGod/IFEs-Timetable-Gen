@@ -80,6 +80,7 @@ STYLESHEET = '''
         padding: 12px 20px;
         border-radius: 0px;
         background-color: {bg1};
+        color: {text};
         border-left: 0px solid {fg1};
     }}
     QWidget.SubSidebar QPushButton:hover {{
@@ -90,18 +91,6 @@ STYLESHEET = '''
         border-left: 4px solid {fg2};
     }}
     
-    QMenuBar {{
-        background-color: {bg5};
-        color: {text};
-        border-bottom: 1px solid {border1};
-    }}
-    QMenuBar::item {{
-        background: transparent;
-        padding: 8px 12px;
-    }}
-    QMenuBar::item:selected {{
-        background-color: {fg2};
-    }}
     
     
     QLabel {{
@@ -128,7 +117,7 @@ STYLESHEET = '''
     
     QPushButton {{
         background-color: {fg1};
-        color: {text};
+        color: {button_text};
         border: none;
         padding: 8px 16px;
         border-radius: 4px;
@@ -212,15 +201,36 @@ STYLESHEET = '''
         font-weight: bold;
     }}
     
-    QMenu {{
-        background-color: {bg2};
+    
+    QMenuBar {{
         color: {text};
+        background-color: {bg5};
+        border-bottom: 1px solid {border1};
+    }}
+    QMenuBar::item {{
+        background-color: transparent;
+        padding: 8px 12px;
+    }}
+    QMenuBar::item:selected {{
+        background-color: {hover__bg5};
+    }}
+    QMenu {{
+        color: {text};
+        padding: 5px;
+        background-color: {bg2};
         border: 1px solid {border2};
-        padding: 0px
+        border-radius: 5px;
+    }}
+    QMenu::item {{
+        border-radius: 4px;
+        padding: 5px 20px;
+        margin: 1px 3px;
     }}
     QMenu::item:selected {{
-        background-color: {hover__bg2};
+        color: {button_text};
+        background-color: {fg2};
     }}
+    
     
     
     QTableView {{
@@ -261,6 +271,7 @@ STYLESHEET = '''
     
     
     QLabel.Arrow {{
+        color: {fg2};
         background: none;
         font-weight: bold;
     }}
@@ -288,7 +299,6 @@ STYLESHEET = '''
         background-color: {bg4};
     }}
     QWidget.DPC_Header QLabel.Arrow {{
-        color: {fg2};
         font-size: 16px;
     }}
     QWidget.DPC_Header QLabel.Arrow:hover {{
@@ -320,7 +330,7 @@ STYLESHEET = '''
         min-height: 0px;
     }}
     QPushButton.Close:hover {{
-        color: {hover__text};
+        color: {fg1};
     }}
     QPushButton.SelectionAdd {{
         background-color: {success};
@@ -401,14 +411,15 @@ STYLESHEET = '''
         min-width: 120px;
     }}
     QWidget.OptionTag QLabel {{
+        color: {button_text};
         background-color: {fg1};
         font-size: 13px;
         border-radius: 8px;
         padding: 4px 8px;
     }}
     QLineEdit.OptionEdit {{
-        border: none;
         color: {text};
+        border: none;
         max-width: 100px;
         font-size: 13px;
         padding: 4px 8px;
@@ -504,14 +515,16 @@ STYLESHEET = '''
         background: none;
     }}
     
-    QLabel.Timetable_DP_Button {{
-        background-color: {bg4};
-        padding: 10px;
+    QPushButton.Timetable_DP_OptionText {{
+        color: {text};
+        padding: 2px;
+        min-width: 20px;
+        font-weight: bold;
+        background-color: transparent;
     }}
-    QLabel.Timetable_DP_Button:hover {{
-        background-color: {hover__bg4};
+    QPushButton.Timetable_DP_OptionText:hover {{
+        background-color: {hover__bg3};
     }}
-    
 '''
 
 

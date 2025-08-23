@@ -65,32 +65,25 @@ class _TimetableSettings(QWidget):
         self.main_layout = QVBoxLayout()
         self.setLayout(self.main_layout)
         
-        self.main_settings_widget = QWidget()
+        self.settings_menu = QFrame()
+        self.settings_menu.setProperty("class", "Menu")
+        self.settings_menu.setStyleSheet("QFrame.Menu { border: 1px solid "+ THEME_MANAGER.parse_stylesheet("{border2}") +"; }")
+        self.settings_menu.setWindowFlags(Qt.WindowType.Popup)
+        self.settings_menu.setFrameShape(QFrame.Shape.Box)
         
-        self.main_settings_layout = QVBoxLayout()
-        self.main_settings_widget.setLayout(self.main_settings_layout)
+        self.settings_menu_layout = QVBoxLayout()
+        self.settings_menu.setLayout(self.settings_menu_layout)
         
         options_widget = QWidget()
         
         options_layout = QHBoxLayout()
         options_widget.setLayout(options_layout)
         
-        self.toogle_button = CustomLabel("▼", 0)
+        self.toogle_button = QPushButton("☰")
         self.toogle_button.setProperty("class", "Timetable_DP_OptionText")
-        self.toogle_button.setStyleSheet("border-top-right-radius: 10px; border-bottom-right-radius: 10px;")
-        self.toogle_button.mouseclicked.connect(self._toogle)
+        self.toogle_button.clicked.connect(self._toogle)
         
-        self.options_info = CustomLabel("Expand Options")
-        self.options_info.setProperty("class", "Timetable_DP_OptionText")
-        self.options_info.setStyleSheet("border-top-left-radius: 10px; border-bottom-left-radius: 10px;")
-        self.options_info.mouseclicked.connect(self._toogle)
-        
-        options_layout.addStretch()
-        options_layout.addWidget(self.options_info, alignment=Qt.AlignmentFlag.AlignRight)
-        options_layout.addWidget(self.toogle_button, alignment=Qt.AlignmentFlag.AlignRight)
-        
-        self.main_layout.addWidget(options_widget)
-        self.main_layout.addWidget(self.main_settings_widget)
+        self.main_layout.addWidget(self.toogle_button, alignment=Qt.AlignmentFlag.AlignRight)
         
         timetable_settings_widget = QWidget()
         timetable_settings_layout = QHBoxLayout()
@@ -154,7 +147,7 @@ class _TimetableSettings(QWidget):
         generate_button.clicked.connect(self.generate_new_school_timetable)
         
         refresh_button = QPushButton("Refresh")
-        refresh_button.clicked.connect(self.refresh)
+        refresh_button.clicked.connect(lambda: self.refresh())
         
         right_option_layout.addWidget(generate_button)
         right_option_layout.addWidget(refresh_button)
@@ -162,10 +155,8 @@ class _TimetableSettings(QWidget):
         general_settings_layout.addWidget(left_option_widget)
         general_settings_layout.addWidget(right_option_widget)
         
-        self.main_settings_layout.addWidget(general_settings_widget)
-        self.main_settings_layout.addWidget(timetable_settings_widget)
-        
-        self.main_settings_widget.setVisible(False)
+        self.settings_menu_layout.addWidget(general_settings_widget)
+        self.settings_menu_layout.addWidget(timetable_settings_widget)
     
     def _generating_finished(self):
         self._can_generate_new = True
@@ -186,10 +177,12 @@ class _TimetableSettings(QWidget):
             self.timetable_update(timetable)
     
     def _toogle(self):
-        self.toogle_button.setAngle(180 * (not self.main_settings_widget.isVisible()))
-        self.options_info.setText("Callapse Options" if not self.main_settings_widget.isVisible() else "Expand Options")
-        self.main_settings_widget.setVisible(not self.main_settings_widget.isVisible())
-        self.main_settings_widget.update()
+        if self.settings_menu.isVisible():
+            self.settings_menu.hide()
+        else:
+            toogle_button_pos = self.toogle_button.mapToGlobal(QPoint(-480, self.toogle_button.height()))
+            self.settings_menu.move(toogle_button_pos)
+            self.settings_menu.show()
     
     def _generate(self):
         self.saved_state_changed.emit()
@@ -284,31 +277,36 @@ class _TimetableSettings(QWidget):
         
         timetable.save_timetable()
     
-    def _show_irreversible_warning_screen(self):
+    def _continue_with_irreversable_action(self):
         return QMessageBox.StandardButton.Yes == QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
                                                                                                   "All information will be overwritten",
                                                                             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
     
-    def refresh(self):
+    def refresh(self, direct_call=True):
+        if not self.editor.timetable_widgets and direct_call:
+            QMessageBox.critical(self, "Refresh Error", "Nothing to refresh")
+            return
         self._refresh()
-    
-    # def show_dotw_editor(self):
-    #     options_selector = OptionSelector("Days of the Week", self.set_days_of_the_week)
-    #     options_selector.exec()
-    #     self.set_days_of_the_week = options_selector.get()
     
     def generate_new_school_timetable(self):
         if self._can_generate_new:
-            if not self._show_irreversible_warning_screen():
-                return
-            
-            self.refresh()
-            
             self._can_generate_new = False
             
             max_subject_amt = 0
             for timetable_editor in self.editor.timetable_widgets.values():
                 max_subject_amt += timetable_editor.get_total_subject_amount()
+                        
+            if not max_subject_amt:
+                QMessageBox.critical(self, "Generator Error", "Variables and connections are not sufficient to generate a timetable")
+                
+                self._can_generate_new = True
+                return
+            
+            if not self._continue_with_irreversable_action():
+                self._can_generate_new = True
+                return
+            
+            self.refresh(False)
             
             def total_subject_func():
                 total_subjects = 0
@@ -317,11 +315,6 @@ class _TimetableSettings(QWidget):
                 
                 return total_subjects
             
-            if not max_subject_amt:
-                self._can_generate_new = True
-                QMessageBox.critical(self, "Generator Error", "Variables and connections are not sufficient to generate a timetable")
-                return
-            
             self.progress_bar.set_max(lambda: max_subject_amt)
             self.progress_bar.set_var_func(total_subject_func)
             self.progress_bar.start(100)
@@ -329,6 +322,8 @@ class _TimetableSettings(QWidget):
             self.generate_new = Thread(self.editor.main_window, self._generate)
             self.generate_new.finished.connect(self._generating_finished)
             self.generate_new.start()
+        else:
+            QMessageBox.warning(self, "Generating", "Timetable is already being generated")
 
 class _ClassTimetable(QTableWidget):
     def __init__(self, cls: Class, editor: 'TimeTableEditor', remainder_layout: QVBoxLayout):
@@ -661,8 +656,8 @@ class TimeTableEditor(QWidget):
         # Create timetable for each class
         self.timetable_parent_widget: dict[str, QWidget] = {}
         self.timetable_widgets: dict[str, _ClassTimetable] = {}
-        for index, (_, cls) in enumerate(self.school.classes.items()):
-            widget = self._make_timetable_for_each_class(index, cls)
+        for cls in self.school.classes.values():
+            widget = self._make_timetable_for_each_class(cls)
             self.timetables_layout.addWidget(widget)
         
         # Create settings for timetables
@@ -680,11 +675,11 @@ class TimeTableEditor(QWidget):
         
         classes = {}
         
-        for class_index, (_, cls) in enumerate(self.school.classes.items()):
+        for cls in self.school.classes.values():
             classes[cls.uniqueID] = (
                 self.timetable_parent_widget[cls.uniqueID]
                 if cls.uniqueID in self.timetable_parent_widget else
-                self._make_timetable_for_each_class(class_index, cls)
+                self._make_timetable_for_each_class(cls)
             )
         
         for class_id, widget in self.timetable_parent_widget.copy().items():
@@ -964,7 +959,7 @@ class TimeTableEditor(QWidget):
         layout.addWidget(generate_new_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(refresh_button, alignment=Qt.AlignmentFlag.AlignHCenter)
     
-    def _make_timetable_for_each_class(self, index: int, cls: Class):
+    def _make_timetable_for_each_class(self, cls: Class):
         widget = QWidget()
         layout = QVBoxLayout()
         

@@ -26,6 +26,9 @@ class Window(QMainWindow):
         
         self.children_saved_tracker = {}
         
+        # Setting resize geometry
+        self.setGeometry(100, 100, 1000, 700)
+        
         # Get saved data
         self._init_save_data()
         self.saved_state_changed.connect(self.unsaved_callback)
@@ -231,22 +234,32 @@ class Window(QMainWindow):
         
         # Add all actions
         file_menu.addAction("New", "Ctrl+N", self.file.new)
+        file_menu.addSeparator()
         file_menu.addAction("Open", "Ctrl+O", self.file.open)
+        file_menu.addSeparator()
         file_menu.addAction("Save", "Ctrl+S", self.file.save)
         file_menu.addAction("Save As", "Ctrl+Shift+S", self.file.save_as)
+        file_menu.addSeparator()
         file_menu.addAction("Close", self.close)
         
         # Add Edit Actions
-        undo_action = QAction("Undo", self)
-        redo_action = QAction("Redo", self)
+        edit_menu.addAction("Redo", "Ctrl+Y", self.redo)
+        edit_menu.addAction("Undo", "Ctrl+Z", self.undo)
+        edit_menu.addSeparator()
+        edit_menu.addAction("Cut", "Ctrl+X")
+        edit_menu.addAction("Copy", "Ctrl+C")
+        edit_menu.addAction("Paste", "Ctrl+V")
+        edit_menu.addSeparator()
+        edit_menu.addAction("Find", "Ctrl+F")
         
-        undo_action.setShortcut("Ctrl+Z")
-        redo_action.setShortcut("Ctrl+Y")
-        
-        undo_action.triggered.connect(self.undo)
-        redo_action.triggered.connect(self.redo)
-        
-        edit_menu.addActions([undo_action, redo_action])
+        help_menu.addAction("Welcome")
+        help_menu.addSeparator()
+        help_menu.addAction("Documentation")
+        help_menu.addAction("View License")
+        help_menu.addSeparator()
+        help_menu.addAction("Check Updates")
+        help_menu.addSeparator()
+        help_menu.addAction("About")
     
     def get_settings_info(self):
         setting_widgets: dict[str, SettingWidget] = {
@@ -257,7 +270,6 @@ class Window(QMainWindow):
         }
         
         return {
-            
             widget_name: {
                 "variables": widget.get(),
                 "constants": getattr(widget, "get_constants", lambda: {})()
