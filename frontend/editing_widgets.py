@@ -117,16 +117,6 @@ class _TimetableSettings(QWidget):
         self.days_of_the_week_selector = OptionSelector("Days of the week", self.info, self.saved_state_changed)
         self.days_of_the_week_selector.closed.connect(closed_func)
         
-        # if self.editor.school.classes:
-        #     temp_option_selector = OptionSelector("", {})
-        #     for day in list(self.editor.school.classes.values())[0].weekdays:
-        #         temp_option_selector.add_option(text=day)
-        #     self.set_days_of_the_week = temp_option_selector.get()
-            
-        #     del temp_option_selector
-        # else:
-        #     self.set_days_of_the_week = []
-        
         dotw_button = QPushButton("Days of the Week")
         dotw_button.clicked.connect(self.days_of_the_week_selector.exec)
         show_clashes_checkb = QCheckBox("Show clashes")
@@ -163,7 +153,7 @@ class _TimetableSettings(QWidget):
         self.editor._set_school_timetable()
     
     def _refresh(self):
-        for _, timetable in self.editor.timetable_widgets.items():
+        for timetable in self.editor.timetable_widgets.values():
             dotw = self.days_of_the_week_selector.get()["content"][:self.days_of_the_week_selector.get()["content"].index(None)]
             
             period_amt = int(self.period_amt_edit.edit.text()) if self.period_amt_edit.edit.text().isnumeric() else None
@@ -173,7 +163,7 @@ class _TimetableSettings(QWidget):
         
         self.editor.refresh()
         
-        for _, timetable in self.editor.timetable_widgets.items():
+        for timetable in self.editor.timetable_widgets.values():
             self.timetable_update(timetable)
     
     def _toogle(self):
@@ -268,7 +258,7 @@ class _TimetableSettings(QWidget):
                     
                     for y in range(timetable.cls.timetable.periodsPerDay[-1]):
                         timetable.setItem(y, dayIndex, TimeTableItem(break_time = True if y == timetable.cls.timetable.breakTimePeriods[-1] - 1 else None))
-
+    
     def timetable_update(self, timetable: '_ClassTimetable'):
         timetable.timetable.reset()
         
@@ -739,6 +729,12 @@ class TimeTableEditor(QWidget):
                         
                         if teacher_info_entry["classes"]["content"][subject_id][class_id][0] is not None:
                             selected_class_options = []
+                            print(self.school.project["subjectTeacherMapping"])
+                            stm_subjects_data = self.school.project["subjectTeacherMapping"].get(subject_id)
+                            cls_index = next((class_index for class_index, cls_id in enumerate(classes_info) if cls_id == class_id), None)
+                            
+                            if None not in (stm_subjects_data, cls_index):
+                                selected_class_options = stm_subjects_data[1].get(teacher_id, (_, {}))[1].get(cls_index, (_, []))[1]
                         elif sum(list(teacher_info_entry["classes"]["content"][subject_id][class_id][1].values())):
                             selected_class_options = []
                             
@@ -776,11 +772,6 @@ class TimeTableEditor(QWidget):
                         teacher_subject_info["&classes"][str(class_index)] = valid_options
         
             subjectTeacherMapping[subject_id] = [subject_info["text"][0], teacher_subject_info]
-        
-        # total_subject_amt = 0
-        # for _, subject_info in subjectTeacherMapping.values():
-        #     for class_index, (_, perWeek) in subject_info["&timings"].items():
-        #         total_subject_amt += perWeek * len([info["options"] for info in classes_info.values()][int(class_index)])
         
         class_levels = []
         for class_index, (class_id, class_info) in enumerate(classes_info.items()):
@@ -829,8 +820,6 @@ class TimeTableEditor(QWidget):
                 if c_temp is not None:
                     subject_info["&classes"] = c_temp
                 
-                print(classes_taught)
-                print(subjectTeacherMapping)
                 classes_taught.update(subject_info.get("&classes", {}))
                 
                 for class_index, class_ids in classes_taught.items():

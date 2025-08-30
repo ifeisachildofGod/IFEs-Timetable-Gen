@@ -50,6 +50,8 @@ def get_pressed_color(color: str | None) -> str:
 class ThemeManager:
     def __init__(self):
         self.themes: dict[str, dict[str, dict[str, str] | str]] = {}
+        self.general_themes = {}
+        self.file_path_mappings = {}
         self.current_theme = None
         
         self.func_mappings = {
@@ -94,6 +96,8 @@ class ThemeManager:
             theme = json.load(f)
             general = theme["general"]
             
+            self.general_themes[file_path] = theme
+            
             for name1, theme_palette in theme["theme"].items():
                 for name2, color_palette in theme["color"].items():
                     palette = deepcopy(theme_palette)
@@ -101,6 +105,7 @@ class ThemeManager:
                     palette.update(general)
                     
                     self.add_theme(f"{name1}-{name2}", {"palette": palette, "stylesheet": stylesheet})
+                    self.file_path_mappings[f"{name1}-{name2}"] = file_path
 
     def apply_theme(self, app: QApplication, name: str):
         """Apply a stylesheet-only theme using values from JSON"""
@@ -135,6 +140,9 @@ class ThemeManager:
 
     def get_theme_names(self):
         return list(self.themes.keys())
+
+    def get(self):
+        return self.general_themes[self.file_path_mappings[self.current_theme]]
 
 THEME_MANAGER = ThemeManager()
 THEME_MANAGER.load_theme_from_file("frontend/theme/theme.json", STYLESHEET)

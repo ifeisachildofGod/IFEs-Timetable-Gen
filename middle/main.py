@@ -67,41 +67,18 @@ class School:
                 classAmt = 0
                 
                 options = subjectClassesMappings.get(strClassIndex, classOptions[int(strClassIndex)])
-                if random.choice([True, False, True, True, True, False, False, True, False, False]):
+                if random.choice([True, False]):
                     random.shuffle(options)
                 
                 subjects[subjectID][1][strClassIndex] = subjects[subjectID][1].get(strClassIndex, [timings[0], timings[1], {}])
                 
                 for option in options:
-                    if option not in subjects[subjectID][1][strClassIndex][2] and classAmt < maxClasses:
+                    if classAmt >= maxClasses:
+                        break
+                    
+                    if option not in subjects[subjectID][1][strClassIndex][2]:
                         subjects[subjectID][1][strClassIndex][2][option] = [t_data, []]
                         classAmt += 1
-            
-            # for index in range(len(classOptions)):
-            #     teachersMapping = {}
-            #     availableTeachers = []
-            #     for potAvailableTeacherID, potAvailableTeacherData in subjectInfo.items():
-            #         if not potAvailableTeacherID.startswith("&"):
-            #             potAvailableTeacherName, indexOfClassLevelsTaught = potAvailableTeacherData
-            #             if index in indexOfClassLevelsTaught:
-            #                 availableTeachers.append((potAvailableTeacherID, potAvailableTeacherName))
-                
-            #     if len(availableTeachers):
-            #         if random.choice([True, False, False, False, False]):
-            #             random.shuffle(availableTeachers)
-                    
-            #         options = subjectInfo.get("&classes", {}).get(str(index), classOptions[index])
-                    
-            #         optionIndex = 0
-            #         for optionID in options:
-            #             teacherData = availableTeachers[optionIndex % len(availableTeachers)]
-                        
-            #             teachersMapping[optionID] = [teacherData, []]
-            #             optionIndex += 1
-                    
-            #         timings = subjectInfo.get("&timings")[str(index)]
-                    
-            #         subjects[subjectID][1][str(index)] = [timings[0], timings[1], teachersMapping]
         
         return subjects
     
@@ -130,11 +107,6 @@ class School:
                             if clashes.get(subject) is None:
                                 clashes[subject] = []
                             clashes[subject].append(clash)
-                            # print()
-                            # print(f"{subject.name} in {cls.name} clashes with")
-                            # for clashSubject, clashCls in clash:
-                            #     print(f"{clashSubject.name} in {clashCls.name}")
-                            # print(f"in period {period} on {day}")
         
         return clashes
     

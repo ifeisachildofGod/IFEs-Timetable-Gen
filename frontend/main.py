@@ -6,10 +6,11 @@ from frontend.editing_widgets import TimeTableEditor
 class Window(QMainWindow):
     saved_state_changed = pyqtSignal()
     
-    def __init__(self, arguments: list[str]):
+    def __init__(self, app: QApplication, arguments: list[str]):
         super().__init__()
         path = len(arguments) > 1 and arguments[1] or None
         
+        self.app = app
         self.title = "IFEs Timetable Generator"
         
         self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME});;JSON Files (*.json)")
@@ -134,6 +135,8 @@ class Window(QMainWindow):
             self.setWindowTitle(f"{self.title} - {self.file.path}")
         else:
             self.setWindowTitle(self.title)
+        
+        self._make_set_app_stylsheet(self.save_data.get("theme", "dark-blue"))()
     
     # def toggle_sidebar(self):
     #     if self.sub_sidebar_widget.isVisible():
@@ -165,16 +168,18 @@ class Window(QMainWindow):
         teachers_data = self.save_data.get("teachersInfo")
         
         if subjects_data is not None:
-            for k in subjects_data["constants"]["id_mapping"].copy().keys():
-                subjects_data["constants"]["id_mapping"][int(k)] = subjects_data["constants"]["id_mapping"].pop(k)
+            if "id_mapping" in subjects_data["constants"]:
+                for k in subjects_data["constants"]["id_mapping"].copy().keys():
+                    subjects_data["constants"]["id_mapping"][int(k)] = subjects_data["constants"]["id_mapping"].pop(k)
             
             for subject_info in subjects_data["variables"].values():
                 for k in subject_info["teachers"]["id_mapping"].copy().keys():
                     subject_info["teachers"]["id_mapping"][int(k)] = subject_info["teachers"]["id_mapping"].pop(k)
         
         if teachers_data is not None:
-            for k in teachers_data["constants"]["id_mapping"].copy().keys():
-                teachers_data["constants"]["id_mapping"][int(k)] = teachers_data["constants"]["id_mapping"].pop(k)
+            if "id_mapping" in teachers_data["constants"]:
+                for k in teachers_data["constants"]["id_mapping"].copy().keys():
+                    teachers_data["constants"]["id_mapping"][int(k)] = teachers_data["constants"]["id_mapping"].pop(k)
             
             for teacher_info in self.save_data["teachersInfo"]["variables"].values():
                 for k in teacher_info["subjects"]["id_mapping"].copy().keys():
@@ -186,8 +191,8 @@ class Window(QMainWindow):
         
         return content
     
-    def open_callback(self, path: str):
-        win = Window(path)
+    def open_callback(self, path: str| None = None):
+        win = Window(self.app, ["main.py", path] if path is not None else [])
         win.showMaximized()
         
         if not hasattr(self, '_windows'):
@@ -230,6 +235,7 @@ class Window(QMainWindow):
         # File Menu
         file_menu = menubar.addMenu("File")
         edit_menu = menubar.addMenu("Edit")
+        theme_menu = menubar.addMenu("Theme")
         help_menu = menubar.addMenu("Help")
         
         # Add all actions
@@ -252,6 +258,15 @@ class Window(QMainWindow):
         edit_menu.addSeparator()
         edit_menu.addAction("Find", "Ctrl+F")
         
+        theme_pallete = THEME_MANAGER.get()
+        for bg in theme_pallete["theme"]:
+            sub_menu = QMenu(bg.title(), self)
+            
+            for color in theme_pallete["color"]:
+                sub_menu.addAction(color.title(), self._make_set_app_stylsheet(f"{bg}-{color}"))
+            
+            theme_menu.addMenu(sub_menu)
+        
         help_menu.addAction("Welcome")
         help_menu.addSeparator()
         help_menu.addAction("Documentation")
@@ -260,6 +275,13 @@ class Window(QMainWindow):
         help_menu.addAction("Check Updates")
         help_menu.addSeparator()
         help_menu.addAction("About")
+    
+    def _make_set_app_stylsheet(self, style):
+        def func():
+            THEME_MANAGER.apply_theme(self.app, style)
+            self.save_data["theme"] = style
+        
+        return func
     
     def get_settings_info(self):
         setting_widgets: dict[str, SettingWidget] = {
