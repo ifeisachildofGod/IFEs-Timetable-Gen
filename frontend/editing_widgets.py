@@ -729,9 +729,8 @@ class TimeTableEditor(QWidget):
                         
                         if teacher_info_entry["classes"]["content"][subject_id][class_id][0] is not None:
                             selected_class_options = []
-                            print(self.school.project["subjectTeacherMapping"])
                             stm_subjects_data = self.school.project["subjectTeacherMapping"].get(subject_id)
-                            cls_index = next((class_index for class_index, cls_id in enumerate(classes_info) if cls_id == class_id), None)
+                            cls_index = next((str(class_index) for class_index, cls_id in enumerate(classes_info) if cls_id == class_id), None)
                             
                             if None not in (stm_subjects_data, cls_index):
                                 selected_class_options = stm_subjects_data[1].get(teacher_id, (_, {}))[1].get(cls_index, (_, []))[1]
