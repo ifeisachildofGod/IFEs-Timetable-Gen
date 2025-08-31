@@ -1,45 +1,45 @@
 # Current thoughts and ideas
 
-- ~~Considering making the teacher level selection system a dropdown checkbox widget where each teacher can select the level the would like to be in instead of having it in the classes widget~~ **(Completed)**
+1. ~~Considering making the teacher level selection system a dropdown checkbox widget where each teacher can select the level the would like to be in instead of having it in the classes widget~~ **(Completed)**
 
-- ~~Implementing the update of all none widget data as the widgets are changing~~ **(Scrubbed)**
+2. ~~Implementing the update of all none widget data as the widgets are changing~~ **(Scrubbed)**
 \
 \
 ~~**Notes:**~~
-    1. ~~Consider making the system of widget changing and selection that of properties instead of direct change in the interaction funtions~~**(Scrubbed: Not a priority)**
+    1. ~~Consider making the system of widget changing and selection that of properties instead of direct change in the interaction funtions~~ **(Scrubbed: Not a priority)**
     2. ~~Consider changing settings information dictionary into dataclasses~~ **(Scrubbed: Not a priority)**
 
-- ~~Bring the theming system implemented in the "Graduation App" project to this one and revamp all styles~~ **(Completed)**
+3. ~~Bring the theming system implemented in the "Graduation App" project to this one and revamp all styles~~ **(Completed)**
 
-- ~~Remove the days of the week thing because days of the week are constant, the only thing that will be allowed to change is what days of the week are used in the timetable~~ **(Update)** ~~The systems for timetable days of the week should be in a sort of selection list mode~~ **(Completed)**
+4. ~~Remove the days of the week thing because days of the week are constant, the only thing that will be allowed to change is what days of the week are used in the timetable~~ **(Update)** ~~The systems for timetable days of the week should be in a sort of selection list mode~~ **(Completed)**
 
 # Future goals
 
 ### General
-- Integrate CLI functionality ***ie. A new timetable can be generated, exported and saved via the CLI. All the file managing options should also be able to be done with the CLI***
+1. Integrate CLI functionality ***ie. A new timetable can be generated, exported and saved via the CLI. All the file managing options should also be able to be done with the CLI***
 
-- Integrate a system that executes slow operations on a different thread
+2. Integrate a system that executes slow operations on a different thread
 
 ### Exports
-- Add an export system that converts timetable files to:
+1. Add an export system that converts timetable files to:
     - Image files (*.jpg, *.png, *.wpeg, *.svg)
     - Documents (*.msix)
     - HTML files (*.html, **with style**)
     - Pickle files (*.pickle)
 
-- Export feature would have a single export and batch export feature ***ie. Either all timetables are saved in one file or in thier own respective files***
+2. Export feature would have a single export and batch export feature ***ie. Either all timetables are saved in one file or in thier own respective files***
 
-- In the export screen certain features are editable:
+3. In the export screen certain features are editable:
     - The timetable orientation
     - Font
     - Text colour
 
-- Batch exports will also have the option of being saved in the general specified file formats or each indivdual file will have their own file formats. Their names will not be editable, their names will be gotten from their individual class names
+4. Batch exports will also have the option of being saved in the general specified file formats or each indivdual file will have their own file formats. Their names will not be editable, their names will be gotten from their individual class names
 
 
 ### Settings
-- Add a general checkbox to each subject to ask if that subject is general to the school
-- Make it possible for a subject to be linked to a parent subject Ex:
+1. Add a general checkbox to each subject to ask if that subject is general to the school
+2. Make it possible for a subject to be linked to a parent subject Ex:
     - Trade subjects:
         - EI
         - CCP
@@ -48,19 +48,19 @@
     - Computer\Fmaths:
         - Computer
         - Fmaths
-- Implement an abbreviation edit to teachers and subjects (If none is provided the name is used. If it is too long, it is ellipsed)
-- Add search functionality to find teachers and subjects
-- Add a marker to each selection (whether teacher or subject) to show that it has been selected by another teacher or subject
-- Add a status bar, which shows certain information (Warnings and abouts)
-- Add a warnings system that shows that subjects which are viable to be in a particular class or section have not been assigned a teacher if the subjects have not been assigned a teacher yet
+3. Implement an abbreviation edit to teachers and subjects (If none is provided the name is used. If it is too long, it is ellipsed)
+4. Add search functionality to find teachers and subjects
+5. Add a marker to each selection (whether teacher or subject) to show that it has been selected by another teacher or subject
+6. Add a status bar, which shows certain information (Warnings and abouts)
+7. Add a warnings system that shows that subjects which are viable to be in a particular class or section have not been assigned a teacher if the subjects have not been assigned a teacher yet
 
 ### Timetable Editor
-- Add search functionality to find classes
-- Add a lock option for class timetables that makes it so the timetable cannot be changed when a new one is generated
-- Add a way of clearing timetables
+1. Add search functionality to find classes
+2. Add a lock option for class timetables that makes it so the timetable cannot be changed when a new one is generated
+3. Add a way of clearing timetables
 
 ### Timetable Generator
-- Update the generating algorithm and make it better at avoiding clashes and remainders
+1. Update the generating algorithm and make it better at avoiding clashes and remainders
 
 
 
