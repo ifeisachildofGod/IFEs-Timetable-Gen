@@ -14,7 +14,7 @@ class Window(QMainWindow):
         self.title = "IFEs Timetable Generator"
         
         self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME});;JSON Files (*.json)")
-        self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback)
+        self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback, self.export_callback)
         
         # Default data
         self.default_period_amt   =   10  # Being used by the timetable editor
@@ -168,19 +168,11 @@ class Window(QMainWindow):
         teachers_data = self.save_data.get("teachersInfo")
         
         if subjects_data is not None:
-            if "id_mapping" in subjects_data["constants"]:
-                for k in subjects_data["constants"]["id_mapping"].copy().keys():
-                    subjects_data["constants"]["id_mapping"][int(k)] = subjects_data["constants"]["id_mapping"].pop(k)
-            
             for subject_info in subjects_data["variables"].values():
                 for k in subject_info["teachers"]["id_mapping"].copy().keys():
                     subject_info["teachers"]["id_mapping"][int(k)] = subject_info["teachers"]["id_mapping"].pop(k)
         
         if teachers_data is not None:
-            if "id_mapping" in teachers_data["constants"]:
-                for k in teachers_data["constants"]["id_mapping"].copy().keys():
-                    teachers_data["constants"]["id_mapping"][int(k)] = teachers_data["constants"]["id_mapping"].pop(k)
-            
             for teacher_info in self.save_data["teachersInfo"]["variables"].values():
                 for k in teacher_info["subjects"]["id_mapping"].copy().keys():
                     teacher_info["subjects"]["id_mapping"][int(k)] = teacher_info["subjects"]["id_mapping"].pop(k)
@@ -219,6 +211,9 @@ class Window(QMainWindow):
         
         self.setWindowTitle(f"{self.title} - {self.file.path}")
     
+    def export_callback(self, path: str, export_mode: int, file_type: str):
+        raise NotImplementedError("Export not yet implemented")
+    
     def undo(self):
         undo_func = self.focusWidget().__dict__.get("undo")
         if undo_func is not None:
@@ -232,16 +227,17 @@ class Window(QMainWindow):
     def create_menu_bar(self):
         menubar = self.menuBar()
         
-        export_menu = QMenu("Export", self)
-        
-        export_menu.addAction("Single")
-        export_menu.addAction("Batch")
-        
         # File Menu
         file_menu = menubar.addMenu("File")
         edit_menu = menubar.addMenu("Edit")
         theme_menu = menubar.addMenu("Theme")
         help_menu = menubar.addMenu("Help")
+        
+        # Export Menu
+        export_menu = QMenu("Export", self)
+        
+        export_menu.addAction("Single", lambda: self.file.export(0))
+        export_menu.addAction("Batch", lambda: self.file.export(1))
         
         # Add all actions
         file_menu.addAction("New", "Ctrl+N", self.file.new)

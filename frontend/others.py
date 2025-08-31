@@ -58,10 +58,11 @@ class FileManager:
         self.open_callback: Optional[Callable[[], None] | Callable[[str, Any], None]] = None
         self.load_callback: Optional[Callable[[str], Any]] = None
 
-    def set_callbacks(self, save: Callable[[str | None], None], open_: Callable[[], None] | Callable[[str, Any], None], load: Callable[[str], Any]):
+    def set_callbacks(self, save: Callable[[str | None], None], open_: Callable[[], None] | Callable[[str, Any], None], load: Callable[[str], Any], export: Callable[[str, int], None]):
         self.save_callback = save
         self.open_callback = open_
         self.load_callback = load
+        self.export_callback = export
     
     def get_data(self):
         if self.path:
@@ -105,3 +106,12 @@ class FileManager:
         if self._from_save:
             self._from_save = False
 
+    def export(self, export_mode: int):
+        file_path, file_type = QFileDialog.getSaveFileName(self.parent, ("Save File" if self._from_save else "Save File As"), "", self.file_filter)
+        
+        if file_path:
+            try:
+                if self.export_callback:
+                    self.export_callback(file_path, export_mode, file_type)
+            except Exception as e:
+                QMessageBox.critical(self.parent, type(e).__name__, str(e))
