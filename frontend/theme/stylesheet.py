@@ -332,35 +332,11 @@ STYLESHEET = '''
     QPushButton.Close:hover {{
         color: {fg1};
     }}
-    QPushButton.SelectionAdd {{
-        background-color: {success};
-        font-weight: bold;
-        padding: 4px;
-        border-radius: 8px;
-    }}
-    QPushButton.SelectionAdd:hover {{
-        background-color: {hover__success};
-    }}
-    QPushButton.SelectionAdd:pressed {{
-        background-color: {pressed__success};
-    }}
-    QPushButton.SelectionDelete {{
-        background-color: {error};
-        font-weight: bold;
-        padding: 4px;
-        border-radius: 8px;
-    }}
-    QPushButton.SelectionDelete:hover {{
-        background-color: {hover__error};
-    }}
-    QPushButton.SelectionDelete:pressed {{
-        background-color: {pressed__error};
-    }}
     
     
     QWidget.SelectedSelectionListEntry, QWidget.UnselectedSelectionListEntry  {{
         background-color: transparent;
-        border-radius: 0px;
+        border-radius: 10px;
         border: none;
     }}
     QWidget.SelectedSelectionListEntry QLabel, QWidget.UnselectedSelectionListEntry QLabel {{
@@ -370,12 +346,17 @@ STYLESHEET = '''
         background: none;
     }}
     QWidget.SelectedSelectionListEntry {{
-        border-bottom: 1px solid {fg2};
+        background-color: green;
     }}
     QWidget.UnselectedSelectionListEntry {{
-        border-top: 1px solid {fg2};
+        background-color: red;
     }}
-    
+    QWidget.SelectedSelectionListEntry QPushButton, QWidget.UnselectedSelectionListEntry QPushButton {{
+        font-size: 20px;
+    }}
+    QWidget.SelectedSelectionListEntry QPushButton:hover, QWidget.UnselectedSelectionListEntry QPushButton:hover {{
+        color: #bbb;
+    }}
     
     QWidget.SubjectClassViewEntry {{
         border-radius: 8px;

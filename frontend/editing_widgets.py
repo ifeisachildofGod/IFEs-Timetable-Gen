@@ -524,9 +524,6 @@ class _ClassTimetable(QTableWidget):
     
     def populate_timetable(self):
         """Load the timetable data into the grid"""
-        
-        # print(self.cls.name + ":", len(self.remainder_labels))
-        
         for col, (day, _, _) in enumerate(self.timetable.weekInfo):
             total_s_names = list(flatten([[subj for _ in range(subj.total)] for subj in self.timetable.table[day]]))
             subjects = total_s_names + [Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None) for _ in range(max(self.timetable.periodsPerDay) - len(total_s_names))]
@@ -539,16 +536,12 @@ class _ClassTimetable(QTableWidget):
             self.remove_remainder(label)
         
         rem_subjects = list(flatten([[subj for _ in range(subj.perWeek)] for subj in self.cls.timetable.remainderContent if subj.teacher is not None]))
-        # print(self.cls.name + ":", len(rem_subjects))
         
         for subject in rem_subjects:
             subject_label = DraggableSubjectLabel(subject, self.cls)
             subject_label.clicked.connect(self.editor.make_ds_func(subject_label))
             
             self.add_remainder(subject_label)
-        
-        # print(self.cls.name + ":", len(self.remainder_labels))
-        # print()
     
     def show_context_menu(self, pos):
         item = self.itemAt(pos)

@@ -232,6 +232,11 @@ class Window(QMainWindow):
     def create_menu_bar(self):
         menubar = self.menuBar()
         
+        export_menu = QMenu("Export", self)
+        
+        export_menu.addAction("Single")
+        export_menu.addAction("Batch")
+        
         # File Menu
         file_menu = menubar.addMenu("File")
         edit_menu = menubar.addMenu("Edit")
@@ -245,6 +250,7 @@ class Window(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction("Save", "Ctrl+S", self.file.save)
         file_menu.addAction("Save As", "Ctrl+Shift+S", self.file.save_as)
+        file_menu.addMenu(export_menu)
         file_menu.addSeparator()
         file_menu.addAction("Close", self.close)
         
@@ -299,6 +305,14 @@ class Window(QMainWindow):
             for widget_name, widget in
             setting_widgets.items()
         }
+    
+    def keyPressEvent(self, a0):
+        focus_widget = self.focusWidget()
+        
+        if isinstance(focus_widget, QPushButton):
+            focus_widget.click()
+        
+        return super().keyPressEvent(a0)
     
     def closeEvent(self, event):
         if not self.saved:

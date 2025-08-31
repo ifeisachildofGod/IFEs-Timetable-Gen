@@ -286,8 +286,8 @@ class SelectedWidget(QWidget):
         label.setFont(self.font())
         label.setToolTip(self.text)
         
-        delete_button = QPushButton("Delete")
-        delete_button.setProperty("class", 'SelectionDelete')
+        delete_button = QPushButton("×")
+        delete_button.setProperty("class", 'Close')
         delete_button.setFixedSize(24, 24)
         delete_button.clicked.connect(self.delete_self)
         
@@ -341,8 +341,8 @@ class UnselectedWidget(QWidget):
         label.setFont(self.font())
         label.setToolTip(text)
         
-        add_button = QPushButton("Add")
-        add_button.setProperty("class", 'SelectionAdd')
+        add_button = QPushButton("×")
+        add_button.setProperty("class", 'Close')
         add_button.setFixedSize(24, 24)
         add_button.clicked.connect(self.add_self)
         

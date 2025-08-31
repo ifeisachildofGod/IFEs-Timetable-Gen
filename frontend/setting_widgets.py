@@ -52,7 +52,11 @@ class SettingWidget(QWidget):
     
     def keyPressEvent(self, a0):
         if a0.key() == 16777220:
-            self.add(self.input_placeholders)
+            focus_widget = self.focusWidget()
+            
+            if isinstance(focus_widget, (QLineEdit, QScrollArea)):
+                self.add(self.input_placeholders)
+        
         return super().keyPressEvent(a0)
     
     def get(self):
