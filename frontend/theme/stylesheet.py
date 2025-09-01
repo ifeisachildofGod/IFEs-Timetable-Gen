@@ -523,7 +523,7 @@ STYLESHEET = '''
         border: none;
         border-radius: 0px;
         min-width: 50px;
-        min-height: 30px;
+        min-height: 40px;
         padding: 0px;
         font-size: 20px;
     }}

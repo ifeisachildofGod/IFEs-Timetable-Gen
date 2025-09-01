@@ -118,15 +118,17 @@ class FileManager:
 
 
 class CustomTitleBar(QWidget):
-    def __init__(self, parent: QWidget):
+    def __init__(self, parent: QWidget, get_search_data: Callable[[], dict]):
         super().__init__(parent)
         self.master = parent
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
+        self.get_search_data = get_search_data
+        
         self.container = QWidget()
         self.mian_layout = QHBoxLayout()
-        self.container.setFixedHeight(30)
+        self.container.setFixedHeight(40)
         self.container.setProperty("class", "TitleBar")
         self.container.setLayout(self.mian_layout)
         self.mian_layout.setContentsMargins(0, 0, 0, 0)
@@ -145,7 +147,7 @@ class CustomTitleBar(QWidget):
         self.center_layout = QHBoxLayout()
         center_widget.setProperty("class", "TitleBar")
         center_widget.setLayout(self.center_layout)
-        self.center_layout.setContentsMargins(60, 0, 60, 0)
+        self.center_layout.setContentsMargins(60, 5, 60, 5)
         
         right_widget = QWidget()
         self.right_layout = QHBoxLayout()
@@ -155,9 +157,17 @@ class CustomTitleBar(QWidget):
         self.right_layout.setSpacing(0)
 
         # Center widget
+        self.set_search_visible_button = QPushButton("Search")
+        self.set_search_visible_button.setFixedHeight(30)
+        self.set_search_visible_button.clicked.connect(self._toggle_search)
+        
         self.search_edit = QLineEdit("Search")
         self.search_edit.setFixedHeight(30)
         self.search_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.search_edit.textChanged.connect(self._search)
+        self.search_edit.setVisible(False)
+        
+        self.center_layout.addWidget(self.set_search_visible_button)
         self.center_layout.addWidget(self.search_edit)
         
         # Right widget
@@ -193,7 +203,18 @@ class CustomTitleBar(QWidget):
         else:
             self.master.showMaximized()
         self._maximized = not self._maximized
-
+    
+    def _toggle_search(self):
+        self.set_search_visible_button.setVisible(not self.set_search_visible_button.isVisible())
+        self.search_edit.setVisible(not self.search_edit.isVisible())
+    
+    def _search_compare(self, text: str, search_text: str):
+        pass
+    
+    def _search(self, text: str):
+        
+        self._search_compare(text)
+    
     # Enable window dragging
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -216,7 +237,7 @@ class CustomTitleBar(QWidget):
                 
                 point_offset = QPoint(int(self.master.width() * mouse_x_index), int(self.master.height() * mouse_y_index))
                 
-                self.master.move(point_offset - QPoint(int(self.window().minimumWidth() * mouse_x_index), int(self.window().minimumHeight() * mouse_y_index)))
+                self.master.move(point_offset - QPoint(int(self.window().width() * 0.5), int(40 * 0.5)))
             
             if not self._maximized:
                 self.master.move(self.master.pos() + delta)
