@@ -230,6 +230,10 @@ STYLESHEET = '''
         color: {button_text};
         background-color: {fg2};
     }}
+    QMenu::item:disabled {{
+        color: #888;
+        background-color: transparent;
+    }}
     
     
     
@@ -459,7 +463,9 @@ STYLESHEET = '''
         border-radius: 10px;
     }}
     
-    QWidget.OptionSelectorRow {{background: none;}}
+    QWidget.OptionSelectorRow {{
+        background: none;
+    }}
     
     QTableWidget {{
         background-color: {bg4};
@@ -505,6 +511,46 @@ STYLESHEET = '''
     }}
     QPushButton.Timetable_DP_OptionText:hover {{
         background-color: {hover__bg3};
+    }}
+    
+    
+    QWidget.TitleBar {{
+        background-color: {bg1};
+    }}
+    QPushButton.FileClose, QPushButton.FileMinumum, QPushButton.FileMaximum {{
+        color: {text};
+        background-color: transparent;
+        border: none;
+        border-radius: 0px;
+        min-width: 50px;
+        min-height: 30px;
+        padding: 0px;
+        font-size: 20px;
+    }}
+    QPushButton.FileClose {{
+        font-size: 15px;
+    }}
+    QPushButton.FileMinumum {{
+        font-size: 10px;
+    }}
+    QPushButton.FileMinumum:hover, QPushButton.FileMaximum:hover {{
+        background-color: {hover__bg3};
+    }}
+    QPushButton.FileClose:hover {{
+        color: white;
+        background-color: red;
+    }}
+    QPushButton.GoButton {{
+        color: {text};
+        padding: 0px;
+        background-color: transparent;
+        min-width: 30px;
+        min-height: 30px;
+        font-size: 20px;
+        padding: 0px;
+    }}
+    QPushButton.GoButton:hover {{
+        background-color: {bg3};
     }}
 '''
 

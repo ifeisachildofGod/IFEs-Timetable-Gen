@@ -12,6 +12,7 @@ class Window(QMainWindow):
         
         self.app = app
         self.title = "IFEs Timetable Generator"
+        self.export_file_filter = "JSON File (*.json);;Image File (*.jpg, *.png, *.wpeg, *.svg);;Microsoft Document (*.msix);;Pickle File (*.pickle);;CSV File (*.csv);;HTML File (*.html)"
         
         self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME});;JSON Files (*.json)")
         self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback, self.export_callback)
@@ -22,8 +23,8 @@ class Window(QMainWindow):
         self.default_per_day      =   2   # Being used by the classes editor
         self.default_per_week     =   4   #   "     "   "  "     "       "
         self.default_max_classes  =   3   # Being used by the teachers editor
-        self.default_save_data    = {"levels": [], "subjectTeacherMapping": {}}
-        self.default_weekdays     = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        self.default_save_data    =   {"levels": [], "subjectTeacherMapping": {}}
+        self.default_weekdays     =   ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         
         self.children_saved_tracker = {}
         
@@ -41,13 +42,29 @@ class Window(QMainWindow):
         self.display_index = 0
         self.prev_display_index = 0
         
-        self.create_menu_bar()
+        self.go_focus_index = 0
+        self.view_tracker = [0]
         
-        # Create main container
-        container = QWidget()
-        main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(0, 10, 5, 5)
-        container.setLayout(main_layout)
+        # Remove system title bar
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        
+        menu_bar = self.create_menu_bar()
+        
+        # Create viewing container
+        main_container = QWidget()
+        main_container_layout = QVBoxLayout()
+        main_container_layout.setContentsMargins(0, 0, 5, 5)
+        main_container.setLayout(main_container_layout)
+        
+        self.title_bar = MainTitleBar(self, menu_bar, self.go_back, self.go_forward)
+        main_container_layout.addWidget(self.title_bar)
+        
+        # Create viewing container
+        viewing_container = QWidget()
+        viewing_container_layout = QHBoxLayout()
+        viewing_container_layout.setContentsMargins(0, 10, 5, 5)
+        viewing_container.setLayout(viewing_container_layout)
+        main_container_layout.addWidget(viewing_container)
         
         # Create sidebar
         main_sidebar_widget = QWidget()
@@ -98,26 +115,28 @@ class Window(QMainWindow):
         for index, button in enumerate(self.option_buttons):
             button.setCheckable(True)
             button.clicked.connect(self.make_option_button_func(index))
+            sub_sidebar_layout.addWidget(button)
         
-        # Add buttons to sidebar
-        sub_sidebar_layout.addWidget(subjects_btn)
-        sub_sidebar_layout.addWidget(teachers_btn)
-        sub_sidebar_layout.addWidget(classes_btn)
-        sub_sidebar_layout.addStretch()
-        sub_sidebar_layout.addWidget(timetable_btn)
+        sub_sidebar_layout.insertStretch(3)
         
         # Add sub sidebar widgets to main sidebar layout
         main_sidebar_layout.addWidget(self.sub_sidebar_widget)
         # main_sidebar_layout.addWidget(self.toggle_sidebar_button)
         
         # Add widgets to main layout
-        main_layout.addWidget(main_sidebar_widget)
-        main_layout.addWidget(self.stack)
+        viewing_container_layout.addWidget(main_sidebar_widget)
+        viewing_container_layout.addWidget(self.stack)
         
-        self.setCentralWidget(container)
+        self.setCentralWidget(main_container)
         subjects_btn.click()  # Start with subjects page selected
         
         self.orig_data = deepcopy(self.save_data)
+                
+        self.go_back_action.setDisabled(True)
+        self.title_bar.go_back_button.setDisabled(True)
+        
+        self.go_forward_action.setDisabled(True)
+        self.title_bar.go_forward_button.setDisabled(True)
     
     def _init_save_data(self):
         self.saved = True
@@ -211,7 +230,7 @@ class Window(QMainWindow):
         
         self.setWindowTitle(f"{self.title} - {self.file.path}")
     
-    def export_callback(self, path: str, export_mode: int, file_type: str):
+    def export_callback(self, path: str, export_mode: int):
         raise NotImplementedError("Export not yet implemented")
     
     def undo(self):
@@ -224,20 +243,47 @@ class Window(QMainWindow):
         if redo_func is not None:
             redo_func()
     
+    def go_back(self):
+        if self.go_focus_index > 0:
+            self.go_focus_index -= 1
+            
+            self.go_forward_action.setDisabled(False)
+            self.title_bar.go_forward_button.setDisabled(False)
+            
+            self.option_button_func(self.view_tracker[self.go_focus_index])
+        
+        if self.go_focus_index == 0:
+            self.go_back_action.setDisabled(True)
+            self.title_bar.go_back_button.setDisabled(True)
+    
+    def go_forward(self):
+        if self.go_focus_index < len(self.view_tracker) - 1:
+            self.go_focus_index += 1
+            
+            self.go_back_action.setDisabled(False)
+            self.title_bar.go_back_button.setDisabled(False)
+            
+            self.option_button_func(self.view_tracker[self.go_focus_index])
+        
+        if self.go_focus_index == len(self.view_tracker) - 1:
+            self.go_forward_action.setDisabled(True)
+            self.title_bar.go_forward_button.setDisabled(True)
+    
     def create_menu_bar(self):
-        menubar = self.menuBar()
+        menubar = QMenuBar()
         
         # File Menu
         file_menu = menubar.addMenu("File")
         edit_menu = menubar.addMenu("Edit")
+        go_menu = menubar.addMenu("Go")
         theme_menu = menubar.addMenu("Theme")
         help_menu = menubar.addMenu("Help")
         
         # Export Menu
         export_menu = QMenu("Export", self)
         
-        export_menu.addAction("Single", lambda: self.file.export(0))
-        export_menu.addAction("Batch", lambda: self.file.export(1))
+        export_menu.addAction("Single", lambda: self.file.export(0, self.export_file_filter))
+        export_menu.addAction("Batch", lambda: self.file.export(1, self.export_file_filter))
         
         # Add all actions
         file_menu.addAction("New", "Ctrl+N", self.file.new)
@@ -260,6 +306,15 @@ class Window(QMainWindow):
         edit_menu.addSeparator()
         edit_menu.addAction("Find", "Ctrl+F")
         
+        self.go_back_action = go_menu.addAction("Back", self.go_back)
+        self.go_forward_action = go_menu.addAction("Forward", self.go_forward)
+        go_menu.addSeparator()
+        go_menu.addAction("Go to ID")
+        go_menu.addSeparator()
+        go_menu.addAction("Go to Subject")
+        go_menu.addAction("Go to Teacher")
+        go_menu.addAction("Go to Class")
+        
         theme_pallete = THEME_MANAGER.get()
         for bg in theme_pallete["theme"]:
             sub_menu = QMenu(bg.title(), self)
@@ -277,6 +332,8 @@ class Window(QMainWindow):
         help_menu.addAction("Check Updates")
         help_menu.addSeparator()
         help_menu.addAction("About")
+        
+        return menubar
     
     def _make_set_app_stylsheet(self, style):
         def func():
@@ -324,16 +381,31 @@ class Window(QMainWindow):
     
     def make_option_button_func(self, index: int):
         def func():
-            for i, btn in enumerate(self.option_buttons):
-                btn.setChecked(i == index)
-            
             if self.display_index != index:
-                self.stack.setCurrentIndex(index)
-                self.update_interaction(self.display_index, index)
-                self.prev_display_index = self.display_index
-                self.display_index = index
+                self.view_tracker[self.go_focus_index + 1:] = []
+                self.go_focus_index += 1
+                
+                self.view_tracker.append(index)
+                
+                self.go_back_action.setDisabled(False)
+                self.title_bar.go_back_button.setDisabled(False)
+                
+                self.go_forward_action.setDisabled(True)
+                self.title_bar.go_forward_button.setDisabled(True)
+            
+            self.option_button_func(index)
         
         return func
+    
+    def option_button_func(self, index: int):
+        for i, btn in enumerate(self.option_buttons):
+            btn.setChecked(i == index)
+        
+        if self.display_index != index:
+            self.stack.setCurrentIndex(index)
+            self.update_interaction(self.display_index, index)
+            self.prev_display_index = self.display_index
+            self.display_index = index
     
     def update_interaction(self, prev_index: int, curr_index: int):
         match prev_index:

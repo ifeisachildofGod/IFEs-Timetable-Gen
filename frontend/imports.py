@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QGridLayout, QStackedWidget, QTableWidgetItem,
     QMessageBox, QMenu, QAbstractItemView, QFrame,
     QTableWidget, QHeaderView, QSizePolicy, QProgressBar,
-    QFileDialog, QApplication
+    QFileDialog, QApplication, QMenuBar, QStyle
 )
 from PyQt6.QtGui import (
     QAction, QFontMetrics, QIntValidator, QPainter,
