@@ -107,7 +107,12 @@ class FileManager:
             self._from_save = False
 
     def export(self, export_mode: int, file_filter: str):
-        file_path, _ = QFileDialog.getSaveFileName(self.parent, ("Save File" if self._from_save else "Save File As"), "", file_filter)
+        if export_mode == 0:
+            file_path, _ = QFileDialog.getSaveFileName(self.parent, "Export File", "", file_filter)
+        elif export_mode == 1:
+            file_path = QFileDialog.getExistingDirectory(self.parent, "Batch Export Folder", "")
+        else:
+            raise Exception("Invalid Export Mode")
         
         if file_path:
             try:
@@ -118,7 +123,7 @@ class FileManager:
 
 
 class CustomTitleBar(QWidget):
-    def __init__(self, parent: QWidget, get_search_data: Callable[[], dict]):
+    def __init__(self, parent: QWidget, get_search_data: Callable[[], dict | list | set | tuple | str | int]):
         super().__init__(parent)
         self.master = parent
         layout = QVBoxLayout(self)
@@ -155,13 +160,14 @@ class CustomTitleBar(QWidget):
         right_widget.setLayout(self.right_layout)
         self.right_layout.setContentsMargins(60, 0, 0, 0)
         self.right_layout.setSpacing(0)
-
+        
         # Center widget
         self.set_search_visible_button = QPushButton("Search")
         self.set_search_visible_button.setFixedHeight(30)
+        self.set_search_visible_button.setStyleSheet("min-width: 600px; min-height: 30px; border-radius: 10px; padding: 0px;")
         self.set_search_visible_button.clicked.connect(self._toggle_search)
         
-        self.search_edit = QLineEdit("Search")
+        self.search_edit = QLineEdit("Search file by name")
         self.search_edit.setFixedHeight(30)
         self.search_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.search_edit.textChanged.connect(self._search)
@@ -170,83 +176,134 @@ class CustomTitleBar(QWidget):
         self.center_layout.addWidget(self.set_search_visible_button)
         self.center_layout.addWidget(self.search_edit)
         
-        # Right widget
-        # Minimize Button
-        btn_min = QPushButton("—")
-        btn_min.setProperty("class", "FileMinumum")
-        btn_min.clicked.connect(self.master.showMinimized)
-        self.right_layout.addWidget(btn_min)
+        # # Right widget
+        # # Minimize Button
+        # btn_min = QPushButton("—")
+        # btn_min.setProperty("class", "FileMinumum")
+        # btn_min.clicked.connect(self.master.showMinimized)
+        # self.right_layout.addWidget(btn_min)
         
-        # Maximize/Restore Button
-        btn_max = QPushButton("□")
-        btn_max.setProperty("class", "FileMaximum")
-        btn_max.clicked.connect(self.toggle_max_restore)
-        self.right_layout.addWidget(btn_max)
+        # # Maximize/Restore Button
+        # btn_max = QPushButton("□")
+        # btn_max.setProperty("class", "FileMaximum")
+        # btn_max.clicked.connect(self.toggle_max_restore)
+        # self.right_layout.addWidget(btn_max)
         
-        # Close Button
-        btn_close = QPushButton("✕")
-        btn_close.setProperty("class", "FileClose")
-        btn_close.clicked.connect(self.master.close)
-        self.right_layout.addWidget(btn_close)
+        # # Close Button
+        # btn_close = QPushButton("✕")
+        # btn_close.setProperty("class", "FileClose")
+        # btn_close.clicked.connect(self.master.close)
+        # self.right_layout.addWidget(btn_close)
         
-        self._maximized = True
+        # self._maximized = True
+        
+        # self._drag_pos = QPoint()
         
         self.mian_layout.addWidget(left_widget, alignment=Qt.AlignmentFlag.AlignLeft)
         self.mian_layout.addWidget(center_widget)
         self.mian_layout.addWidget(right_widget, alignment=Qt.AlignmentFlag.AlignRight)
-        
-        self._drag_pos = QPoint()
     
-    def toggle_max_restore(self):
-        if self._maximized:
-            self.master.showNormal()
-        else:
-            self.master.showMaximized()
-        self._maximized = not self._maximized
+    # def toggle_max_restore(self):
+    #     if self._maximized:
+    #         self.master.showNormal()
+    #     else:
+    #         self.master.showMaximized()
+    #     self._maximized = not self._maximized
     
     def _toggle_search(self):
         self.set_search_visible_button.setVisible(not self.set_search_visible_button.isVisible())
         self.search_edit.setVisible(not self.search_edit.isVisible())
+        
+        if self.search_edit.isVisible():
+            self.search_edit.setFocus()
+        else:
+            self.setFocus()
     
     def _search_compare(self, text: str, search_text: str):
-        pass
-    
-    def _search(self, text: str):
+        compared_indices = []
         
-        self._search_compare(text)
-    
-    # Enable window dragging
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_pos = event.globalPosition().toPoint()
-    
-    def mouseDoubleClickEvent(self, _):
-        self.toggle_max_restore()
-    
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton:
-            delta = event.globalPosition().toPoint() - self._drag_pos
+        search_text_index = -1
+        index = 0
+        
+        for c in text:
+            index = search_text[index + 1:].find(c)
             
-            if delta and self._maximized:
-                self.toggle_max_restore()
-                
-                mouse_point = event.globalPosition().toPoint()
-                
-                mouse_x_index = mouse_point.x() / self.window().width()
-                mouse_y_index = mouse_point.y() / self.window().height()
-                
-                point_offset = QPoint(int(self.master.width() * mouse_x_index), int(self.master.height() * mouse_y_index))
-                
-                self.master.move(point_offset - QPoint(int(self.window().width() * 0.5), int(40 * 0.5)))
+            if index == -1:
+                return
             
-            if not self._maximized:
-                self.master.move(self.master.pos() + delta)
-                self._drag_pos = event.globalPosition().toPoint()
+            search_text_index += index + 1
+            
+            compared_indices.append(search_text_index)
+        
+        return compared_indices
+    
+    def _search(self, text: str, search_scope: dict | list | set | tuple | str | int | None = None):
+        search_scope = search_scope if search_scope is not None else self.get_search_data()
+        
+        data = None
+        
+        if isinstance(search_scope, dict):
+            data = {}
+            
+            for key, value in search_scope.items():
+                s_key = self._search(text, key)
+                s_value = self._search(text, value)
+                
+                if (s_key, s_value).count(None) < 2:
+                    data[s_key] = s_value
+            
+            if not data:
+                data = None
+        elif isinstance(search_scope, (list, tuple, set)):
+            data = []
+            
+            for value in search_scope:
+                s_value = self._search(text, value)
+                
+                if s_value is not None:
+                    data.append(s_value)
+            
+            if not data:
+                data = None
+        elif isinstance(search_scope, str):
+            data = search_scope, self._search_compare(text, search_scope)
+        elif isinstance(search_scope, int):
+            data = str(search_scope), self._search_compare(text, str(search_scope))
+        
+        return data
+    
+    # # Enable window dragging
+    # def mousePressEvent(self, event):
+    #     if event.button() == Qt.MouseButton.LeftButton:
+    #         self._drag_pos = event.globalPosition().toPoint()
+    
+    # def mouseDoubleClickEvent(self, _):
+    #     self.toggle_max_restore()
+    
+    # def mouseMoveEvent(self, event):
+    #     if event.buttons() == Qt.MouseButton.LeftButton:
+    #         delta = event.globalPosition().toPoint() - self._drag_pos
+            
+    #         if delta and self._maximized:
+    #             self.toggle_max_restore()
+                
+    #             mouse_point = event.globalPosition().toPoint()
+                
+    #             mouse_x_index = mouse_point.x() / self.window().width()
+    #             mouse_y_index = mouse_point.y() / self.window().height()
+                
+    #             point_offset = QPoint(int(self.master.width() * mouse_x_index), int(self.master.height() * mouse_y_index))
+                
+    #             self.master.move(point_offset - QPoint(int(self.window().width() * 0.5), int(40 * 0.5)))
+            
+    #         if not self._maximized:
+    #             self.master.move(self.master.pos() + delta)
+    #             self._drag_pos = event.globalPosition().toPoint()
 
 
 class MainTitleBar(CustomTitleBar):
     def __init__(self, parent, menu_bar: QMenuBar, go_back_func: Callable, go_forward_func: Callable):
-        super().__init__(parent)
+        super().__init__(parent, lambda: {})
         
         menu_bar.setFixedHeight(40)
         menu_bar.setStyleSheet("QMenuBar {background-color: transparent; border: none;}")
@@ -265,6 +322,93 @@ class MainTitleBar(CustomTitleBar):
         self.center_layout.insertWidget(1, self.go_forward_button)
 
 
-
+class ClashesViewer(QDialog):
+    def __init__(self, school: School):
+        super().__init__()
+        self.setWindowTitle("Clash Viewer")
+        
+        layout = QVBoxLayout(self)
+        
+        self.container, self.main_layout = self._make_new_scrollable_widget(QVBoxLayout, layout)
+        
+        self.container.setProperty("class", "ClashesViewer")
+        
+        self.main_layout.setContentsMargins(10, 20, 20, 5)
+        self.main_layout.setSpacing(30)
+        
+        self.school = school
+        self.clashes: dict[str, list[tuple[tuple[Subject, Class], tuple[Subject, Class]]]] = {}
+    
+    def _make_new_widget(self, layout_type: type[QHBoxLayout] | type[QVBoxLayout], parent_layout: QHBoxLayout | QVBoxLayout | None = None):
+        widget = QWidget()
+        layout = layout_type()
+        widget.setLayout(layout)
+        
+        if parent_layout is not None:
+            parent_layout.addWidget(widget)
+        
+        return widget, layout
+    
+    def _make_new_scrollable_widget(self, layout_type: type[QHBoxLayout] | type[QVBoxLayout], parent_layout: QHBoxLayout | QVBoxLayout | None = None):
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        
+        widget = QWidget()
+        layout = layout_type()
+        
+        widget.setLayout(layout)
+        
+        scroll_area.setWidget(widget)
+        
+        if parent_layout is not None:
+            parent_layout.addWidget(scroll_area)
+        
+        return widget, layout
+    
+    def update_clashes(self):
+        for cls in self.school.schoolDict:
+            for subject in cls.subjects:
+                clashes = self.school.findClashes(subject)
+                
+                for clash_subject, clash_cls in clashes:
+                    if clash_subject.teacher.id not in self.clashes:
+                        self.clashes[clash_subject.teacher.id] = []
+                    
+                    self.clashes[clash_subject.teacher.id].append(((subject, cls), (clash_subject, clash_cls)))
+    
+    def display_clashes(self):
+        for teacher_id, clash_data in self.clashes.items():
+            _, display_layout = self._make_new_widget(QHBoxLayout, self.main_layout)
+            
+            display_layout.addWidget(QLabel(self.school.teachers[teacher_id].name))
+            _, clash_display_layout = self._make_new_scrollable_widget(QHBoxLayout, display_layout)
+            
+            for (subject, cls), (clash_subject, clash_cls) in clash_data:
+                _, main_clash_layout = self._make_new_widget(QHBoxLayout, clash_display_layout)
+                
+                _, subject_layout = self._make_new_widget(QVBoxLayout, main_clash_layout)
+                _, subject_clash_layout = self._make_new_widget(QVBoxLayout, main_clash_layout)
+                
+                subject_layout.addWidget(QLabel(f"<span style: 'font-weight: 100;'>{cls.name}</span>"))
+                subject_layout.addWidget(QLabel(f"<b>{subject.name}</b>"))
+                
+                subject_clash_layout.addWidget(QLabel(f"<span style: 'font-weight: 100;'>{clash_cls.name}</span>"))
+                subject_clash_layout.addWidget(QLabel(f"<b>{clash_subject.name}</b>"))
+    
+    def reset(self):
+        self.clashes = {}
+        
+        for _ in range(len(self.main_layout.children())):
+            widget = self.main_layout.children()[0]
+            
+            self.main_layout.removeWidget(widget)
+            widget.deleteLater()
+        
+        self.update_clashes()
+        self.display_clashes()
+    
+    def exec(self):
+        self.reset()
+        return super().exec()
 
 

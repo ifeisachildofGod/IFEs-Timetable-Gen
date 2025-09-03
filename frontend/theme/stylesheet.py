@@ -122,7 +122,6 @@ STYLESHEET = '''
         padding: 8px 16px;
         border-radius: 4px;
         font-size: 15px;
-        min-width: 80px;
     }}
     QPushButton:hover {{
         background-color: {hover__fg1};
@@ -424,6 +423,7 @@ STYLESHEET = '''
         border: 1px solid grey;
         background-color: whitesmoke;
         padding: 0px;
+        min-width: 80px;
     }}
     QMessageBox QPushButton:hover {{
         border: 1px solid #2c59d3;

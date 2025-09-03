@@ -83,12 +83,12 @@ class School:
         return subjects
     
     def findClashes(self, subject: Subject, day: str, period: int, cls: Class):
-        clashes = []
+        clashes: list[tuple[Subject, Class]] = []
         
         for ttCls, timetable in self.schoolDict.items():
             subjPeriod = 1
             for subj in timetable.table[day]:
-                if  period <= subjPeriod <= period + subject.total - 1 and subject.teacher == subj.teacher and subject.teacher is not None and subj.teacher is not None and cls.uniqueID != ttCls.uniqueID:
+                if cls.uniqueID != ttCls.uniqueID and period <= subjPeriod <= period + subject.total - 1 and subject.teacher is not None and subj.teacher is not None and subject.teacher.id == subj.teacher.id:
                     clashes.append([subj, ttCls])
                 subjPeriod += subj.total
         
@@ -282,7 +282,7 @@ class School:
                         newSubjects.append(subject)
                 cls.timetable.table[day] = newSubjects
 
-def _display_school(school, drawType: int = 1):
+def _display_school(school: dict[Class, Timetable], drawType: int = 1):
     if drawType == 1:
         for cls, timetable in school.items():
             print(f"| {cls.name} |")

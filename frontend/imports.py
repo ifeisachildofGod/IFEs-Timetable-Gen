@@ -15,14 +15,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import (
     QAction, QFontMetrics, QIntValidator, QPainter,
     QColor, QMouseEvent, QDrag, QDragEnterEvent,
-    QDragMoveEvent, QDropEvent
+    QDragMoveEvent, QDropEvent, QPixmap
 )
 from PyQt6.QtCore import (
     Qt, QTimer, QThread, QMimeData,
     pyqtSignal, pyqtBoundSignal, QPoint
 )
-
-
+from PyQt6.QtPrintSupport import QPrinter
 
 
 

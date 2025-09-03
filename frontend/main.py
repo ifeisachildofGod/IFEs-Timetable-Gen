@@ -12,9 +12,9 @@ class Window(QMainWindow):
         
         self.app = app
         self.title = "IFEs Timetable Generator"
-        self.export_file_filter = "JSON File (*.json);;Image File (*.jpg, *.png, *.wpeg, *.svg);;Microsoft Document (*.msix);;Pickle File (*.pickle);;CSV File (*.csv);;HTML File (*.html)"
+        self.export_file_filter = "JSON File (*.json);;Image File (*.png *.jpg *.wpeg *.svg);;Microsoft Document (*.msix);;Pickle File (*.pickle);;CSV File (*.csv);;HTML File (*.html);;PDF File (*.pdf)"
         
-        self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME});;JSON Files (*.json)")
+        self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME})")
         self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback, self.export_callback)
         
         # Default data
@@ -44,9 +44,6 @@ class Window(QMainWindow):
         
         self.go_focus_index = 0
         self.view_tracker = [0]
-        
-        # Remove system title bar
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         
         menu_bar = self.create_menu_bar()
         
@@ -149,8 +146,6 @@ class Window(QMainWindow):
             
             self.save_data = self.file.get_data()
             
-            self._fix_data()
-            
             self.setWindowTitle(f"{self.title} - {self.file.path}")
         else:
             self.setWindowTitle(self.title)
@@ -181,20 +176,6 @@ class Window(QMainWindow):
     def unsaved_callback(self):
         self.saved = False
         self.setWindowTitle(f"{self.title} - {self.file.path} *Unsaved")
-    
-    def _fix_data(self):
-        subjects_data = self.save_data.get("subjectsInfo")
-        teachers_data = self.save_data.get("teachersInfo")
-        
-        if subjects_data is not None:
-            for subject_info in subjects_data["variables"].values():
-                for k in subject_info["teachers"]["id_mapping"].copy().keys():
-                    subject_info["teachers"]["id_mapping"][int(k)] = subject_info["teachers"]["id_mapping"].pop(k)
-        
-        if teachers_data is not None:
-            for teacher_info in self.save_data["teachersInfo"]["variables"].values():
-                for k in teacher_info["subjects"]["id_mapping"].copy().keys():
-                    teacher_info["subjects"]["id_mapping"][int(k)] = teacher_info["subjects"]["id_mapping"].pop(k)
     
     def load_callback(self, path: str):
         with gzip.open(path, "rb") as file:
@@ -231,7 +212,27 @@ class Window(QMainWindow):
         self.setWindowTitle(f"{self.title} - {self.file.path}")
     
     def export_callback(self, path: str, export_mode: int):
-        raise NotImplementedError("Export not yet implemented")
+        self.update_interaction(self.prev_display_index, self.display_index)
+        self.update_interaction(self.display_index, 3)
+        
+        if export_mode == 0:
+            widget = self.timetable_widget.timetables_container
+            
+            if path.endswith(("png", "jpg", "wpeg", "svg")):
+                widget.resize(widget.sizeHint())
+                pixmap = QPixmap(widget.size())
+                widget.render(pixmap)
+                pixmap.save(path)
+            elif path.endswith("pdf"):
+                printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+                printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+                printer.setOutputFileName(path)
+                
+                painter = QPainter(printer)
+                widget.render(painter)
+                painter.end()
+        elif export_mode == 1:
+            pass
     
     def undo(self):
         undo_func = self.focusWidget().__dict__.get("undo")

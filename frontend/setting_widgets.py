@@ -76,7 +76,7 @@ class SettingWidget(QWidget):
         buttons_layout = QHBoxLayout()
         header_layout = QHBoxLayout()
         
-        _id = str(hex(id(widget)).upper()) if _id is None else _id
+        _id = (self.objectName().lower() + ":" + hex(id(widget)).upper().replace("0X", "")) if _id is None else _id
         
         if data is None:
             self.info[_id] = self.get_new_data()
@@ -383,9 +383,10 @@ class Teachers(SettingWidget):
     
     def _update_classes_deactivated_general(self, _id):
         selected_subjects_data = {t_s_id: t_s_index for t_s_index, (t_s_id, _) in enumerate(SelectionList.fix_none_selection_content_problem(self.info[_id]["subjects"])) if t_s_index < self.info[_id]["subjects"].index(None)}
+        subjects_data = [t_s_id for t_s_id, _ in SelectionList.fix_none_selection_content_problem(self.info[_id]["subjects"]) if t_s_id is not None]
         
         for subject_id, subject_data_info in self.all_subject_classes_info.copy().items():
-            if subject_id not in selected_subjects_data:
+            if subject_id not in subjects_data:
                 self.all_subject_classes_info.pop(subject_id)
             else:
                 for _, options_info in subject_data_info["content"].values():
@@ -410,8 +411,6 @@ class Teachers(SettingWidget):
         teacher_subject_class_id_mapping_info = self.info[_id]["classes"]["id_mapping"]
         
         # Updating generals
-        
-        # "selected_subjects_data" is being returned here to obey DRY laws
         selected_subjects_data = self._update_classes_deactivated_general(_id)
         
         for subject_id in selected_subjects_data:
@@ -444,6 +443,11 @@ class Teachers(SettingWidget):
             # Removing the unremoved in the general data
             for class_id, (_, options_info) in self.all_subject_classes_info[subject_id]["content"].copy().items():
                 if class_id not in class_info or class_id not in subject_info[subject_id]["classes"]:
+                    if class_id in teacher_subject_class_content_info:
+                        teacher_subject_class_content_info.pop(class_id)
+                        teacher_subject_class_id_mapping_info["main"].pop(class_id)
+                        teacher_subject_class_id_mapping_info["sub"].pop(class_id)
+                    
                     self.all_subject_classes_info[subject_id]["content"].pop(class_id)
                     
                     self.all_subject_classes_info[subject_id]["id_mapping"]["main"].pop(class_id)
@@ -451,8 +455,15 @@ class Teachers(SettingWidget):
                 else:
                     for option_id in options_info.copy():
                         if option_id not in class_info[class_id]["options"] or option_id not in subject_info[subject_id]["classes"][class_id]:
-                            options_info.pop(option_id)
+                            if class_id in teacher_subject_class_content_info:
+                                if option_id in teacher_subject_class_content_info[class_id][1]:
+                                    teacher_subject_class_content_info[class_id][1].pop(option_id)
+                                    teacher_subject_class_id_mapping_info["sub"][class_id].pop(option_id)
                             
+                                if not teacher_subject_class_id_mapping_info[class_id][1]:
+                                    teacher_subject_class_id_mapping_info.pop(class_id)
+                            
+                            self.all_subject_classes_info[subject_id]["content"][class_id][1].pop(option_id)
                             self.all_subject_classes_info[subject_id]["id_mapping"]["sub"][class_id].pop(option_id)
         
         # Removals

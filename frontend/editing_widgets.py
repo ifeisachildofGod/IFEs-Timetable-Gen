@@ -117,9 +117,13 @@ class _TimetableSettings(QWidget):
         self.days_of_the_week_selector = OptionSelector("Days of the week", self.info, self.saved_state_changed)
         self.days_of_the_week_selector.closed.connect(closed_func)
         
+        self.clash_viewer = ClashesViewer(self.editor.school)
+        
         dotw_button = QPushButton("Days of the Week")
         dotw_button.clicked.connect(self.days_of_the_week_selector.exec)
-        show_clashes_checkb = QCheckBox("Show clashes")
+        
+        show_clashes_checkb = QPushButton("Clashes")
+        show_clashes_checkb.clicked.connect(self.clash_viewer.exec)
         
         left_sub_option_layout.addWidget(dotw_button)
         left_sub_option_layout.addWidget(show_clashes_checkb)
@@ -180,7 +184,7 @@ class _TimetableSettings(QWidget):
         self._refresh()
         self.editor.school.generateNewSchoolTimetables()
     
-    def timetable_refresh(self, period_amt: int | None, break_period: int | None, days_of_the_week: list[str], timetable: '_ClassTimetable'):
+    def timetable_refresh(self, period_amt: int | None, break_period: int | None, days_of_the_week: list[str], timetable: 'ClassTimetable'):
         if break_period is not None and break_period != int(sum(timetable.cls.timetable.breakTimePeriods) / len(timetable.cls.timetable.breakTimePeriods)):
             for x in range(timetable.columnCount()):
                 break_period_item = timetable.takeItem(timetable.cls.timetable.breakTimePeriods[x] - 1, x)
@@ -259,7 +263,7 @@ class _TimetableSettings(QWidget):
                     for y in range(timetable.cls.timetable.periodsPerDay[-1]):
                         timetable.setItem(y, dayIndex, TimeTableItem(break_time = True if y == timetable.cls.timetable.breakTimePeriods[-1] - 1 else None))
     
-    def timetable_update(self, timetable: '_ClassTimetable'):
+    def timetable_update(self, timetable: 'ClassTimetable'):
         timetable.timetable.reset()
         
         timetable.cls = self.editor.school.classes[timetable.cls.uniqueID]
@@ -315,7 +319,7 @@ class _TimetableSettings(QWidget):
         else:
             QMessageBox.warning(self, "Generating", "Timetable is already being generated")
 
-class _ClassTimetable(QTableWidget):
+class ClassTimetable(QTableWidget):
     def __init__(self, cls: Class, editor: 'TimeTableEditor', remainder_layout: QVBoxLayout):
         super().__init__()
         
@@ -638,7 +642,7 @@ class TimeTableEditor(QWidget):
         
         # Create timetable for each class
         self.timetable_parent_widget: dict[str, QWidget] = {}
-        self.timetable_widgets: dict[str, _ClassTimetable] = {}
+        self.timetable_widgets: dict[str, ClassTimetable] = {}
         for cls in self.school.classes.values():
             widget = self._make_timetable_for_each_class(cls)
             self.timetables_layout.addWidget(widget)
@@ -710,14 +714,14 @@ class TimeTableEditor(QWidget):
         
         subjectTeacherMapping = {}
         for subject_id, subject_info in subjects_info.items():
-            teacher_subject_info = {}
+            teacher_subject_info = {"&timings": {}}
             
             for class_id, _ in subject_info["classes"].items():
                 class_index = next(index for index, _id in enumerate(classes_info.keys()) if _id == class_id)
                 subject_in_class_info = classes_info[class_id]["subjects"][subject_id][1]
                 
                 for teacher_id, teacher_info_entry in teachers_info.items():
-                    if class_id in teacher_info_entry["classes"]["content"][subject_id]:
+                    if subject_id in teacher_info_entry["classes"]["content"] and class_id in teacher_info_entry["classes"]["content"][subject_id]:
                         teacher_name = teacher_info_entry["text"][0]
                         
                         if teacher_info_entry["classes"]["content"][subject_id][class_id][0] is not None:
@@ -743,18 +747,7 @@ class TimeTableEditor(QWidget):
                         else:
                             teacher_subject_info[teacher_id][1][str(class_index)] = [max_random_classes_amt, selected_class_options]
                 
-                # XXX Done
-                
-                # Replace this part with the above code ie. Merge both of them once you've made peace with
-                # yourself breaking and building back some of the systems that took the better part of six
-                # months to build
-                
-                # XXX Done
-                
-                if "&timings" not in teacher_subject_info:
-                    teacher_subject_info["&timings"] = {str(class_index): [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]}
-                else:
-                    teacher_subject_info["&timings"][str(class_index)] = [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]
+                teacher_subject_info["&timings"][str(class_index)] = [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]
                 
                 valid_options = [option_id for option_id, option_state in subject_info["classes"][class_id].items() if option_state]
                 if len(valid_options) != len(subject_info["classes"][class_id]):
@@ -862,7 +855,7 @@ class TimeTableEditor(QWidget):
         self.class_data[_id]["can_generate_new_timetable"] = True
         self.timetable_widgets[_id].populate_timetable()
     
-    def _make_setting_funcs(self, timetable: _ClassTimetable, period_amt_edit: QLineEdit, breakperiod_edit: QLineEdit):
+    def _make_setting_funcs(self, timetable: ClassTimetable, period_amt_edit: QLineEdit, breakperiod_edit: QLineEdit):
         def _refresh_func():
             period_amt = int(period_amt_edit.text()) if period_amt_edit.text().isnumeric() else None
             breaktime_period = int(breakperiod_edit.text()) if breakperiod_edit.text().isnumeric() else None
@@ -910,7 +903,7 @@ class TimeTableEditor(QWidget):
             "refresh": refresh_func,
         }
     
-    def _make_timetable_settings(self, timetable: _ClassTimetable, layout: QVBoxLayout):
+    def _make_timetable_settings(self, timetable: ClassTimetable, layout: QVBoxLayout):
         period_amt_edit = NumberTextEdit()
         period_amt_edit.edit.setPlaceholderText("Periods Amt")
         
@@ -984,7 +977,7 @@ class TimeTableEditor(QWidget):
         
         settings_widget_layout = QVBoxLayout(settings_widget)
         
-        timetable = _ClassTimetable(cls, self, remainder_widget_layout)
+        timetable = ClassTimetable(cls, self, remainder_widget_layout)
         self.timetable_widgets[cls.uniqueID] = timetable
         self.timetable_parent_widget[cls.uniqueID] = widget
         
