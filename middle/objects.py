@@ -1,7 +1,10 @@
+# import random
+# from matplotlib.cbook import flatten
+
 from imports import *
 
 class Subject:
-    def __init__(self, _id: str, name: str, total: int, perWeek: int, teacher: 'Teacher') -> None:
+    def __init__(self, _id: str, name: str, total: int, perWeek: int, teacher: 'Teacher', cls: 'Class') -> None:
         self.TOTAL = total
         self.PERWEEK = perWeek
         
@@ -12,6 +15,8 @@ class Subject:
         self.total = self.TOTAL
         self.perWeek = self.PERWEEK
         self.teacher = teacher
+        self.cls = cls
+        
         self.lockedPeriod = None
     
     @property
@@ -25,7 +30,7 @@ class Subject:
         self.uniqueID = self.uniqueID.lower().replace("0x", "").upper()
     
     def copy(self):
-        subject = Subject(self.id, self.name, self.total, self.perWeek, self.teacher)
+        subject = Subject(self.id, self.name, self.total, self.perWeek, self.teacher, self.cls)
         subject.lockedPeriod = self.lockedPeriod
         
         return subject
@@ -48,10 +53,10 @@ class Subject:
         self.perWeek -= amount
 
 class Class:
-    def __init__(self, index: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolTeachers: dict[str, "Teacher"], weekdays: list[str], breakTimePeriods: list[int]) -> None:
+    def __init__(self, index: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolSubjects: dict[str, "Teacher"], weekdays: list[str], breakTimePeriods: list[int]) -> None:
         self.school = school
         self.schoolDict = schoolDict
-        self.schoolTeachers = schoolTeachers
+        self.schoolSubjects = schoolSubjects
         
         self.weekdays = weekdays
         
@@ -68,36 +73,26 @@ class Class:
         
         self.breakTimePeriods = breakTimePeriods
         
-        # self.updateTeachers()
-        
-        self.timetable = Timetable(self, [subject.copy() for subject in self.subjects], self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
+        self.timetable = Timetable(self, [subject.copy() for subject in self.subjects], self.schoolSubjects, self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
     
     @staticmethod
     def getUniqueID(index, classID):
         return classID + str(index + 1)
-    
-    def updateTeachers(self):
-        for subjs in self.subjects:
-            for _, teacher in self.schoolTeachers.items():
-                classTaught = teacher.subjects.get(subjs)
-                
-                if classTaught is not None:
-                    if self.uniqueID in classTaught.uniqueID:
-                        self.teachers[teacher] = subjs
 
 class Teacher:
-    def __init__(self, _id: str, name: str, subjects: dict[Subject, Class]) -> None:
+    def __init__(self, _id: str, name: str, subjectIDs: list[str]) -> None:
         self.id = _id
         self.name = name
-        self.subjects = subjects
+        self.subjectIDs = subjectIDs
 
 class Timetable:
-    def __init__(self, cls: Class, subjects: list[Subject], periodsPerDay: list[int], breakTimePeriods: list[int], schoolDict: dict[Class, "Timetable"]) -> None:
+    def __init__(self, cls: Class, subjects: list[Subject], schoolSubjects: dict[str, Subject], periodsPerDay: list[int], breakTimePeriods: list[int], schoolDict: dict[Class, "Timetable"]) -> None:
         self.cls = cls
         self.schoolDict = schoolDict
+        self.schoolSubjects = schoolSubjects
         
         self.subjects = subjects
-        self._subjects = [subject.copy() for subject in self.subjects]
+        self._subjects: list[Subject] = [subject.copy() for subject in self.subjects]
         
         self.periodsPerDay = periodsPerDay
         self.breakTimePeriods = breakTimePeriods
@@ -120,12 +115,12 @@ class Timetable:
         random.shuffle(self.subjects)
     
     def addFreePeriod(self, day: str, total: int, perWeek: int):
-        self.table[day].append(Subject(self.freePeriodID, "Free", total, perWeek, None))
+        self.table[day].append(Subject(self.freePeriodID, "Free", total, perWeek, None, self.cls))
     
     def addFreePeriods(self):
         if self.freePeriodAmt:
-            self.subjects.append(Subject(self.freePeriodID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None))
-            self._subjects.append(Subject(self.freePeriodID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None))
+            self.subjects.append(Subject(self.freePeriodID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.cls))
+            self._subjects.append(Subject(self.freePeriodID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.cls))
     
     def reset(self):
         self.subjects = self._subjects
@@ -133,6 +128,9 @@ class Timetable:
         
         self.table: dict[str, list[Subject]] = {day: [] for day in self.cls.weekdays}
         self.remainderContent = []
+        
+        for subject in self.subjects:
+            self.schoolSubjects[subject.uniqueID] = subject
         
         random.shuffle(self.subjects)
     
@@ -268,16 +266,16 @@ class Timetable:
                 if not breakTime:
                     period += subjectAmount
                     subject.remove(subjectAmount)
-                    subjects.append(Subject(subject.id, subject.name, subjectAmount, subject.perWeek, subject.teacher))
+                    subjects.append(Subject(subject.id, subject.name, subjectAmount, subject.perWeek, subject.teacher, subject.cls))
                 else:
                     period += 1
-                    subjects.append(Subject(self.breakPeriodID, 'Break', 1, 1, None))
+                    subjects.append(Subject(self.breakPeriodID, 'Break', 1, 1, None, self.cls))
                     
                     self.subjects.append(subject)
                     empties.append(subjectIndex)
             
             rem_periods = periods - sum([s.total for s in subjects])
-            subjects.append(Subject(self.freePeriodID, "Free", rem_periods, rem_periods, None))
+            subjects.append(Subject(self.freePeriodID, "Free", rem_periods, rem_periods, None, self.cls))
             
             self.table[day] = subjects
             
@@ -295,13 +293,13 @@ class Timetable:
                     period += subject.total
                     if period >= self.breakTimePeriods[dayIndex]:
                         if period == self.breakTimePeriods[dayIndex]:
-                            subjects.insert(subjectIndex + 1, Subject(self.breakPeriodID, 'Break', 1, 1, None))
+                            subjects.insert(subjectIndex + 1, Subject(self.breakPeriodID, 'Break', 1, 1, None, subject.cls))
                         elif period > self.breakTimePeriods[dayIndex]:
                             replacementAmt = period - self.breakTimePeriods[dayIndex]
                             subject.total -= replacementAmt
                             
-                            subjects.insert(subjectIndex + 1, Subject(self.breakPeriodID, 'Break', 1, 1, None))
-                            subjects.insert(subjectIndex + 2, Subject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.teacher))
+                            subjects.insert(subjectIndex + 1, Subject(self.breakPeriodID, 'Break', 1, 1, None, subject.cls))
+                            subjects.insert(subjectIndex + 2, Subject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.teacher, subject.cls))
                         break
         
         self.remainderContent = [subj.copy() for subj in self.subjects]

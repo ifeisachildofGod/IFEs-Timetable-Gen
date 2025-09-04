@@ -366,15 +366,15 @@ class ClashesViewer(QDialog):
         return widget, layout
     
     def update_clashes(self):
-        for cls in self.school.schoolDict:
-            for subject in cls.subjects:
-                clashes = self.school.findClashes(subject)
-                
-                for clash_subject, clash_cls in clashes:
-                    if clash_subject.teacher.id not in self.clashes:
-                        self.clashes[clash_subject.teacher.id] = []
-                    
-                    self.clashes[clash_subject.teacher.id].append(((subject, cls), (clash_subject, clash_cls)))
+        clash_data = self.school.getClashes()
+        print(clash_data)
+        for subject, week_clashes in clash_data.items():
+            if subject.teacher.id not in self.clashes:
+                self.clashes[subject.teacher.id] = []
+            
+            for subject_clashes in week_clashes.values():
+                for clash_subject, clash_cls in subject_clashes:
+                    self.clashes[subject.teacher.id].append(((subject, subject.cls), (clash_subject, clash_cls)))
     
     def display_clashes(self):
         for teacher_id, clash_data in self.clashes.items():

@@ -1,4 +1,5 @@
 from imports import *
+from pathlib import Path
 
 from middle.main import School
 from middle.objects import *

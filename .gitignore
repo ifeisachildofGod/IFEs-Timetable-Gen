@@ -141,3 +141,4 @@ project_backup.json.ttbl
 new_test.ttbl
 test_project.json
 test_project.json.ttbl
+*.ttbl

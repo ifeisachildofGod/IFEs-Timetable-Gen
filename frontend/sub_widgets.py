@@ -103,7 +103,7 @@ class SubjectDropdownCheckBoxes(QDialog):
         
         self.container_layout.addStretch()
     
-    def _create_checkbox_widgets(self, data: dict[str, dict[str, str | bool]], general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
+    def _create_checkbox_widgets(self, data, general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
         updated_data = deepcopy(general_data)
         for class_id, options_info in data.items():
             updated_data["content"][class_id].update(options_info)
@@ -125,8 +125,8 @@ class SubjectDropdownCheckBoxes(QDialog):
             open_dp_func = self.make_open_dp_func(class_id, class_check_box_tracker)
             
             def make_open_dp_func(odp_param_func):
-                def odp_func(event):
-                    if event.button() == Qt.MouseButton.LeftButton:
+                def odp_func(a0: QMouseEvent | None):
+                    if a0.button() == Qt.MouseButton.LeftButton: # type: ignore
                         odp_param_func()
                 
                 return odp_func
@@ -162,7 +162,7 @@ class SubjectDropdownCheckBoxes(QDialog):
             class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, all_clicked, data, updated_data, class_check_box_tracker)
             
             widget_wrapper_layout.addWidget(header)
-            widget_wrapper_layout.addWidget(class_check_box_tracker["widget"][class_id])
+            widget_wrapper_layout.addWidget(class_check_box_tracker["widget"][class_id]) # type: ignore
             
             all_clicked_checkboxes.extend(to_be_clicked)
             
@@ -330,8 +330,8 @@ class TeacherDropdownCheckBoxes(QDialog):
             open_dp_func = self.make_open_subject_func(self.subject_check_box_tracker[subject_id])
             
             def make_open_subject(odp_param_func):
-                def odp_func(event):
-                    if event.button() == Qt.MouseButton.LeftButton:
+                def odp_func(a0: QMouseEvent | None):
+                    if a0.button() == Qt.MouseButton.LeftButton: # type: ignore
                         odp_param_func()
                 
                 return odp_func
@@ -370,7 +370,7 @@ class TeacherDropdownCheckBoxes(QDialog):
         
         for class_id, (random_on, options_info) in data.items():
             updated_data["content"][class_id][0] = random_on
-            for opt_id, opt_state in options_info.items():
+            for opt_id, opt_state in options_info.items(): # type: ignore
                 if not isinstance(updated_data["content"][class_id][1][opt_id], str) or opt_state:
                     updated_data["content"][class_id][1][opt_id] = options_info[opt_id]
         
@@ -392,8 +392,8 @@ class TeacherDropdownCheckBoxes(QDialog):
             open_dp_func = self.make_odp_func(data, class_id, class_check_box_tracker)
             
             def make_open_dp_func(odp_param_func):
-                def odp_func(event):
-                    if event.button() == Qt.MouseButton.LeftButton:
+                def odp_func(a0: QMouseEvent | None):
+                    if a0.button() == Qt.MouseButton.LeftButton: # type: ignore
                         odp_param_func()
                 
                 return odp_func
@@ -438,7 +438,7 @@ class TeacherDropdownCheckBoxes(QDialog):
             class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, random_on, data, general_data, updated_data, class_check_box_tracker)
             
             widget_wrapper_layout.addWidget(header)
-            widget_wrapper_layout.addWidget(class_check_box_tracker["widget"][class_id])
+            widget_wrapper_layout.addWidget(class_check_box_tracker["widget"][class_id]) # type: ignore
             
             random_on_checkboxes.extend(to_be_clicked)
             
@@ -587,7 +587,7 @@ class TeacherDropdownCheckBoxes(QDialog):
         return func
 
 class SubjectSelection(QDialog):
-    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None], dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], saved_state_changed: pyqtBoundSignal):
+    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None] | dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], saved_state_changed: pyqtBoundSignal):
         super().__init__()
         
         self.setWindowTitle(title)
@@ -612,7 +612,7 @@ class SubjectSelection(QDialog):
         self.main_layout.addWidget(self.scroll_area)
         
         for subject_id, (subject_name, subject_info) in self.info.items():
-            self.add_subject(subject_id, subject_name, subject_info)
+            self.add_subject(subject_id, subject_name, subject_info) # type: ignore
         
         self.container_layout.addStretch()
     
@@ -657,7 +657,7 @@ class SubjectSelection(QDialog):
     
     def make_text_changed_func(self, subject_id: str, key: str, input_edit: 'NumberTextEdit'):
         def text_changed_func():
-            self.info[subject_id][1][key] = input_edit.edit.text()
+            self.info[subject_id][1][key] = input_edit.edit.text() # type: ignore
             
             self.saved_state_changed.emit()
         
@@ -743,7 +743,7 @@ class OptionsMaker(QDialog):
         for option in self.options:
             if option.is_editing:
                 QMessageBox.critical(self, "Setting OM Error", "Please finish edting the option")
-                a0.ignore()
+                a0.ignore() # type: ignore
                 option.start_editing()
                 return
         

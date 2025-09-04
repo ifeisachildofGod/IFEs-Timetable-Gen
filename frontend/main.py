@@ -134,6 +134,9 @@ class Window(QMainWindow):
         
         self.go_forward_action.setDisabled(True)
         self.title_bar.go_forward_button.setDisabled(True)
+        
+        if path is not None:
+            self.saved_callback()
     
     def _init_save_data(self):
         self.saved = True
@@ -146,7 +149,7 @@ class Window(QMainWindow):
             
             self.save_data = self.file.get_data()
             
-            self.setWindowTitle(f"{self.title} - {self.file.path}")
+            self.saved_callback()
         else:
             self.setWindowTitle(self.title)
         
@@ -175,7 +178,11 @@ class Window(QMainWindow):
     
     def unsaved_callback(self):
         self.saved = False
-        self.setWindowTitle(f"{self.title} - {self.file.path} *Unsaved")
+        self.setWindowTitle(f"{self.title} - {Path(self.file.path).absolute().as_posix()} *Unsaved")
+    
+    def saved_callback(self):
+        self.saved = True
+        self.setWindowTitle(f"{self.title} - {Path(self.file.path).absolute().as_posix()}")
     
     def load_callback(self, path: str):
         with gzip.open(path, "rb") as file:
@@ -192,8 +199,6 @@ class Window(QMainWindow):
         self._windows.append(win)
     
     def save_callback(self, path: str):
-        self.saved = True
-        
         self.file.path = path
         
         self.update_interaction(self.display_index, self.prev_display_index)
@@ -209,7 +214,7 @@ class Window(QMainWindow):
         
         self.orig_data = deepcopy(self.save_data)
         
-        self.setWindowTitle(f"{self.title} - {self.file.path}")
+        self.saved_callback()
     
     def export_callback(self, path: str, export_mode: int):
         self.update_interaction(self.prev_display_index, self.display_index)

@@ -530,7 +530,7 @@ class ClassTimetable(QTableWidget):
         """Load the timetable data into the grid"""
         for col, (day, _, _) in enumerate(self.timetable.weekInfo):
             total_s_names = list(flatten([[subj for _ in range(subj.total)] for subj in self.timetable.table[day]]))
-            subjects = total_s_names + [Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None) for _ in range(max(self.timetable.periodsPerDay) - len(total_s_names))]
+            subjects = total_s_names + [Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None, self.timetable.cls) for _ in range(max(self.timetable.periodsPerDay) - len(total_s_names))]
             
             for row, subject in enumerate(subjects):
                 item = TimeTableItem(subject, row + 1 == self.cls.breakTimePeriods[col], subject.id == self.cls.timetable.freePeriodID)

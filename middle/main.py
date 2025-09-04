@@ -1,6 +1,8 @@
-# if __name__ == "__main__":
-#     from objects import *
-# else:
+# import time, json, random
+# from matplotlib.cbook import flatten
+# from typing import Union
+# from objects import *
+
 from middle.objects import *
 
 PotentialOptionType = Union[
@@ -31,14 +33,12 @@ ProjectType = dict[str, PotentialOptionType]
 
 class School:
     def __init__(self, project: ProjectType):
+        self.subjects: dict[str, Subject] = {}
         self.classes: dict[str, Class] = {}
         self.teachers: dict[str, Teacher] = {}
         self.schoolDict: dict[Class, Timetable] = {}
         
         self.setProjectData(project)
-    
-    def _nullCheck(self, value, null_replacement):
-        return null_replacement if value is None else value
     
     def _getSubjects(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
         subjects = {}
@@ -95,7 +95,7 @@ class School:
         return clashes
     
     def getClashes(self):
-        clashes = {}
+        clashes: dict[Subject, dict[str, list[Subject, Class]]] = {}
         
         for cls, timetable in self.schoolDict.items():
             for day, subjects in timetable.table.items():
@@ -105,24 +105,25 @@ class School:
                         clash = self.findClashes(subject, day, period, cls)
                         if clash:
                             if clashes.get(subject) is None:
-                                clashes[subject] = []
-                            clashes[subject].append(clash)
+                                clashes[subject] = {}
+                            clashes[subject][day] = clash
         
         return clashes
     
     def generateTimetable(self, cls: Class):
-        cls.timetable.__init__(cls, cls.timetable.subjects, cls.timetable.periodsPerDay, cls.timetable.breakTimePeriods, self.schoolDict)
+        cls.timetable.__init__(cls, cls.timetable.subjects, cls.schoolSubjects, cls.timetable.periodsPerDay, cls.timetable.breakTimePeriods, self.schoolDict)
         cls.timetable.addFreePeriods()
         cls.timetable.generate()
     
     def generateNewSchoolTimetables(self):
-        for _, cls in self.classes.items():
+        for cls in self.classes.values():
             self.generateTimetable(cls)
     
     def setProjectData(self, project: ProjectType):
         self.project = project
     
     def setSchoolInfoFromProjectDict(self):
+        self.subjects = {}
         self.classes = {}
         self.teachers = {}
         self.schoolDict = {}
@@ -145,26 +146,25 @@ class School:
         
         for classIndex, classIDs in enumerate(classOptions):
             for classID in classIDs:
-                cls = Class(classIndex, classID, classIDNameMapping[classID], [], periods[classIndex][classID], levelNames, self, self.schoolDict, self.teachers, weekdays[classIndex][classID], breakperiods[classIndex][classID])
+                cls = Class(classIndex, classID, classIDNameMapping[classID], [], periods[classIndex][classID], levelNames, self, self.schoolDict, self.subjects, weekdays[classIndex][classID], breakperiods[classIndex][classID])
                 self.classes[cls.uniqueID] = cls
         
         for subjectID, (subjectName, subjectInfo) in subjects.items():
             for classIndex, (perDay, perWeek, classTeacherMapping) in subjectInfo.items():
                 for classID, ((teacherID, teachersName), _) in classTeacherMapping.items():
-                    teacher = self.teachers[teacherID] = self.teachers.get(teacherID, Teacher(teacherID, teachersName, {}))
-                    
-                    subj = Subject(subjectID, subjectName, perDay, perWeek, teacher)
-                    
+                    teacher = self.teachers[teacherID] = self.teachers.get(teacherID, Teacher(teacherID, teachersName, []))
+                    subj = Subject(subjectID, subjectName, perDay, perWeek, teacher, cls)
                     cls = self.classes[Class.getUniqueID(int(classIndex), classID)]
                     
-                    teacher.subjects[subj] = cls
+                    cls.teachers[teacher] = subj
+                    teacher.subjectIDs.append(subj.uniqueID)
+                    teacher.subjectIDs = list(set(teacher.subjectIDs))
                     
                     cls.subjects.append(subj)
-                    cls.teachers[teacher] = subj
                     cls.timetable.subjects.append(subj)
                     cls.timetable._subjects.append(subj.copy())
                     
-                    teacher.subjects[subj] = cls
+                    self.subjects[subj.uniqueID] = subj
         
         self.setTimetableFromProjectDict()
     
@@ -178,31 +178,33 @@ class School:
         
         subjectTeacherMapping = {}
         for t_id, teacher in self.teachers.items():
-            for subject, cls in teacher.subjects.items():
+            for subjectID in teacher.subjectIDs:
+                subject = self.subjects[subjectID]
+                
                 if subjectTeacherMapping.get(subject.id) is None:
                     subjectTeacherMapping[subject.id] = [subject.name, {"&timings": {}, "&classes": {}}]
                 
-                maxRandomAmt = self.project["subjectTeacherMapping"][subject.id][1][t_id][1][str(cls.index)][0]
+                maxRandomAmt = self.project["subjectTeacherMapping"][subject.id][1][t_id][1][str(subject.cls.index)][0]
                 
                 if subjectTeacherMapping[subject.id][1].get(t_id) is None:
-                    subjectTeacherMapping[subject.id][1][t_id] = [teacher.name, {str(cls.index): [maxRandomAmt, [cls.classID]]}]
+                    subjectTeacherMapping[subject.id][1][t_id] = [teacher.name, {str(subject.cls.index): [maxRandomAmt, [subject.cls.classID]]}]
                 else:
-                    if subjectTeacherMapping[subject.id][1][t_id][1].get(str(cls.index)) is None:
-                        subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)] = [maxRandomAmt, [cls.classID]]
+                    if subjectTeacherMapping[subject.id][1][t_id][1].get(str(subject.cls.index)) is None:
+                        subjectTeacherMapping[subject.id][1][t_id][1][str(subject.cls.index)] = [maxRandomAmt, [subject.cls.classID]]
                     else:
-                        subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)][1].append(cls.classID)
+                        subjectTeacherMapping[subject.id][1][t_id][1][str(subject.cls.index)][1].append(subject.cls.classID)
                 
-                subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)][1] = list(set(subjectTeacherMapping[subject.id][1][t_id][1][str(cls.index)][1]))
+                subjectTeacherMapping[subject.id][1][t_id][1][str(subject.cls.index)][1] = list(set(subjectTeacherMapping[subject.id][1][t_id][1][str(subject.cls.index)][1]))
                 
-                if subjectTeacherMapping[subject.id][1]["&classes"].get(str(cls.index)) is None:
-                    subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)] = [cls.classID]
+                if subjectTeacherMapping[subject.id][1]["&classes"].get(str(subject.cls.index)) is None:
+                    subjectTeacherMapping[subject.id][1]["&classes"][str(subject.cls.index)] = [subject.cls.classID]
                 else:
-                    subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)].append(cls.classID)
+                    subjectTeacherMapping[subject.id][1]["&classes"][str(subject.cls.index)].append(subject.cls.classID)
                 
-                subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)] = list(set(subjectTeacherMapping[subject.id][1]["&classes"][str(cls.index)]))
+                subjectTeacherMapping[subject.id][1]["&classes"][str(subject.cls.index)] = list(set(subjectTeacherMapping[subject.id][1]["&classes"][str(subject.cls.index)]))
                 
-                if subjectTeacherMapping[subject.id][1]["&timings"].get(str(cls.index)) is None:
-                    subjectTeacherMapping[subject.id][1]["&timings"][str(cls.index)] = [subject.TOTAL, subject.PERWEEK]
+                if subjectTeacherMapping[subject.id][1]["&timings"].get(str(subject.cls.index)) is None:
+                    subjectTeacherMapping[subject.id][1]["&timings"][str(subject.cls.index)] = [subject.TOTAL, subject.PERWEEK]
         
         for _, (_, subjectInfo) in subjectTeacherMapping.items():
             for index, validClasses in subjectInfo["&classes"].copy().items():
@@ -237,9 +239,9 @@ class School:
         for _, cls in self.classes.items():
             cls.timetable.reset()
             for dayIndex, (day, _) in enumerate(cls.timetable.table.items()):
-                free1 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
-                break_t = [Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None)]
-                free2 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
+                free1 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
+                break_t = [Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None, cls)]
+                free2 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
                 
                 cls.timetable.table[day] = list(flatten([free1, break_t, free2]))
                 
@@ -253,13 +255,13 @@ class School:
                         teacher = next((teacher for teacher in cls.teachers if teacher.id == teacherID), None)
                         if cls.classID == classID and teacher is not None:
                             for (dayIndex, period), (coordTotal, coordPerWeek), remainderAmount in coords:
-                                subjectInsert = Subject(subjectID, subjectName, coordTotal, coordPerWeek, teacher)
+                                subjectInsert = Subject(subjectID, subjectName, coordTotal, coordPerWeek, teacher, cls)
                                 
                                 subjectInsert.TOTAL = perDay
                                 subjectInsert.PERWEEK = perWeek
                                 
                                 if remainderAmount:
-                                    cls.timetable.remainderContent.append(Subject(subjectID, subjectName, coordTotal, remainderAmount, teacher))
+                                    cls.timetable.remainderContent.append(Subject(subjectID, subjectName, coordTotal, remainderAmount, teacher, cls))
                                 
                                 daysOfTheWeek = list(cls.timetable.table.keys())
                                 cls.timetable.table[daysOfTheWeek[dayIndex]][period : period + subjectInsert.total] = [subjectInsert for _ in range(subjectInsert.total)]
@@ -363,7 +365,7 @@ def _display_school(school: dict[Class, Timetable], drawType: int = 1):
 def test():
     orig_time = time.time()
 
-    with open("test_project.json") as file:
+    with open("middle/test_project.json") as file:
         project = json.load(file)
 
     print(f"Project loaded after {time.time() - orig_time} seconds")
@@ -380,7 +382,8 @@ def test():
     orig_time = time.time()
 
     school = School(project)
-
+    school.setSchoolInfoFromProjectDict()
+    
     print()
     print(f"School initialised after {time.time() - orig_time} seconds")
     print()
@@ -457,7 +460,7 @@ def test():
     print("Displaying school....")
     
     orig_time = time.time()
-    # get_clashes(school.school)
+    
     _display_school(school.schoolDict)
 
     print()
