@@ -367,7 +367,7 @@ class ClashesViewer(QDialog):
     
     def update_clashes(self):
         clash_data = self.school.getClashes()
-        print(clash_data)
+        
         for subject, week_clashes in clash_data.items():
             if subject.teacher.id not in self.clashes:
                 self.clashes[subject.teacher.id] = []

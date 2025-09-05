@@ -17,12 +17,12 @@ class TimeTableItem(QTableWidgetItem):
             color = QColor(THEME_MANAGER.parse_stylesheet("{fg1}"))
             self.setBackground(color)
         elif self.free_period:
-            self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled)
+            self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsEnabled & ~Qt.ItemFlag.ItemIsSelectable)
         
         # I check if subject is None seperately bcos of when the break time is checked
         
         if self.subject is None or self.break_time:
-            self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsDropEnabled)
+            self.setFlags(self.flags() & ~Qt.ItemFlag.ItemIsDragEnabled & ~Qt.ItemFlag.ItemIsDropEnabled & ~Qt.ItemFlag.ItemIsEnabled & ~Qt.ItemFlag.ItemIsSelectable)
         elif not self.free_period and not self.break_time and self.subject.teacher is not None:
             locked = self.subject.lockedPeriod is not None
             

@@ -341,7 +341,7 @@ class ClassTimetable(QTableWidget):
         
         # Set size policies
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setFixedHeight(self.rowCount() * 30 + 40)  # Adjust row height + header
+        self.setFixedHeight(self.rowCount() * 30 + 45)  # Adjust row height + header
         
         # Enable drag & drop
         self.setDragEnabled(True)
@@ -381,6 +381,54 @@ class ClassTimetable(QTableWidget):
         
         return total_subject_amt
     
+    def insert_subject_in_table(self, subject: Subject, row: int, col: int):
+        subjects = self.timetable.table[self.timetable.weekInfo[col][0]]
+        
+        offset = None
+        subject_index = None
+        
+        period = 0
+        for index, subj in enumerate(subjects):
+            if period >= row:
+                offset = period - row
+                subject_index = index
+                break
+            
+            period += subj.total
+        
+        subjects[subject_index].total -= offset
+        
+        main_offset_subject = subjects[subject_index]
+        
+        subjects.insert(subject_index, subject)
+        
+        if offset:
+            offset_subject = main_offset_subject.copy()
+            offset_subject.total = offset
+            
+            subjects.insert(subject_index, offset_subject)
+        # print(list(flatten([[s.name for _ in range(s.total)] for s in subjects])))
+    
+    def replace_subject_in_table(self, subject: Subject, row: int, col: int):
+        subjects = self.timetable.table[self.timetable.weekInfo[col][0]]
+        
+        subject_index = None
+        
+        period = 0
+        for index, subj in enumerate(subjects):
+            if period >= row:
+                subject_index = index
+                break
+            
+            period += subj.total
+        
+        subjects[subject_index].total -= 1
+        
+        if not subjects[subject_index].total:
+            subjects.pop(subject_index)
+        
+        self.insert_subject_in_table(subject, row, col)
+    
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasText():
             row = self.rowAt(int(event.position().y()))
@@ -417,8 +465,7 @@ class ClassTimetable(QTableWidget):
                 source_col = source_widget.column(self.current_source)
                 
                 # Handle swapping
-                if target_item and isinstance(target_item, TimeTableItem) and target_item.break_time is None:
-                    
+                if target_item is not None and isinstance(target_item, TimeTableItem) and not target_item.break_time:
                     target_subject = target_item.subject
                     
                     if source_class == self.cls:
@@ -459,7 +506,7 @@ class ClassTimetable(QTableWidget):
                 self.takeItem(row, col)
                 self.setItem(row, col, new_target)
                 
-                if target_item and isinstance(target_item, TimeTableItem) and target_item.subject.teacher:
+                if target_item and isinstance(target_item, TimeTableItem) and target_item.subject is not None:
                     target_subject = target_item.subject
                     
                     # Create new items
@@ -475,6 +522,11 @@ class ClassTimetable(QTableWidget):
                 self.remainder_layout.update()
                 
                 self.blockSignals(False)
+                
+                replacement_subject = self.editor.external_source_ref.subject.copy()
+                replacement_subject.total = 1
+                
+                self.replace_subject_in_table(replacement_subject, row, col)
                 
                 # Force refresh
                 event.accept()
@@ -509,6 +561,7 @@ class ClassTimetable(QTableWidget):
         """Save current grid state back to timetable"""
         for col, (day, _, _) in enumerate(self.timetable.weekInfo):
             subjects = []
+            
             for row in range(self.rowCount()):
                 item = self.item(row, col)
                 if isinstance(item, TimeTableItem) and item.subject:
@@ -530,7 +583,7 @@ class ClassTimetable(QTableWidget):
         """Load the timetable data into the grid"""
         for col, (day, _, _) in enumerate(self.timetable.weekInfo):
             total_s_names = list(flatten([[subj for _ in range(subj.total)] for subj in self.timetable.table[day]]))
-            subjects = total_s_names + [Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None, self.timetable.cls) for _ in range(max(self.timetable.periodsPerDay) - len(total_s_names))]
+            subjects = total_s_names + [Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None, self.cls) for _ in range(max(self.timetable.periodsPerDay) - len(total_s_names))]
             
             for row, subject in enumerate(subjects):
                 item = TimeTableItem(subject, row + 1 == self.cls.breakTimePeriods[col], subject.id == self.cls.timetable.freePeriodID)
@@ -550,7 +603,7 @@ class ClassTimetable(QTableWidget):
     def show_context_menu(self, pos):
         item = self.itemAt(pos)
         
-        if item and isinstance(item, TimeTableItem) and not item.break_time:
+        if item and isinstance(item, TimeTableItem) and item.subject is not None and item.subject.teacher is not None:
             menu = QMenu(self)
             delete_action = menu.addAction("Delete")
             if item.subject.lockedPeriod:
@@ -561,16 +614,22 @@ class ClassTimetable(QTableWidget):
             action = menu.exec(self.viewport().mapToGlobal(pos))
             
             if action == delete_action:
+                free_period_subject = Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None, self.cls)
+                
+                row = self.row(item)
+                col = self.column(item)
+                
                 # Move to remainders if deleted
                 subject_label = DraggableSubjectLabel(item.subject, self.cls)
                 subject_label.clicked.connect(self.editor.make_ds_func(subject_label))
                 
                 self.add_remainder(subject_label)
                 
-                self.setItem(self.row(item), self.column(item), TimeTableItem())
+                self.setItem(row, col, TimeTableItem(free_period_subject, False, True))
+                
+                self.replace_subject_in_table(free_period_subject, row, col)
             elif action and action.text() == "Lock to Period":
                 item.subject.lockedPeriod = [self.row(item), 1]  # Lock to current period
-                item.locked = True
             elif action and action.text() == "Unlock Period":
                 item.subject.lockedPeriod = None
     
@@ -625,9 +684,10 @@ class TimeTableEditor(QWidget):
         
         self.main_layout = QVBoxLayout(self)
         
-        self.external_source_ref = None
+        self.external_source_ref: TimeTableItem = None
         
         self.class_data: dict[str, dict[str, bool | OptionSelector]] = {}
+        self.class_generator_threads: dict[str, Thread] = {}
         
         # Create scroll area for timetables
         self.scroll_area = QScrollArea()
@@ -852,7 +912,7 @@ class TimeTableEditor(QWidget):
             self.timetable_widgets[cls.uniqueID].populate_timetable()
     
     def _timetable_generating_finished(self, _id: str):
-        self.class_data[_id]["can_generate_new_timetable"] = True
+        self.class_generator_threads.pop(_id)
         self.timetable_widgets[_id].populate_timetable()
     
     def _make_setting_funcs(self, timetable: ClassTimetable, period_amt_edit: QLineEdit, breakperiod_edit: QLineEdit):
@@ -866,9 +926,7 @@ class TimeTableEditor(QWidget):
             self.settings_widget.timetable_update(timetable)
         
         def new_func():
-            if self.class_data[timetable.cls.uniqueID]["can_generate_new_timetable"]:
-                self.class_data[timetable.cls.uniqueID]["can_generate_new_timetable"] = False
-                
+            if timetable.cls.uniqueID not in self.class_generator_threads:
                 if self.timetable_warning_dont_ask_again:
                     response = QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
                                                                                 "All information will be overwritten",
@@ -883,9 +941,9 @@ class TimeTableEditor(QWidget):
                 
                 _refresh_func()
                 
-                generate_new = Thread(self.main_window, lambda: self.school.generateTimetable(timetable.cls))
-                generate_new.finished.connect(lambda: self._timetable_generating_finished(timetable.cls.uniqueID))
-                generate_new.start()
+                self.class_generator_threads[timetable.cls.uniqueID] = Thread(self.main_window, lambda: self.school.generateTimetable(timetable.cls))
+                self.class_generator_threads[timetable.cls.uniqueID].finished.connect(lambda: self._timetable_generating_finished(timetable.cls.uniqueID))
+                self.class_generator_threads[timetable.cls.uniqueID].start()
         
         def refresh_func():
             response = QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
@@ -941,6 +999,7 @@ class TimeTableEditor(QWidget):
         widget.setLayout(layout)
         
         settings_width = 200
+        settings_min_width = 50
         
         class_header = QLabel(f"Class: {cls.name}")
         class_header.setProperty("class", "Title")
@@ -968,7 +1027,7 @@ class TimeTableEditor(QWidget):
         settings_scroll_area = QScrollArea()
         settings_scroll_area.setAcceptDrops(True)
         settings_scroll_area.setWidgetResizable(True)
-        settings_scroll_area.setFixedSize(settings_width, 100)
+        settings_scroll_area.setFixedWidth(settings_width)
         settings_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
         settings_widget = QWidget()
@@ -982,8 +1041,7 @@ class TimeTableEditor(QWidget):
         self.timetable_parent_widget[cls.uniqueID] = widget
         
         self.class_data[cls.uniqueID] = {
-            "option_selector": OptionSelector("Day of the week", DOTW_DATA.copy(), self.saved_state_changed),
-            "can_generate_new_timetable": True
+            "option_selector": OptionSelector("Day of the week", DOTW_DATA.copy(), self.saved_state_changed)
         }
         
         self._make_timetable_settings(timetable, settings_widget_layout)
@@ -997,8 +1055,8 @@ class TimeTableEditor(QWidget):
         class_widget_layout.addWidget(timetable)
         class_widget_layout.addWidget(sidebar_widget)
         
-        sidebar_widget_layout.addWidget(remainder_scroll_area, alignment=Qt.AlignmentFlag.AlignHCenter)
-        sidebar_widget_layout.addWidget(settings_scroll_area, alignment=Qt.AlignmentFlag.AlignHCenter)
+        sidebar_widget_layout.addWidget(remainder_scroll_area, alignment=Qt.AlignmentFlag.AlignHCenter, stretch=7)
+        sidebar_widget_layout.addWidget(settings_scroll_area, alignment=Qt.AlignmentFlag.AlignHCenter, stretch=3)
         
         layout.addWidget(class_header)
         layout.addWidget(class_widget)
