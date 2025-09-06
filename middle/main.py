@@ -49,38 +49,56 @@ class School:
             
             subjects[subjectID] = [subjectName, {}]
             
+            selectedLevelIDs = {}
             randomTeachers = []
             for teacherID, (teacherName, levelIndexesMapping) in subjectInfo.items():
                 for strClassIndex, (maxRandomClassesAmt, options) in levelIndexesMapping.items():
                     teachersMapping = {}
+                    selectedLevelIDs[strClassIndex] = []
                     
                     timings = subjectTimingMappings[strClassIndex]
                     if options:
                         for optionID in options:
                             teachersMapping[optionID] = [[teacherID, teacherName], []]
+                            selectedLevelIDs[strClassIndex].append(optionID)
                         
                         subjects[subjectID][1][strClassIndex] = [timings[0], timings[1], teachersMapping]
                     else:
-                        randomTeachers.append([strClassIndex, [teacherID, teacherName], timings, maxRandomClassesAmt])
+                        randomTeachers.append([maxRandomClassesAmt, strClassIndex, [teacherID, teacherName], []])
+                        
+                        if strClassIndex not in subjects[subjectID][1]:
+                            subjects[subjectID][1][strClassIndex] = [timings[0], timings[1], {}]
             
-            for strClassIndex, t_data, timings, maxClasses in randomTeachers:
-                classAmt = 0
-                
-                options = subjectClassesMappings.get(strClassIndex, classOptions[int(strClassIndex)])
-                if random.choice([True, False]):
-                    random.shuffle(options)
-                
-                subjects[subjectID][1][strClassIndex] = subjects[subjectID][1].get(strClassIndex, [timings[0], timings[1], {}])
-                
-                for option in options:
-                    if classAmt >= maxClasses:
-                        break
-                    
-                    if option not in subjects[subjectID][1][strClassIndex][2]:
-                        subjects[subjectID][1][strClassIndex][2][option] = [t_data, []]
-                        classAmt += 1
+            for _, strClassIndex, _, availableTeachers in randomTeachers:
+                availableTeachers.clear()
+                availableTeachers.extend([opt_id for opt_id in subjectClassesMappings.get(strClassIndex, classOptions[int(strClassIndex)]) if opt_id not in selectedLevelIDs[strClassIndex]])
+            
+            for strClassIndex, randomSubClassTeacherData in School.placeRandomTeachers(randomTeachers).items():
+                subjects[subjectID][1][strClassIndex][2].update(randomSubClassTeacherData)
         
         return subjects
+    
+    @staticmethod
+    def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):
+        placedClassLevels = {}
+        
+        for maxClasses, strClassIndex, t_data, available_options in randomTeachers:
+            classAmt = 0
+            placedSubClasses = {}
+            
+            if random.choice([True, False]):
+                random.shuffle(available_options)
+            
+            for option in available_options:
+                if classAmt >= maxClasses:
+                    break
+                
+                placedSubClasses[option] = [t_data, []]
+                classAmt += 1
+            
+            placedClassLevels[strClassIndex] = placedSubClasses
+        
+        return placedClassLevels
     
     def findClashes(self, subject: Subject, day: str, period: int, cls: Class):
         clashes: list[tuple[Subject, Class]] = []

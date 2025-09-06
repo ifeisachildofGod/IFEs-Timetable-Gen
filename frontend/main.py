@@ -178,7 +178,11 @@ class Window(QMainWindow):
     
     def unsaved_callback(self):
         self.saved = False
-        self.setWindowTitle(f"{self.title} - {Path(self.file.path).absolute().as_posix()} *Unsaved")
+        
+        if self.file.path is not None:
+            self.setWindowTitle(f"{self.title} - {Path(self.file.path).absolute().as_posix()} *Unsaved")
+        else:
+            self.setWindowTitle(self.title)
     
     def saved_callback(self):
         self.saved = True
@@ -366,10 +370,11 @@ class Window(QMainWindow):
         }
     
     def keyPressEvent(self, a0):
-        focus_widget = self.focusWidget()
-        
-        if isinstance(focus_widget, QPushButton):
-            focus_widget.click()
+        if a0.key() == 16777220: # type: ignore
+            focus_widget = self.focusWidget()
+            
+            if isinstance(focus_widget, QPushButton):
+                focus_widget.click()
         
         return super().keyPressEvent(a0)
     
@@ -416,9 +421,9 @@ class Window(QMainWindow):
     def update_interaction(self, prev_index: int, curr_index: int):
         match prev_index:
             case 3:
-                for _, (_, info1) in self.school.project["subjects"].items():
-                    for _, (_, _, info2) in info1.items():
-                        for _, (_, info3) in info2.items():
+                for _, info1 in self.school.project["subjects"].values():
+                    for _, _, info2 in info1.values():
+                        for _, info3 in info2.values():
                             info3.clear()
                 
                 for _, cls in self.school.classes.items():

@@ -381,54 +381,6 @@ class ClassTimetable(QTableWidget):
         
         return total_subject_amt
     
-    def insert_subject_in_table(self, subject: Subject, row: int, col: int):
-        subjects = self.timetable.table[self.timetable.weekInfo[col][0]]
-        
-        offset = None
-        subject_index = None
-        
-        period = 0
-        for index, subj in enumerate(subjects):
-            if period >= row:
-                offset = period - row
-                subject_index = index
-                break
-            
-            period += subj.total
-        
-        subjects[subject_index].total -= offset
-        
-        main_offset_subject = subjects[subject_index]
-        
-        subjects.insert(subject_index, subject)
-        
-        if offset:
-            offset_subject = main_offset_subject.copy()
-            offset_subject.total = offset
-            
-            subjects.insert(subject_index, offset_subject)
-        # print(list(flatten([[s.name for _ in range(s.total)] for s in subjects])))
-    
-    def replace_subject_in_table(self, subject: Subject, row: int, col: int):
-        subjects = self.timetable.table[self.timetable.weekInfo[col][0]]
-        
-        subject_index = None
-        
-        period = 0
-        for index, subj in enumerate(subjects):
-            if period >= row:
-                subject_index = index
-                break
-            
-            period += subj.total
-        
-        subjects[subject_index].total -= 1
-        
-        if not subjects[subject_index].total:
-            subjects.pop(subject_index)
-        
-        self.insert_subject_in_table(subject, row, col)
-    
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasText():
             row = self.rowAt(int(event.position().y()))
@@ -493,7 +445,7 @@ class ClassTimetable(QTableWidget):
                         event.accept()
                         
                         del target_item
-
+            
             elif self.editor.external_source_ref is not None:
                 row = self.rowAt(int(event.position().y()))
                 col = self.columnAt(int(event.position().x()))
@@ -526,7 +478,7 @@ class ClassTimetable(QTableWidget):
                 replacement_subject = self.editor.external_source_ref.subject.copy()
                 replacement_subject.total = 1
                 
-                self.replace_subject_in_table(replacement_subject, row, col)
+                self.timetable.replace(replacement_subject, row, col)
                 
                 # Force refresh
                 event.accept()
@@ -535,23 +487,24 @@ class ClassTimetable(QTableWidget):
             self.current_source = None
     
     def add_remainder(self, remainder: DraggableSubjectLabel, index: int | None = None):
+        remainder.subject.perWeek += 1
+        subject = remainder.subject.copy()
+        subject.total = 1
+        subject.lockedPeriod = None
+        
         if index is not None:
             self.remainder_layout.insertWidget(index, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             self.remainder_labels.insert(index - 1, remainder)
+            self.timetable.remainderContent.insert(index - 1, subject)
         else:
             self.remainder_layout.insertWidget(self.remainder_layout.count() - 1, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             self.remainder_labels.append(remainder)
-        
-        remainder_subject = next((s for s in self.timetable.remainderContent if s.id == remainder.subject.id), remainder.subject)
-        if remainder_subject not in self.timetable.remainderContent:
-            self.timetable.remainderContent.append(remainder_subject)
-        remainder_subject.perWeek += 1
+            self.timetable.remainderContent.append(subject)
     
     def remove_remainder(self, remainder: DraggableSubjectLabel):
-        remainder_subject = list(flatten([[s for _ in range(s.perWeek)] for s in self.timetable.remainderContent]))[self.remainder_labels.index(remainder)]
-        remainder_subject.perWeek -= 1
-        if not remainder_subject.perWeek:
-            self.timetable.remainderContent.remove(remainder_subject)
+        remainder.subject.perWeek -= 1
+        if not remainder.subject.perWeek and remainder.subject in self.timetable.remainderContent:
+            self.timetable.remainderContent.remove(remainder.subject)
         
         self.remainder_labels.remove(remainder)
         self.remainder_layout.removeWidget(remainder)
@@ -605,11 +558,17 @@ class ClassTimetable(QTableWidget):
         
         if item and isinstance(item, TimeTableItem) and item.subject is not None and item.subject.teacher is not None:
             menu = QMenu(self)
+            
+            lock_action = None
+            unlock_action = None
+            
             delete_action = menu.addAction("Delete")
             if item.subject.lockedPeriod:
-                menu.addAction("Unlock Period")
+                unlock_action = menu.addAction("Unlock Period")
             else:
-                menu.addAction("Lock to Period")
+                lock_action = menu.addAction("Lock to Period")
+            goto_subject_action = menu.addAction("Go to Subject")
+            goto_teacher_action = menu.addAction("Go to Teacher")
             
             action = menu.exec(self.viewport().mapToGlobal(pos))
             
@@ -627,11 +586,15 @@ class ClassTimetable(QTableWidget):
                 
                 self.setItem(row, col, TimeTableItem(free_period_subject, False, True))
                 
-                self.replace_subject_in_table(free_period_subject, row, col)
-            elif action and action.text() == "Lock to Period":
+                self.timetable.replace(free_period_subject, row, col)
+            elif lock_action is not None and action == lock_action:
                 item.subject.lockedPeriod = [self.row(item), 1]  # Lock to current period
-            elif action and action.text() == "Unlock Period":
+            elif unlock_action is not None and action == unlock_action:
                 item.subject.lockedPeriod = None
+            elif action == goto_subject_action:
+                pass
+            elif action == goto_teacher_action:
+                pass
     
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -720,8 +683,14 @@ class TimeTableEditor(QWidget):
     def set_editor_from_school(self, school: School):
         self.school = school
         
-        classes = {}
+        for class_id, widget in self.timetable_parent_widget.copy().items():
+            if class_id not in self.school.classes:
+                self.timetable_parent_widget.pop(class_id)
+                self.timetable_widgets.pop(class_id)
+            
+            self.timetables_layout.removeWidget(widget)
         
+        classes = {}
         for cls in self.school.classes.values():
             classes[cls.uniqueID] = (
                 self.timetable_parent_widget[cls.uniqueID]
@@ -729,15 +698,17 @@ class TimeTableEditor(QWidget):
                 self._make_timetable_for_each_class(cls)
             )
         
-        for class_id, widget in self.timetable_parent_widget.copy().items():
-            if class_id not in classes:
-                self.timetable_parent_widget.pop(class_id)
-                self.timetable_widgets.pop(class_id)
-            
-            self.timetables_layout.removeWidget(widget)
-        
         for class_id, widget in classes.items():
-            self.timetable_widgets[class_id].populate_timetable()
+            ttbl = self.timetable_widgets[class_id]
+            
+            for col in range(ttbl.columnCount()):
+                for row in range(ttbl.rowCount()):
+                    ttbl_item: TimeTableItem = ttbl.item(row, col)
+                    
+                    if ttbl_item.subject.id not in (ttbl.timetable.freePeriodID, ttbl.timetable.breakPeriodID) and ttbl_item.subject.uniqueID not in school.subjects:
+                        subj = Subject(ttbl.timetable.freePeriodID, "Free", 1, 1, None, ttbl)
+                        ttbl.timetable.replace(subj, row, col)
+            ttbl.populate_timetable()
             self.timetables_layout.addWidget(widget)
     
     def refresh(self):
@@ -843,53 +814,66 @@ class TimeTableEditor(QWidget):
             "subjectTeacherMapping": subjectTeacherMapping
         }
         
-        school_project_subjects_dict = self.school.project.get("subjects")
+        school_project_subjects_dict = self.school.project.get("subjects", {})
         
-        if school_project_subjects_dict is not None:
-            subjects = {}
-            for subject_id, (subject_name, subject_info) in subjectTeacherMapping.items():
-                subject_level_info = {}
-                
-                t_temp = subject_info.pop("&timings")
-                c_temp = subject_info.pop("&classes", None)
-                
-                classes_taught = {}
-                
-                for _, cls_option_mapping in subject_info.values():
-                    for clslvlIndex, (_, classIDs) in cls_option_mapping.items():
-                        if clslvlIndex not in classes_taught:
-                            classes_taught[clslvlIndex] = []
-                        classes_taught[clslvlIndex].extend(classIDs)
-                
-                subject_info["&timings"] = t_temp
-                if c_temp is not None:
-                    subject_info["&classes"] = c_temp
-                
-                classes_taught.update(subject_info.get("&classes", {}))
-                
-                for class_index, class_ids in classes_taught.items():
-                    class_teacher_mapping = {}
-                    for class_id in class_ids:
-                        teacher_info_from_project = school_project_subjects_dict.get(subject_id, [_, {}])[1].get(class_index, [_, _, {}])[2].get(class_id)
-                        
-                        if teacher_info_from_project is not None:
-                            class_teacher_mapping[class_id] = teacher_info_from_project
-                        else:
-                            all_available_class_teacher_ids = list({_id: name for _id, (name, _) in [(k, v) for k, v in subject_info.items() if not k.startswith("&")]}.items())
-                            if random.choice([True, False, False, False, False]):
-                                random.shuffle(all_available_class_teacher_ids)
-                            
-                            teacher_id = all_available_class_teacher_ids[0][0]
-                            teacher_name = all_available_class_teacher_ids[0][1]
-                            
-                            class_teacher_mapping[class_id] = [[teacher_id, teacher_name], []]
-                    
-                    per_day, per_week = subject_info["&timings"][class_index]
-                    subject_level_info[class_index] = (per_day, per_week, class_teacher_mapping)
-                
-                subjects[subject_id] = [subject_name, subject_level_info]
+        subjects = {}
+        for subject_id, (subject_name, subject_info) in subjectTeacherMapping.items():
+            subject_level_info = {}
             
-            project_update["subjects"] = subjects
+            t_temp = subject_info.pop("&timings")
+            c_temp = subject_info.pop("&classes", None)
+            
+            classes_taught = {}
+            
+            for _, cls_option_mapping in subject_info.values():
+                for clslvlIndex, (_, classIDs) in cls_option_mapping.items():
+                    if clslvlIndex not in classes_taught:
+                        classes_taught[clslvlIndex] = []
+                    classes_taught[clslvlIndex].extend(classIDs)
+            
+            subject_info["&timings"] = t_temp
+            if c_temp is not None:
+                subject_info["&classes"] = c_temp
+            
+            classes_taught.update(subject_info.get("&classes", {}))
+            
+            random_select_teacher_ids = []
+            
+            for class_index, class_ids in classes_taught.items():
+                class_teacher_mapping = {}
+                
+                class_level_id = list(classes_info)[int(class_index)]
+                
+                for class_id in class_ids:
+                    for teacher_id, teacher_data in teachers_info.items():
+                        potential_teacher_info_on_subject = teacher_data["classes"]["content"].get(subject_id, {}).get(class_level_id, [-50, {}])
+                        
+                        if potential_teacher_info_on_subject[0] == -50:
+                            continue
+                        
+                        data = [[teacher_id, "".join(teacher_data["text"])], school_project_subjects_dict.get(subject_id, [_, {}])[1].get(class_index, [_, _, {}])[2].get(class_id, [_, []])[1]]
+                        
+                        if potential_teacher_info_on_subject[0] is not None:
+                            random_select_teacher_ids.append([potential_teacher_info_on_subject[0], class_index, data, []])
+                            continue
+                        
+                        if potential_teacher_info_on_subject[1].get(class_id):
+                            class_teacher_mapping[class_id] = data
+                            break
+                
+                per_day, per_week = subject_info["&timings"][class_index]
+                subject_level_info[class_index] = (per_day, per_week, class_teacher_mapping)
+                
+                for _, _, _, available_c_ids in random_select_teacher_ids:
+                    available_c_ids.clear()
+                    available_c_ids.extend([class_id for c_id, c_id_state in subject_info["classes"][class_level_id].items() if c_id_state and c_id not in class_teacher_mapping])
+            
+            for str_class_index, random_sub_class_teacher_data in School.placeRandomTeachers(random_select_teacher_ids).items():
+                subject_level_info[str_class_index][2].update(random_sub_class_teacher_data)
+            
+            subjects[subject_id] = [subject_name, subject_level_info]
+        
+        project_update["subjects"] = subjects
         
         main_window_school: School = self.main_window.school
         
@@ -999,7 +983,6 @@ class TimeTableEditor(QWidget):
         widget.setLayout(layout)
         
         settings_width = 200
-        settings_min_width = 50
         
         class_header = QLabel(f"Class: {cls.name}")
         class_header.setProperty("class", "Title")

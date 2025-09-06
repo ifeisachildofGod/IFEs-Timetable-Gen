@@ -149,6 +149,8 @@ class SettingWidget(QWidget):
             widget.deleteLater()
             self.entry_deleted(_id)
             self.info.pop(_id)
+            
+            self.saved_state_changed.emit()
         
         return del_widget
     
@@ -415,8 +417,6 @@ class Teachers(SettingWidget):
     def _update_classes(self, _id):
         class_info = self.main_window.classes_widget.get() # type: ignore
         subject_info = self.main_window.subjects_widget.get() # type: ignore
-        
-        subject_general_data = self.main_window.subjects_widget.classes_data # type: ignore
         
         teacher_subject_class_content_info = self.info[_id]["classes"]["content"]
         teacher_subject_class_id_mapping_info = self.info[_id]["classes"]["id_mapping"]

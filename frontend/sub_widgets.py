@@ -211,7 +211,7 @@ class SubjectDropdownCheckBoxes(QDialog):
             
             if optionState and not dp_checkbox.isChecked():
                 clicked_cbs.append(dp_checkbox)
-            # print(optionState, all_clicked, dp_checkbox.isChecked())
+            
             option_layout.addSpacing(50)
             option_layout.addWidget(dp_title)
             option_layout.addStretch()

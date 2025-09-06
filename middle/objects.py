@@ -221,6 +221,78 @@ class Timetable:
             else:
                 subjects[subject.lockedPeriod[0]] = subject
     
+    def insert(self, subject: Subject, row: int, col: int):
+        subjects = self.table[self.weekInfo[col][0]]
+        
+        free_periods = self.weekInfo[col][1] - sum(s.total for s in self.table[self.weekInfo[col][0]])
+        if free_periods:
+            subjects.append(Subject(self.freePeriodID, "Free", free_periods, free_periods, None, self.cls))
+        
+        offset = None
+        subject_index = None
+        
+        period = 0
+        for index, subj in enumerate(subjects):
+            if period >= row:
+                offset = period - row
+                subject_index = index
+                break
+            
+            period += subj.total
+        
+        subjects[subject_index].total -= offset
+        
+        main_offset_subject = subjects[subject_index]
+        
+        subjects.insert(subject_index, subject)
+        
+        if offset:
+            offset_subject = main_offset_subject.copy()
+            offset_subject.total = offset
+            
+            subjects.insert(subject_index, offset_subject)
+        
+        self.flatten(self.weekInfo[col][0])
+    
+    def replace(self, subject: Subject, row: int, col: int):
+        subjects = self.table[self.weekInfo[col][0]]
+        
+        free_periods = self.weekInfo[col][1] - sum(s.total for s in self.table[self.weekInfo[col][0]])
+        if free_periods:
+            subjects.append(Subject(self.freePeriodID, "Free", free_periods, free_periods, None, self.cls))
+        
+        subject_index = None
+        
+        period = 0
+        for index, subj in enumerate(subjects):
+            if period >= row:
+                subject_index = index
+                break
+            
+            period += subj.total
+        
+        subjects[subject_index].total -= 1
+        
+        if not subjects[subject_index].total:
+            subjects.pop(subject_index)
+        
+        self.flatten(self.weekInfo[col][0])
+        self.insert(subject, row, col)
+    
+    def flatten(self, day: str):
+        subjects = self.table[day]
+        
+        new_subjects = []
+        
+        for subject in subjects:
+            if new_subjects and new_subjects[-1].id == subject.id:
+                new_subjects[-1].total += subject.total
+            else:
+                new_subjects.append(subject)
+        
+        subjects.clear()
+        subjects.extend(new_subjects)
+    
     def generate(self):
         for dayIndex, (day, periods, breakPeriod) in enumerate(self.weekInfo):
             period = 0

@@ -76,7 +76,7 @@
         teacherID: {
             "text": [text_on_input, ...],
             "classes": {
-                "content":{
+                "content": {
                     subjectID: {
                         classID: (randomlySelectedMaxAmt, {optionID: optionState, ...}),
                         ...
@@ -89,11 +89,12 @@
                 }
             },
             "subjects": [(selectedSubjectID, selectedSubject), ..., None, (unselectedSubjectID, unselectedSubject), ...]
-            },
-            ...
         },
+        ...
+    }
     
 
+    
     "classesInfo": {
         classID: {
             "text": [text_on_input, ...],
