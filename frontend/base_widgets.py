@@ -110,7 +110,7 @@ class NumberTextEdit(QWidget):
         buttons_layout.addWidget(increment_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
         buttons_layout.addWidget(decrement_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
         
-        self.edit.setValidator(QIntValidator(0, max_validatorAmt))
+        self.edit.setValidator(QIntValidator(-max_validatorAmt, max_validatorAmt))
         
         self.setFixedHeight(50)
         self.edit.setFixedHeight(30)
@@ -119,7 +119,7 @@ class NumberTextEdit(QWidget):
         if not text:
             self.edit.setText(str(self.min_num))
             self.text = str(self.min_num)
-        elif text and int(text) > self.max_num:
+        elif text and (int(text) > self.max_num or int(text) < self.min_num):
             self.edit.setText(self.text)
         else:
             self.text = text
