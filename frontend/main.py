@@ -37,6 +37,7 @@ class Window(QMainWindow):
         
         # Initialize school data
         self.school = School(self.save_data)
+        self.school.setSchoolInfoFromProjectDict()
         
         # Misc
         self.display_index = 0

@@ -76,7 +76,7 @@ class SettingWidget(QWidget):
         buttons_layout = QHBoxLayout()
         header_layout = QHBoxLayout()
         
-        _id = (self.objectName().lower() + ":" + hex(id(widget)).upper().replace("0X", "")) if _id is None else _id
+        _id = hex(id(widget)).lower().replace("0x", "") if _id is None else _id
         
         if data is None:
             self.info[_id] = self.get_new_data()
@@ -433,6 +433,38 @@ class Teachers(SettingWidget):
             if subject_id not in self.all_subject_classes_info:
                 self.all_subject_classes_info[subject_id] = {"content": {}, "id_mapping": {"main": {}, "sub": {}}}
             
+            # Removing the unremoved in the general data
+            for class_id, (_, options_info) in self.all_subject_classes_info[subject_id]["content"].copy().items():
+                if class_id not in class_info or class_id not in subject_info[subject_id]["classes"]:
+                    if class_id in teacher_subject_class_content_info:
+                        teacher_subject_class_content_info.pop(class_id)
+                        # teacher_subject_class_id_mapping_info["main"].pop(class_id)
+                        # teacher_subject_class_id_mapping_info["sub"].pop(class_id)
+                    
+                    self.all_subject_classes_info[subject_id]["content"].pop(class_id)
+                    
+                    self.all_subject_classes_info[subject_id]["id_mapping"]["main"].pop(class_id)
+                    self.all_subject_classes_info[subject_id]["id_mapping"]["sub"].pop(class_id)
+                    
+                    if class_id in subject_info[subject_id]["classes"]:
+                        subject_info[subject_id]["classes"].pop(class_id)
+                else:
+                    for option_id in options_info.copy():
+                        if option_id not in class_info[class_id]["options"] or option_id not in subject_info[subject_id]["classes"][class_id]:
+                            if class_id in teacher_subject_class_content_info:
+                                if option_id in teacher_subject_class_content_info[class_id][1]:
+                                    teacher_subject_class_content_info[class_id][1].pop(option_id)
+                                    # teacher_subject_class_id_mapping_info["sub"][class_id].pop(option_id)
+                            
+                                # if not teacher_subject_class_id_mapping_info[class_id][1]:
+                                #     teacher_subject_class_id_mapping_info.pop(class_id)
+                            
+                            self.all_subject_classes_info[subject_id]["content"][class_id][1].pop(option_id)
+                            self.all_subject_classes_info[subject_id]["id_mapping"]["sub"][class_id].pop(option_id)
+                            
+                            if option_id in subject_info[subject_id]["classes"][class_id]:
+                                subject_info[subject_id]["classes"][class_id].pop(option_id)
+            
             # Setting the content data
             for class_id, options_info in subject_info[subject_id]["classes"].items():
                 if class_id not in self.all_subject_classes_info[subject_id]["content"]:
@@ -450,32 +482,6 @@ class Teachers(SettingWidget):
                 self.all_subject_classes_info[subject_id]["id_mapping"]["sub"][class_id] = {}
                 for option_id in self.all_subject_classes_info[subject_id]["content"][class_id][1]:
                     self.all_subject_classes_info[subject_id]["id_mapping"]["sub"][class_id][option_id] = class_info[class_id]["options"][option_id]
-            
-            # Removing the unremoved in the general data
-            for class_id, (_, options_info) in self.all_subject_classes_info[subject_id]["content"].copy().items():
-                if class_id not in class_info or class_id not in subject_info[subject_id]["classes"]:
-                    if class_id in teacher_subject_class_content_info:
-                        teacher_subject_class_content_info.pop(class_id)
-                        # teacher_subject_class_id_mapping_info["main"].pop(class_id)
-                        # teacher_subject_class_id_mapping_info["sub"].pop(class_id)
-                    
-                    self.all_subject_classes_info[subject_id]["content"].pop(class_id)
-                    
-                    self.all_subject_classes_info[subject_id]["id_mapping"]["main"].pop(class_id)
-                    self.all_subject_classes_info[subject_id]["id_mapping"]["sub"].pop(class_id)
-                else:
-                    for option_id in options_info.copy():
-                        if option_id not in class_info[class_id]["options"] or option_id not in subject_info[subject_id]["classes"][class_id]:
-                            if class_id in teacher_subject_class_content_info:
-                                if option_id in teacher_subject_class_content_info[class_id][1]:
-                                    teacher_subject_class_content_info[class_id][1].pop(option_id)
-                                    # teacher_subject_class_id_mapping_info["sub"][class_id].pop(option_id)
-                            
-                                # if not teacher_subject_class_id_mapping_info[class_id][1]:
-                                #     teacher_subject_class_id_mapping_info.pop(class_id)
-                            
-                            self.all_subject_classes_info[subject_id]["content"][class_id][1].pop(option_id)
-                            self.all_subject_classes_info[subject_id]["id_mapping"]["sub"][class_id].pop(option_id)
         
         # Removals
         for subject_id, subject_class_data in teacher_subject_class_content_info.copy().items():
@@ -534,7 +540,21 @@ class Classes(SettingWidget):
         return {}
     
     def make_popups(self, _id, layout):
+        
+        index = len(self.get())
+        
+        if index >= len(self.main_window.school.project["levels"]):
+            self.main_window.school.project["levels"].append([
+                "",
+                [
+                    [self.main_window.default_period_amt for _ in range(len(self.main_window.default_weekdays))],
+                    [self.main_window.default_breakperiod for _ in range(len(self.main_window.default_weekdays))],
+                    self.main_window.default_weekdays
+                    ],
+                {}
+            ])
+        
         self._make_popup(_id, "Option Selector", layout, OptionsMaker, "options", button_name="Options", closed_func=lambda _: self.main_window.subjects_widget.update_classes()) # type: ignore
-        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
+        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, week_total=sum(self.main_window.school.project["levels"][index][1][1]))
 
 

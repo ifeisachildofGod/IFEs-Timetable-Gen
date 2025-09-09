@@ -3,8 +3,9 @@
     "levels": [
         (
             levelName,
+            (*periodsPerDay, *breakPeriod, *daysOfTheWeek),
             {
-                classID: (className, (*periodsPerDay, *breakPeriod, *daysOfTheWeek)),
+                classID: className,
                 ...
             }
         ),

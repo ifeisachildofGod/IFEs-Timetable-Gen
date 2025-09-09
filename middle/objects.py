@@ -31,6 +31,10 @@ class Subject:
     
     def copy(self):
         subject = Subject(self.id, self.name, self.total, self.perWeek, self.teacher, self.cls)
+        
+        subject.TOTAL = self.TOTAL
+        subject.PERWEEK = self.PERWEEK
+        
         subject.lockedPeriod = self.lockedPeriod
         
         return subject
@@ -76,7 +80,7 @@ class Class:
         self.timetable = Timetable(self, [subject.copy() for subject in self.subjects], self.schoolSubjects, self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
     
     @staticmethod
-    def getUniqueID(index, classID):
+    def getUniqueID(index: int, classID: str):
         return classID + str(index + 1)
 
 class Teacher:
@@ -107,8 +111,8 @@ class Timetable:
         self._maxPerfectTimetableTries = 30
         self._foundPerfectTimeTable = False
         
-        self.table: dict[str, list[Subject]] = {day: [] for day in self.cls.weekdays}
-        self.remainderContent = []
+        self.table: dict[str, list[Subject]] = {day: [] for day, _, _ in self.weekInfo}
+        self.remainderContent: list[Subject] = []
         
         self.reset()
         
@@ -126,7 +130,7 @@ class Timetable:
         self.subjects = self._subjects
         self._subjects = [subject.copy() for subject in self.subjects if subject.id != self.freePeriodID]
         
-        self.table: dict[str, list[Subject]] = {day: [] for day in self.cls.weekdays}
+        self.table: dict[str, list[Subject]] = {day: [Subject(self.freePeriodID, "Free", b - 1, 0, None, self.cls), Subject(self.breakPeriodID, "Break", 1, 0, None, self.cls), Subject(self.freePeriodID, "Free", p - b, 0, None, self.cls)] for day, p, b in self.weekInfo}
         self.remainderContent = []
         
         for subject in self.subjects:
@@ -221,67 +225,100 @@ class Timetable:
             else:
                 subjects[subject.lockedPeriod[0]] = subject
     
-    def insert(self, subject: Subject, row: int, col: int):
+    def idFind(self, id: str, col: int, start: int | None = None, end: int | None = None, strict=False):
+        subjects = self.table[self.weekInfo[col][0]][(start if start is not None else 0) : (end if end is not None else len(self.table[self.weekInfo[col][0]]))]
+        
+        index = next((index for index, subj in enumerate(subjects) if subj.id == id), -1)
+        
+        if strict and index == -1:
+            raise ValueError(f"Subject of ID {id} is not in the range of Column {col + 1}")
+        
+        return index
+    
+    def idRemove(self, id: str, col: int):
         subjects = self.table[self.weekInfo[col][0]]
         
-        free_periods = self.weekInfo[col][1] - sum(s.total for s in self.table[self.weekInfo[col][0]])
-        if free_periods:
-            subjects.append(Subject(self.freePeriodID, "Free", free_periods, free_periods, None, self.cls))
+        index = self.idFind(id, col, strict=True)
         
-        offset = None
-        subject_index = None
+        subjects[index].total -= 1
         
-        period = 0
+        if subjects[index].total <= 0:
+            subjects.pop(index)
+    
+    def find(self, row: int, col: int, start: int | None = None, end: int | None = None, strict=False):
+        subjects = self.table[self.weekInfo[col][0]][(start if start is not None else 0) : (end if end is not None else len(self.table[self.weekInfo[col][0]]))]
+        
+        curr_period = 0
+        
         for index, subj in enumerate(subjects):
-            if period >= row:
-                offset = period - row
-                subject_index = index
-                break
-            
-            period += subj.total
+            if curr_period >= row:
+                return index
+
+            curr_period += subj.total
         
-        subjects[subject_index].total -= offset
+        if strict:
+            raise ValueError(f"Period {row + 1} is out of the range of Column {col + 1}")
         
-        main_offset_subject = subjects[subject_index]
+        return -1
+    
+    def remove(self, row: int, col: int):
+        subjects = self.table[self.weekInfo[col][0]]
         
-        subjects.insert(subject_index, subject)
+        index = self.find(row, col, strict=True)
         
-        if offset:
-            offset_subject = main_offset_subject.copy()
-            offset_subject.total = offset
-            
-            subjects.insert(subject_index, offset_subject)
+        subjects[index].total -= 1
         
-        self.flatten(self.weekInfo[col][0])
+        if subjects[index].total <= 0:
+            subjects.pop(index)
+    
+    def insert(self, subject: Subject, row: int, col: int):
+        day = self.weekInfo[col][0]
+        
+        self.spread(self.table[day])
+        
+        free_periods = self.weekInfo[col][1] - len(self.table[day])
+        if free_periods:
+            for _ in range(free_periods):
+                self.table[day].append(Subject(self.freePeriodID, "Free", 1, 0, None, self.cls))
+        
+        self.table[day].insert(row, subject)
+        
+        self.flatten(self.table[day])
     
     def replace(self, subject: Subject, row: int, col: int):
         subjects = self.table[self.weekInfo[col][0]]
         
-        free_periods = self.weekInfo[col][1] - sum(s.total for s in self.table[self.weekInfo[col][0]])
+        free_periods = self.weekInfo[col][1] - sum(s.total for s in subjects)
         if free_periods:
-            subjects.append(Subject(self.freePeriodID, "Free", free_periods, free_periods, None, self.cls))
+            subjects.append(Subject(self.freePeriodID, "Free", free_periods, 0, None, self.cls))
         
-        subject_index = None
+        self.remove(row, col)
         
-        period = 0
-        for index, subj in enumerate(subjects):
-            if period >= row:
-                subject_index = index
-                break
-            
-            period += subj.total
-        
-        subjects[subject_index].total -= 1
-        
-        if not subjects[subject_index].total:
-            subjects.pop(subject_index)
-        
-        self.flatten(self.weekInfo[col][0])
         self.insert(subject, row, col)
     
-    def flatten(self, day: str):
-        subjects = self.table[day]
+    def pad(self, col: int):
+        subjects = self.table[self.weekInfo[col][0]]
         
+        self.spread(subjects)
+        
+        break_period_before = self.idFind(self.breakPeriodID, col)
+        before_break = self.weekInfo[col][2] - break_period_before - 1
+        if before_break:
+            free = Subject(self.freePeriodID, "Free", 1, 0, None, self.cls)
+            for _ in range(before_break):
+                subjects.insert(break_period_before, free)
+        
+        break_period_after = self.idFind(self.breakPeriodID, col)
+        after_break = (self.weekInfo[col][1] - self.weekInfo[col][2]) - len(subjects[break_period_after + 1:])
+        if after_break:
+            free = Subject(self.freePeriodID, "Free", 1, 0, None, self.cls)
+            for _ in range(after_break):
+                subjects.append(free)
+        
+        self.flatten(subjects)
+    
+    @staticmethod
+    def flatten(subjects: list[Subject]):
         new_subjects = []
         
         for subject in subjects:
@@ -289,6 +326,19 @@ class Timetable:
                 new_subjects[-1].total += subject.total
             else:
                 new_subjects.append(subject)
+        
+        subjects.clear()
+        subjects.extend(new_subjects)
+    
+    @staticmethod
+    def spread(subjects: list[Subject]):
+        new_subjects = []
+        
+        for subject in subjects:
+            for _ in range(subject.total):
+                new_subjects.append(subject)
+            
+            subject.total = 1
         
         subjects.clear()
         subjects.extend(new_subjects)
@@ -374,7 +424,7 @@ class Timetable:
                             subjects.insert(subjectIndex + 2, Subject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.teacher, subject.cls))
                         break
         
-        self.remainderContent = [subj.copy() for subj in self.subjects]
+        self.remainderContent = list(flatten([[subj.copy() for _ in range(subj.perWeek)] for subj in self.subjects]))
         
         if self._foundPerfectTimeTable:
             return

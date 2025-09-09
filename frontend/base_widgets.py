@@ -32,19 +32,18 @@ class TimeTableItem(QTableWidgetItem):
             
             self.setText(self.subject.name)
             self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.setToolTip(f"Teacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}{"\nSubject Locked" if locked else ""}")
+            self.setToolTip(f"Name: {self.subject.name}\nTeacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}{"\nSubject Locked" if locked else ""}")
 
 class DraggableSubjectLabel(QLabel):
     clicked = pyqtSignal(QMouseEvent)
     
-    def __init__(self, subject: Subject, cls: Class):
+    def __init__(self, subject: Subject):
         super().__init__(subject.name)
         self.subject = subject
-        self.cls = cls
         
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setProperty("class", 'RemSubjectItem')
-        self.setToolTip(f"Teacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}")
+        self.setToolTip(f"Name: {self.subject.name}\nTeacher: {self.subject.teacher.name}\nID: {self.subject.uniqueID}")
         
         self.setFixedSize(150, 40)
         
@@ -74,16 +73,18 @@ class DraggableSubjectLabel(QLabel):
             self.subject.lockedPeriod = None
 
 class NumberTextEdit(QWidget):
-    def __init__(self, min_validatorAmt: int = 0, max_validatorAmt: int = 10, empty: int | None = None):
+    def __init__(self, min_validatorAmt: int = 0, max_validatorAmt: int = 10):
         super().__init__()
         
         self.min_num = min_validatorAmt
         self.max_num = max_validatorAmt
-        self.empty = empty
+
+        self.text = str(min_validatorAmt)
         
         self.edit = QLineEdit()
-        self.edit.textChanged.connect(self._text_changed)
-        self.text = ""
+        self.edit.textChanged.connect(self.text_changed)
+        self.edit.setValidator(QIntValidator())
+        self.edit.setText(self.text)
         
         layout = QHBoxLayout()
         self.setLayout(layout)
@@ -99,28 +100,30 @@ class NumberTextEdit(QWidget):
         
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         
+        def change_number(direction: int):
+            self.edit.setText(str(int(self.edit.text()) + direction))
+        
         increment_button = CustomLabel("▼", 180)
         increment_button.setContentsMargins(0, 0, 0, 0)
-        increment_button.mouseclicked.connect(lambda: self._change_number(1))
+        increment_button.mouseclicked.connect(lambda: change_number(1))
         
         decrement_button = CustomLabel("▼", 0)
         increment_button.setContentsMargins(0, 0, 0, 0)
-        decrement_button.mouseclicked.connect(lambda: self._change_number(-1))
+        decrement_button.mouseclicked.connect(lambda: change_number(-1))
         
         buttons_layout.addWidget(increment_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
         buttons_layout.addWidget(decrement_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
         
-        self.edit.setValidator(QIntValidator(-max_validatorAmt, max_validatorAmt))
-        
         self.setFixedHeight(50)
         self.edit.setFixedHeight(30)
     
-    def _text_changed(self, text):
-        if not text:
-            self.edit.setText(str(self.min_num))
-            self.text = str(self.min_num)
-        elif text and (int(text) > self.max_num or int(text) < self.min_num):
+    def text_changed(self, text: str):
+        if not text.isnumeric():
             self.edit.setText(self.text)
+        elif int(text) > self.max_num:
+            self.edit.setText(str(self.max_num))
+        elif int(text) < self.min_num:
+            self.edit.setText(str(self.min_num))
         else:
             self.text = text
     

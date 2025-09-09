@@ -147,15 +147,12 @@ class School:
         self.schoolDict = {}
         
         classIDNameMapping = {}
-        for _, levelInfo in self.project['levels']:
-            for classID, (className, _) in levelInfo.items():
+        for _, _, levelInfo in self.project['levels']:
+            for classID, className in levelInfo.items():
                 classIDNameMapping[classID] = className
         
-        periods = [{_id: p for _id, (_, (p, _, _)) in classInfo.items()} for _, classInfo in self.project['levels']]
-        breakperiods = [{_id: b for _id, (_, (_, b, _))  in classInfo.items()} for _, classInfo in self.project['levels']]
-        weekdays = [{_id: w for _id, (_, (_, _, w))  in classInfo.items()} for _, classInfo in self.project['levels']]
-        levelNames = [name for name, _ in self.project['levels']]
-        classOptions = [[_id for _id, _ in classInfo.items()] for _, classInfo in self.project['levels']]
+        levelNames = [name for name, _, _ in self.project['levels']]
+        classOptions = [list(classInfo.keys()) for _, _, classInfo in self.project['levels']]
         
         subjects = self.project.get("subjects")
         
@@ -164,7 +161,7 @@ class School:
         
         for classIndex, classIDs in enumerate(classOptions):
             for classID in classIDs:
-                cls = Class(classIndex, classID, classIDNameMapping[classID], [], periods[classIndex][classID], levelNames, self, self.schoolDict, self.subjects, weekdays[classIndex][classID], breakperiods[classIndex][classID])
+                cls = Class(classIndex, classID, classIDNameMapping[classID], [], self.project['levels'][classIndex][1][0], levelNames, self, self.schoolDict, self.subjects, self.project['levels'][classIndex][1][2], self.project['levels'][classIndex][1][1])
                 self.classes[cls.uniqueID] = cls
         
         for subjectID, (subjectName, subjectInfo) in subjects.items():
@@ -190,9 +187,9 @@ class School:
         classLevels = []
         for _, cls in sorted(self.classes.items(), key=(lambda c: self.classes[c[0]].index)):
             if cls.index != len(classLevels):
-                classLevels[cls.index][1][cls.classID] = [cls.className, [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]]
+                classLevels[cls.index][2][cls.classID] = cls.className
             else:
-                classLevels.append([cls.namingConvention[cls.index], {cls.classID: [cls.className, [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays]]}])
+                classLevels.append([cls.namingConvention[cls.index], [cls.periodsPerDay, cls.breakTimePeriods, cls.weekdays], {cls.classID: cls.className}])
         
         subjectTeacherMapping = {}
         for t_id, teacher in self.teachers.items():
