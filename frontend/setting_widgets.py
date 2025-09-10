@@ -540,8 +540,7 @@ class Classes(SettingWidget):
         return {}
     
     def make_popups(self, _id, layout):
-        
-        index = len(self.get())
+        index = len(self.get()) - 1
         
         if index >= len(self.main_window.school.project["levels"]):
             self.main_window.school.project["levels"].append([

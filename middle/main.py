@@ -129,8 +129,7 @@ class School:
         return clashes
     
     def generateTimetable(self, cls: Class):
-        cls.timetable.__init__(cls, cls.timetable.subjects, cls.schoolSubjects, cls.timetable.periodsPerDay, cls.timetable.breakTimePeriods, self.schoolDict)
-        cls.timetable.addFreePeriods()
+        cls.timetable.reset()
         cls.timetable.generate()
     
     def generateNewSchoolTimetables(self):
@@ -180,8 +179,6 @@ class School:
                     cls.timetable._subjects.append(subj.copy())
                     
                     self.subjects[subj.uniqueID] = subj
-        
-        self.setTimetableFromProjectDict()
     
     def setProjectDictFromSchoolInfo(self):
         classLevels = []
@@ -398,6 +395,7 @@ def test():
 
     school = School(project)
     school.setSchoolInfoFromProjectDict()
+    school.setTimetableFromProjectDict()
     
     print()
     print(f"School initialised after {time.time() - orig_time} seconds")

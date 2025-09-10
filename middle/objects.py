@@ -296,21 +296,31 @@ class Timetable:
         
         self.insert(subject, row, col)
     
-    def pad(self, col: int):
+    def correct(self, col: int):
         subjects = self.table[self.weekInfo[col][0]]
         
         self.spread(subjects)
         
         break_period_before = self.idFind(self.breakPeriodID, col)
         before_break = self.weekInfo[col][2] - break_period_before - 1
-        if before_break:
+        
+        if before_break < 0:
+            for i in range(-before_break):
+                last_subj = subjects.pop(break_period_before - i - 1)
+                if last_subj != self.freePeriodID:
+                    raise Exception("Subject amount error")
+        else:
             free = Subject(self.freePeriodID, "Free", 1, 0, None, self.cls)
             for _ in range(before_break):
                 subjects.insert(break_period_before, free)
         
-        break_period_after = self.idFind(self.breakPeriodID, col)
-        after_break = (self.weekInfo[col][1] - self.weekInfo[col][2]) - len(subjects[break_period_after + 1:])
-        if after_break:
+        after_break = self.weekInfo[col][1] - len(subjects)
+        if after_break < 0:
+            for _ in range(-after_break):
+                last_subj = subjects.pop()
+                if last_subj.id != self.freePeriodID:
+                    raise Exception("Subject amount error")
+        else:
             free = Subject(self.freePeriodID, "Free", 1, 0, None, self.cls)
             for _ in range(after_break):
                 subjects.append(free)
@@ -325,7 +335,7 @@ class Timetable:
             if new_subjects and new_subjects[-1].id == subject.id:
                 new_subjects[-1].total += subject.total
             else:
-                new_subjects.append(subject)
+                new_subjects.append(subject.copy())
         
         subjects.clear()
         subjects.extend(new_subjects)
@@ -437,6 +447,9 @@ class Timetable:
             if max(timeTableSubjectsAmt - totalSubjectsAmt, 0) == totalRemainingSubjectsAmt:
                 self._foundPerfectTimeTable = True
                 self.schoolDict[self.cls] = self
+                
+                for col in range(len(self.table)):
+                    self.correct(col)
             else:
                 self._perfectTimetableCounter += 1
                 self.reset()

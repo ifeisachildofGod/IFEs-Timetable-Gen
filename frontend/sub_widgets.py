@@ -413,11 +413,10 @@ class TeacherDropdownCheckBoxes(QDialog):
             
             title = QLabel(id_mapping["main"][class_id])
             
-            max_random_text_input = NumberTextEdit(min_validatorAmt=1, max_validatorAmt=len(class_options))
+            max_random_text_input = NumberLineEdit(random_on if random_on is not None else -1, len(class_options))
             max_random_text_input.edit.setToolTip("Max Classes")
-            max_random_text_input.edit.setText(str(random_on) if random_on is not None else "")
             max_random_text_input.setVisible(False)
-            max_random_text_input.edit.textChanged.connect(self.make_random_text_changed_func(class_id, data))
+            max_random_text_input.textChanged.connect(self.make_random_text_changed_func(class_id, data))
             
             check_box = QCheckBox("Random")
             check_box.clicked.connect(self.make_main_checkbox_func(class_id, data, class_check_box_tracker))
@@ -466,8 +465,8 @@ class TeacherDropdownCheckBoxes(QDialog):
         return open_dp
     
     def make_random_text_changed_func(self, class_id, data):
-        def func(text):
-            data[class_id][0] = int(text) if text else None
+        def func(number: int):
+            data[class_id][0] = number if number != -1 else None
         
         return func
     
@@ -536,13 +535,13 @@ class TeacherDropdownCheckBoxes(QDialog):
                 if class_check_box_tracker["icon"][class_id].angle != 270:
                     class_check_box_tracker["icon"][class_id].mouseclicked.emit()
                 
-                if not class_check_box_tracker["max_random"][class_id].edit.text():
-                    class_check_box_tracker["max_random"][class_id].edit.setText(str(self.default_max_classes))
+                if class_check_box_tracker["max_random"][class_id].number() == -1:
+                    class_check_box_tracker["max_random"][class_id].setNumber(self.default_max_classes)
             
             class_check_box_tracker["icon"][class_id].setDisabled(is_on)
             class_check_box_tracker["max_random"][class_id].setVisible(is_on)
             
-            content[class_id][0] = int(class_check_box_tracker["max_random"][class_id].edit.text()) if is_on else None
+            content[class_id][0] = class_check_box_tracker["max_random"][class_id].number() if is_on else None
         
         return checkbox_func
     
@@ -599,7 +598,7 @@ class SubjectSelection(QDialog):
         
         self.main_layout = QVBoxLayout(self)
         
-        self.number_edits: dict[str, tuple[NumberTextEdit, NumberTextEdit]] = {}
+        self.number_edits: dict[str, tuple[NumberLineEdit, NumberLineEdit]] = {}
         
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -643,17 +642,15 @@ class SubjectSelection(QDialog):
         layout.addWidget(subjects_label, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(sub_widget, alignment=Qt.AlignmentFlag.AlignRight)
         
-        per_day_edit = NumberTextEdit(1, int(info["per_week"]))
-        per_day_edit.edit.setFixedWidth(50)
-        per_day_edit.edit.setPlaceholderText("Per day")
-        per_day_edit.edit.setText(info["per_day"])
-        per_day_edit.edit.textChanged.connect(self.make_per_day_text_changed_func(subject_id, per_day_edit))
+        per_day_edit = NumberLineEdit(int(info["per_day"]), 1, int(info["per_week"]))
+        # per_day_edit.edit.setFixedWidth(50)
+        per_day_edit.setPlaceholderText("Per day")
+        per_day_edit.textChanged.connect(self.make_per_day_text_changed_func(subject_id, per_day_edit))
         
-        per_week_edit = NumberTextEdit(1, self.week_total - sum([int(v["per_week"]) for _, v in self.info.values()]))
-        per_week_edit.edit.setFixedWidth(54)
-        per_week_edit.edit.setPlaceholderText("Per week")
-        per_week_edit.edit.setText(info["per_week"])
-        per_week_edit.edit.textChanged.connect(self.make_per_week_text_changed_func(subject_id, per_day_edit, per_week_edit))
+        per_week_edit = NumberLineEdit(int(info["per_week"]), 1, self.week_total - sum([int(v["per_week"]) for _, v in self.info.values()]))
+        # per_week_edit.edit.setFixedWidth(54)
+        per_week_edit.setPlaceholderText("Per week")
+        per_week_edit.textChanged.connect(self.make_per_week_text_changed_func(subject_id, per_day_edit, per_week_edit))
         
         per_day_widget = QWidget()
         per_day_layout = QHBoxLayout()
@@ -683,37 +680,37 @@ class SubjectSelection(QDialog):
         if new:
             self._update_max_per_week(int(info["per_week"]))
     
-    def make_per_day_text_changed_func(self, subject_id: str, input_edit: 'NumberTextEdit'):
+    def make_per_day_text_changed_func(self, subject_id: str, input_edit: 'NumberLineEdit'):
         def text_changed_func():
-            self.info[subject_id][1]["per_day"] = input_edit.edit.text() # type: ignore
+            self.info[subject_id][1]["per_day"] = input_edit.number() # type: ignore
             
             self.saved_state_changed.emit()
         
         return text_changed_func
     
-    def make_per_week_text_changed_func(self, subject_id: str, per_day_edit: 'NumberTextEdit', per_week_edit: 'NumberTextEdit'):
+    def make_per_week_text_changed_func(self, subject_id: str, per_day_edit: 'NumberLineEdit', per_week_edit: 'NumberLineEdit'):
         def text_changed_func():
-            self.info[subject_id][1]["per_week"] = per_week_edit.edit.text() # type: ignore
+            self.info[subject_id][1]["per_week"] = per_week_edit.number() # type: ignore
             
             if int(self.info[subject_id][1]["per_week"]) < per_day_edit.max_num and int(self.info[subject_id][1]["per_week"]) < int(self.info[subject_id][1]["per_day"]):
-                per_day_edit.edit.setText(self.info[subject_id][1]["per_week"])
+                per_day_edit.setNumber(self.info[subject_id][1]["per_week"])
             
-            per_day_edit.max_num = int(self.info[subject_id][1]["per_week"])
-            self._update_max_per_week(int(per_week_edit.edit.text()) - int(self.info[subject_id][1]["per_week"]))
+            per_day_edit.max_num = self.info[subject_id][1]["per_week"]
+            self._update_max_per_week(per_week_edit.number() - self.info[subject_id][1]["per_week"])
             
             self.saved_state_changed.emit()
         
         return text_changed_func
     
     def _update_max_per_week(self, diff: int):
-        total_per_week = sum(int(info_data["per_week"]) for _, info_data in self.info.values()) + diff
+        total_per_week = sum(info_data["per_week"] for _, info_data in self.info.values()) + diff
         remainder_days = self.week_total - total_per_week
         
         for s_id in self.info:
-            self.number_edits[s_id][1].max_num = int(self.info[s_id][1]["per_week"]) + remainder_days
+            self.number_edits[s_id][1].max_num = self.info[s_id][1]["per_week"] + remainder_days
             
-            if self.number_edits[s_id][1].max_num < int(self.info[s_id][1]["per_week"]) and int(self.number_edits[s_id][1].edit.text()) > self.number_edits[s_id][1].max_num:
-                self.number_edits[s_id][1].edit.setText(str(self.number_edits[s_id][1].max_num))
+            if self.number_edits[s_id][1].max_num < self.info[s_id][1]["per_week"] and self.number_edits[s_id][1].number() > self.number_edits[s_id][1].max_num:
+                self.number_edits[s_id][1].setNumber(self.number_edits[s_id][1].max_num)
 
 
 class OptionsMaker(QDialog):

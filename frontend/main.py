@@ -38,6 +38,7 @@ class Window(QMainWindow):
         # Initialize school data
         self.school = School(self.save_data)
         self.school.setSchoolInfoFromProjectDict()
+        self.school.setTimetableFromProjectDict()
         
         # Misc
         self.display_index = 0
@@ -435,14 +436,17 @@ class Window(QMainWindow):
                 self.subjects_widget.update_data_interaction(prev_index, curr_index)
                 self.teachers_widget.update_data_interaction(prev_index, curr_index)
                 self.classes_widget.update_data_interaction(prev_index, curr_index)
+                self.timetable_widget.update_data_interaction(prev_index, curr_index)
             case 1:  # Teachers view
                 self.teachers_widget.update_data_interaction(prev_index, curr_index)
                 self.subjects_widget.update_data_interaction(prev_index, curr_index)
                 self.classes_widget.update_data_interaction(prev_index, curr_index)
+                self.timetable_widget.update_data_interaction(prev_index, curr_index)
             case 2:  # Classes view
                 self.classes_widget.update_data_interaction(prev_index, curr_index)
                 self.subjects_widget.update_data_interaction(prev_index, curr_index)
                 self.teachers_widget.update_data_interaction(prev_index, curr_index)
+                self.timetable_widget.update_data_interaction(prev_index, curr_index)
             case 3:  # Timetable view
                 if prev_index == 0:
                     self.teachers_widget.update_data_interaction(prev_index, curr_index)
@@ -453,7 +457,7 @@ class Window(QMainWindow):
                 elif prev_index == 2:
                     self.subjects_widget.update_data_interaction(prev_index, curr_index)
                     self.teachers_widget.update_data_interaction(prev_index, curr_index)
-                self.timetable_widget.update_data_interaction()
+                self.timetable_widget.update_data_interaction(prev_index, curr_index)
 
 
 

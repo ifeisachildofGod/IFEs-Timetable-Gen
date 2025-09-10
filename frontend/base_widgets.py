@@ -72,19 +72,19 @@ class DraggableSubjectLabel(QLabel):
         elif action and action.text() == "Unlock":
             self.subject.lockedPeriod = None
 
-class NumberTextEdit(QWidget):
-    def __init__(self, min_validatorAmt: int = 0, max_validatorAmt: int = 10):
+class NumberLineEdit(QWidget):
+    textChanged = pyqtSignal(int)
+    
+    def __init__(self, number: int, min_validatorAmt: int = 0, max_validatorAmt: int = 10):
         super().__init__()
         
         self.min_num = min_validatorAmt
         self.max_num = max_validatorAmt
-
-        self.text = str(min_validatorAmt)
         
         self.edit = QLineEdit()
-        self.edit.textChanged.connect(self.text_changed)
+        self.edit.textChanged.connect(self._updateNumber)
         self.edit.setValidator(QIntValidator())
-        self.edit.setText(self.text)
+        self.setNumber(number)
         
         layout = QHBoxLayout()
         self.setLayout(layout)
@@ -100,16 +100,13 @@ class NumberTextEdit(QWidget):
         
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         
-        def change_number(direction: int):
-            self.edit.setText(str(int(self.edit.text()) + direction))
-        
         increment_button = CustomLabel("▼", 180)
         increment_button.setContentsMargins(0, 0, 0, 0)
-        increment_button.mouseclicked.connect(lambda: change_number(1))
+        increment_button.mouseclicked.connect(lambda: self._incDecNumber(1))
         
         decrement_button = CustomLabel("▼", 0)
         increment_button.setContentsMargins(0, 0, 0, 0)
-        decrement_button.mouseclicked.connect(lambda: change_number(-1))
+        decrement_button.mouseclicked.connect(lambda: self._incDecNumber(-1))
         
         buttons_layout.addWidget(increment_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
         buttons_layout.addWidget(decrement_button, alignment=Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignLeft)
@@ -117,27 +114,29 @@ class NumberTextEdit(QWidget):
         self.setFixedHeight(50)
         self.edit.setFixedHeight(30)
     
-    def text_changed(self, text: str):
-        if not text.isnumeric():
-            self.edit.setText(self.text)
-        elif int(text) > self.max_num:
-            self.edit.setText(str(self.max_num))
-        elif int(text) < self.min_num:
-            self.edit.setText(str(self.min_num))
-        else:
-            self.text = text
+    def number(self):
+        return int(self._number)
     
-    def _change_number(self, direction: int):
-        if not self.edit.text():
-            self.edit.setText("0")
-        elif not self.edit.text().strip('-').isnumeric():
-            text_list = [c for c in self.edit.text() if c.isnumeric()]
-            if text_list:
-                self.edit.setText("".join(text_list))
-            else:
-                self.edit.setText("0")
+    def setNumber(self, number: int):
+        self._number = str(number)
+        self.edit.setText(self._number)
+    
+    def setPlaceholderText(self, text: str):
+        self.edit.setPlaceholderText(text)
+    
+    def _updateNumber(self, text: str):
+        if not text.isnumeric() or self.max_num < int(text) < self.min_num:
+            self.edit.setText(self._number)
+        else:
+            self._number = text
+            self.textChanged.emit(int(self._number))
+    
+    def _incDecNumber(self, direction: int):
+        number = self.number() + direction
         
-        self.edit.setText(str(min(max(int(self.edit.text()) + direction, self.min_num), self.max_num)))
+        if self.min_num <= number <= self.max_num:
+            self.setNumber(number)
+
 
 class CustomLabel(QLabel):
     mouseclicked = pyqtSignal()
