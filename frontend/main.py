@@ -3,6 +3,9 @@ from frontend.imports import *
 from frontend.setting_widgets import *
 from frontend.editing_widgets import TimeTableEditor
 
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill
+
 class Window(QMainWindow):
     saved_state_changed = pyqtSignal()
     
@@ -49,13 +52,20 @@ class Window(QMainWindow):
         
         menu_bar = self.create_menu_bar()
         
+        # Make settings widgets
+        self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"), self.saved_state_changed)
+        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
+        self.classes_widget = Classes(self, self.save_data.get("classesInfo"), self.saved_state_changed)
+        
+        self.timetable_widget = TimeTableEditor(self, self.school, self.save_data.get("timetableInfo"), self.saved_state_changed)
+        
         # Create viewing container
         main_container = QWidget()
         main_container_layout = QVBoxLayout()
         main_container_layout.setContentsMargins(0, 0, 5, 5)
         main_container.setLayout(main_container_layout)
         
-        self.title_bar = MainTitleBar(self, menu_bar, self.go_back, self.go_forward)
+        self.title_bar = MainTitleBar(self, menu_bar, self.subjects_widget, self.go_back, self.go_forward)
         main_container_layout.addWidget(self.title_bar)
         
         # Create viewing container
@@ -97,12 +107,6 @@ class Window(QMainWindow):
         timetable_btn = QPushButton("Timetable")
         
         # Add widgets to stack
-        self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"), self.saved_state_changed)
-        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
-        self.classes_widget = Classes(self, self.save_data.get("classesInfo"), self.saved_state_changed)
-        
-        self.timetable_widget = TimeTableEditor(self, self.school, self.save_data.get("timetableInfo"), self.saved_state_changed)
-        
         self.option_buttons = [subjects_btn, teachers_btn, classes_btn, timetable_btn]
         
         self.stack.addWidget(self.subjects_widget)
@@ -142,13 +146,10 @@ class Window(QMainWindow):
     
     def _init_save_data(self):
         self.saved = True
-        self.uncompressed_path = None
         self.save_data = deepcopy(self.default_save_data)
         self.orig_data = deepcopy(self.save_data)
         
         if self.file.path is not None:
-            self.file.path, self.uncompressed_path = gzip_file(self.file.path)
-            
             self.save_data = self.file.get_data()
             
             self.saved_callback()
@@ -214,10 +215,6 @@ class Window(QMainWindow):
         with gzip.open(self.file.path, "wb") as file:
             file.write(json.dumps(self.save_data, indent=2).encode())
         
-        if self.uncompressed_path is not None:
-            with open(self.uncompressed_path, "w") as u_file:
-                json.dump(self.save_data, u_file, indent=2)
-        
         self.orig_data = deepcopy(self.save_data)
         
         self.saved_callback()
@@ -227,23 +224,187 @@ class Window(QMainWindow):
         self.update_interaction(self.display_index, 3)
         
         if export_mode == 0:
-            widget = self.timetable_widget.timetables_container
-            
-            if path.endswith(("png", "jpg", "wpeg", "svg")):
-                widget.resize(widget.sizeHint())
-                pixmap = QPixmap(widget.size())
-                widget.render(pixmap)
-                pixmap.save(path)
-            elif path.endswith("pdf"):
-                printer = QPrinter(QPrinter.PrinterMode.HighResolution)
-                printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
-                printer.setOutputFileName(path)
+            if path.endswith(("png", "jpg", "wpeg", "svg", "pdf", "html", "msisx", "xlsx")):
+                title = "Timetable"
                 
-                painter = QPainter(printer)
-                widget.render(painter)
-                painter.end()
+                widgets = list(self.timetable_widget.timetable_widgets.values())
+                
+                widget = self.timetable_widget.exportify_widgets(widgets)
+                widget.resize(QSize(max(w.columnCount() for w in widgets) * 90 + 114, widget.sizeHint().height()))
+                
+                if path.endswith("pdf"):
+                    printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+                    printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+                    printer.setOutputFileName(path)
+                    
+                    painter = QPainter(printer)
+                    widget.render(painter)
+                    painter.end()
+                elif path.endswith("html"):
+                    style = """
+                    body {
+                        font-family: Arial, sans-serif;
+                        padding: 20px;
+                        background: #f9f9f9;
+                    }
+
+                    h2 {
+                        text-align: left;
+                        margin-bottom: 20px;
+                    }
+
+                    .timetable {
+                        display: grid;
+                        grid-template-columns: 100px repeat(5, 1fr);
+                        border: 1px solid #ccc;
+                        margin-bottom: 100px;
+                    }
+
+                    .cell {
+                        border: 1px solid #ccc;
+                        padding: 15px;
+                        text-align: center;
+                    }
+
+                    .header {
+                        background: black;
+                        color: white;
+                        font-weight: bold;
+                    }
+                    
+                    .break {
+                        background: #1f1f1f;
+                        color: #1f1f1f;
+                    }
+                    """
+                    
+                    body = ""
+                    for cls_ttbl in widgets:
+                        ttbl_text = f'<div class="cell"></div>'
+                        
+                        for col in range(cls_ttbl.columnCount()):
+                            ttbl_text += f'<div class="cell header">{cls_ttbl.horizontalHeaderItem(col).text()}</div>'
+                        
+                        for row in range(cls_ttbl.rowCount()):
+                            ttbl_text += f'<div class="cell header">{cls_ttbl.verticalHeaderItem(row).text()}</div>'
+                            for col in range(cls_ttbl.columnCount()):
+                                item: TimeTableItem = cls_ttbl.item(row, col)
+                                
+                                ttbl_text += (
+                                    f'<div class="cell break"></div>'
+                                    if item.break_time else
+                                    (
+                                        f'<div class="cell"></div>'
+                                        if item.free_period else
+                                        f'<div class="cell">{item.subject.name}</div>'
+                                    )
+                                )
+                        
+                        body += f"""
+                        <h2>{cls_ttbl.cls.name}</h2>
+                        <div class="timetable">
+                            {ttbl_text}
+                        </div>
+                        """
+                    
+                    html = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>{title}</title>
+                        <style>
+                            {style}
+                        </style>
+                    </head>
+                        <body>
+                            {body}
+                        </body>
+                    </html>
+                    """
+                    
+                    with open(path, "w") as file:
+                        file.write(html)
+                elif path.endswith("msix"):
+                    doc = Document()
+                    
+                    doc.add_heading(title, level=1)
+                    
+                    for cls_ttbl in widgets:
+                        doc.add_heading(cls_ttbl.cls.name, level=2)
+                        
+                        # Create a Word table
+                        word_table = doc.add_table(cls_ttbl.rowCount(), cls_ttbl.columnCount())
+                        word_table.style = "Table Grid"
+                        
+                        
+                        for row in range(cls_ttbl.rowCount()):
+                            word_table.cell(row, 0).text = cls_ttbl.varticalHeaderItem(row).text()
+                            for col in range(cls_ttbl.columnCount()):
+                                word_table.cell(0, col).text = cls_ttbl.horizontalHeaderItem(col).text()
+                        
+                        for row in range(1, cls_ttbl.rowCount() + 1):
+                            for col in range(1, cls_ttbl.columnCount() + 1):
+                                item: TimeTableItem = cls_ttbl.item(row - 1, col - 1)
+                                word_table.cell(row, col).text = "" if item.break_time or item.free_period else item.text()
+                        
+                        for r, row in enumerate(word_table.rows):
+                            for c, cell in enumerate(row.cells):
+                                item = cls_ttbl.item(r, c)
+                                
+                                self._set_cell_bg(cell, "000000" if not r or not c else ("1F1F1F" if item.break_time else "FFFFFF"))
+
+                    doc.save(path)
+                elif path.endswith("xlsx"):
+                    wb = Workbook()
+                    ws = wb.active
+                    ws.title = title
+                    
+                    bg_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+                    general_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+                    break_fill = PatternFill(start_color="1F1F1F", end_color="1F1F1F", fill_type="solid")
+                    
+                    for cls_ttbl in widgets:
+                        # Add header row
+                        headers = [cls_ttbl.horizontalHeaderItem(col).text() for col in range(cls_ttbl.columnCount())]
+                        ws.append(headers)
+                        
+                        for row in range(cls_ttbl.rowCount()):
+                            row_data = [cls_ttbl.verticalHeaderItem(row).text()]
+                            for col in range(cls_ttbl.columnCount()):
+                                item = cls_ttbl.item(row, col)
+                                
+                                row_data.append("" if item.break_time or item.free_period else item.text())
+                            ws.append(row_data)
+                        
+                        for r, row in enumerate(ws.iter_rows()):
+                            for c, cell in enumerate(row):
+                                item = cls_ttbl.item(r, c)
+                                
+                                cell.fill = break_fill if item.break_time else (bg_fill if not r or not c else general_fill)
+                    
+                    wb.save(path)
+                else:
+                    pixmap = QPixmap(widget.size())
+                    widget.render(pixmap)
+                    pixmap.save(path)
+            elif path.endswith("json"):
+                with open(path, "w") as file:
+                    json.dump(self.save_data, file, indent=2)
+            elif path.endswith("pickle"):
+                with open(path, "wb") as file:
+                    pickle.dump(self.save_data, file)
         elif export_mode == 1:
             pass
+    
+    def _set_cell_bg(cell, color):
+        """Set background color of a Word cell"""
+        tc = cell._tc
+        tcPr = tc.get_or_add_tcPr()
+        shd = OxmlElement('w:shd')
+        shd.set('w:fill', color)  # hex without #
+        tcPr.append(shd)
     
     def undo(self):
         undo_func = self.focusWidget().__dict__.get("undo")
@@ -355,7 +516,7 @@ class Window(QMainWindow):
         return func
     
     def get_settings_info(self):
-        setting_widgets: dict[str, SettingWidget] = {
+        setting_widgets: dict[str, BaseSettingWidget] = {
             "subjectsInfo": self.subjects_widget,
             "teachersInfo": self.teachers_widget,
             "classesInfo": self.classes_widget,

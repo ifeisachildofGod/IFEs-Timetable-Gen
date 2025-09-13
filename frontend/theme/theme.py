@@ -1,51 +1,8 @@
 from frontend.imports import *
 from frontend.theme.stylesheet import STYLESHEET
 
-def _hex_to_rgb(hex_color: str, brightness: int = 1) -> tuple[int, int, int]:
-    hex_color = hex_color.lstrip('#')
-    
-    assert len(hex_color) == 6, f"Invalid color value: {"#" + hex_color}"
-    
-    brightness = brightness / 255
-    
-    assert 1 > brightness >= 0, f"Invalid brightness value: {int(brightness * 255)}"
-    
-    r = int(int(hex_color[0:2], 16) * brightness)
-    g = int(int(hex_color[2:4], 16) * brightness)
-    b = int(int(hex_color[4:6], 16) * brightness)
-    
-    return (r, g, b, 255)
 
-def _rgb_to_hex(rgb_color: tuple[int, int, int]) -> str:
-    color = "#"
-    for index, num in enumerate(rgb_color):
-        if index < 3:
-            pass
-        elif num == 255:
-            continue
-        
-        if len(hex(num).lstrip("0x")) == 0:
-            color += "00"
-        elif len(hex(num).lstrip("0x")) == 1:
-            color += "0"
-        color += hex(num).lstrip("0x")
-    
-    return color
-
-
-def _interpolate_brightness(color: str, brightness: int):
-    return _rgb_to_hex(_hex_to_rgb(color, brightness) if color is not None else (255, 255, 255, 255 - brightness))
-
-
-def get_disabled_color(color: str | None) -> str:
-    return _interpolate_brightness(color, 100)
-
-def get_hover_color(color: str | None) -> str:
-    return _interpolate_brightness(color, 200)
-
-def get_pressed_color(color: str | None) -> str:
-    return _interpolate_brightness(color, 150)
-
+NumberType = int | float
 
 class ThemeManager:
     def __init__(self):
@@ -55,10 +12,61 @@ class ThemeManager:
         self.current_theme = None
         
         self.func_mappings = {
-            "hover": get_hover_color,
-            "pressed": get_pressed_color,
-            "disabled": get_disabled_color
+            "hover": self.get_hover_color,
+            "pressed": self.get_pressed_color,
+            "disabled": self.get_disabled_color
         }
+    
+    @staticmethod
+    def hex_to_rgb(hex_color: str, brightness: int = 1) -> tuple[int, int, int]:
+        hex_color = hex_color.lstrip('#')
+        
+        assert len(hex_color) == 6, f"Invalid color value: {"#" + hex_color}"
+        
+        brightness = brightness / 255
+        
+        assert 1 > brightness >= 0, f"Invalid brightness value: {int(brightness * 255)}"
+        
+        r = int(int(hex_color[0:2], 16) * brightness)
+        g = int(int(hex_color[2:4], 16) * brightness)
+        b = int(int(hex_color[4:6], 16) * brightness)
+        
+        return (r, g, b, 255)
+    
+    @staticmethod
+    def rgb_to_hex(rgb_color: tuple[NumberType, NumberType, NumberType]) -> str:
+        color = "#"
+        for index, num in enumerate(rgb_color):
+            num = int(num)
+            
+            if index < 3:
+                pass
+            elif num == 255:
+                continue
+            
+            if len(hex(num).lstrip("0x")) == 0:
+                color += "00"
+            elif len(hex(num).lstrip("0x")) == 1:
+                color += "0"
+            color += hex(num).lstrip("0x")
+        
+        return color
+    
+    @staticmethod
+    def interpolate_brightness(color: str, brightness: int):
+        return ThemeManager.rgb_to_hex(ThemeManager.hex_to_rgb(color, brightness) if color is not None else (255, 255, 255, 255 - brightness))
+    
+    @staticmethod
+    def get_disabled_color(color: str | None) -> str:
+        return ThemeManager.interpolate_brightness(color, 100)
+    
+    @staticmethod
+    def get_hover_color(color: str | None) -> str:
+        return ThemeManager.interpolate_brightness(color, 200)
+    
+    @staticmethod
+    def get_pressed_color(color: str | None) -> str:
+        return ThemeManager.interpolate_brightness(color, 150)
     
     def _process_stylesheet_func_pointers(self, delimeter: str, stylesheet: str, palette: dict[str, str]):
         index = 0

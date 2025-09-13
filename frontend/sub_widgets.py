@@ -1,31 +1,20 @@
 from frontend.imports import *
-
 from frontend.base_widgets import *
 
-class SelectionList(QDialog):
+class SelectionList(BaseSubWidget):
     def __init__(self, title: str, info: list, saved_state_changed: pyqtBoundSignal):
-        super().__init__()
-        self.setWindowTitle(title)
+        super().__init__(title, info, saved_state_changed)
         self.setFixedSize(400, 300)
-        
-        self.saved_state_changed = saved_state_changed
-        
-        main_layout = QVBoxLayout(self)
+        self.container.setProperty("class", "SelectionList")
         
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        
-        self.container = QWidget()
-        self.container_layout = QVBoxLayout()
-        
-        self.container.setLayout(self.container_layout)
-        self.container.setProperty("class", "SelectionList")
         
         self.container_layout.setContentsMargins(10, 20, 20, 5)
         self.container_layout.setSpacing(30)
         
         self.scroll_area.setWidget(self.container)
-        main_layout.addWidget(self.scroll_area)
+        self.main_layout.addWidget(self.scroll_area)
         
         # Initialize widgets
         split_index = info.index(None)
@@ -59,6 +48,14 @@ class SelectionList(QDialog):
         
         return content
     
+    def go_to(self, _id):
+        for widget in self.container.children():
+            if isinstance(widget, (SelectedWidget, UnselectedWidget)) and widget.id == _id:
+                self.scroll_area.verticalScrollBar().setValue(widget.y())
+                widget.setFocus()
+                
+                break
+    
     @staticmethod
     def fix_none_selection_content_problem(problem_content_list: list):
         fixed_content_list = problem_content_list.copy()
@@ -67,14 +64,11 @@ class SelectionList(QDialog):
         
         return fixed_content_list
 
-class SubjectDropdownCheckBoxes(QDialog):
+class SubjectDropdownCheckBoxes(BaseSubWidget):
     def __init__(self, title: str, info: dict[str, dict[str, dict[str, dict[str, str | bool]]] | dict[int, str]], saved_state_changed: pyqtBoundSignal, general_data: dict):
-        super().__init__()
-        
-        self.info = info
+        super().__init__(title, info, saved_state_changed)
         self.general_data = general_data
         
-        self.setWindowTitle(title)
         self.setFixedSize(400, 300)
         
         self.saved_state_changed = saved_state_changed
@@ -82,19 +76,13 @@ class SubjectDropdownCheckBoxes(QDialog):
         self.main_guy_is_clicked = False
         self.mini_guy_is_clicked = False
         
-        main_layout = QVBoxLayout(self)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
         
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        
-        container = QWidget()
-        self.container_layout = QVBoxLayout(container)
         self.container_layout.setContentsMargins(0, 0, 0, 0)
         
-        main_layout.addWidget(scroll_area)
-        scroll_area.setWidget(container)
-        
-        self.setLayout(main_layout)
+        self.scroll_area.setWidget(self.container)
+        self.main_layout.addWidget(self.scroll_area)
         
         self.class_check_box_tracker = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "widget": {}}
         
@@ -102,6 +90,41 @@ class SubjectDropdownCheckBoxes(QDialog):
             self.container_layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignTop)
         
         self.container_layout.addStretch()
+    
+    def go_to(self, _id):
+        for lvl_id, lvl_data in self.get().items():
+            if lvl_id == _id:
+                if not self.class_check_box_tracker["widget"][lvl_id].isVisible():
+                    self.class_check_box_tracker["icon"][lvl_id].mouseclicked.emit()
+                
+                self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker["widget"][lvl_id].y())
+                
+                self.class_check_box_tracker["widget"][lvl_id].setFocus()
+                
+                break
+            
+            for cls_id, cls_state in lvl_data.items():
+                if not cls_state:
+                    continue
+                
+                if "-" in _id or cls_id == _id:
+                    if cls_id != _id:
+                        f_lvl_id, f_cls_id = _id.split("-")
+                        if lvl_id != f_lvl_id or cls_id != f_cls_id:
+                            continue
+                    
+                    if not self.class_check_box_tracker["widget"][lvl_id].isVisible():
+                        self.class_check_box_tracker["icon"][lvl_id].mouseclicked.emit()
+                    
+                    self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker["sub_cbs"][lvl_id][cls_id].y())
+                    
+                    self.class_check_box_tracker["sub_cbs"][lvl_id][cls_id].setFocus()
+                    
+                    break
+            else:
+                continue
+            
+            break
     
     def _create_checkbox_widgets(self, data, general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
         updated_data = deepcopy(general_data)
@@ -172,9 +195,6 @@ class SubjectDropdownCheckBoxes(QDialog):
             cb.click()
         
         return widgets
-    
-    def get(self):
-        return self.info
     
     def make_open_dp_func(self, class_id: str, class_check_box_tracker: dict[str, Any]):
         def open_dp():
@@ -283,35 +303,27 @@ class SubjectDropdownCheckBoxes(QDialog):
         
         return checkbox_func
 
-class TeacherDropdownCheckBoxes(QDialog):
+class TeacherDropdownCheckBoxes(BaseSubWidget):
     def __init__(self, title, info, saved_state_changed, teacher_id, general_data, default_max_classes):
-        super().__init__()
+        super().__init__(title, info, saved_state_changed)
         
-        self.info = info
         self.teacher_id = teacher_id
         self.general_data = general_data
         self.default_max_classes = default_max_classes
         self.saved_state_changed = saved_state_changed
         
-        self.setWindowTitle(title)
         self.setFixedSize(400, 300)
         
         self.main_guy_is_clicked = False
         self.mini_guy_is_clicked = False
         
-        main_layout = QVBoxLayout(self)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
         
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        
-        container = QWidget()
-        self.container_layout = QVBoxLayout(container)
         self.container_layout.setContentsMargins(0, 0, 0, 0)
         
-        main_layout.addWidget(scroll_area)
-        scroll_area.setWidget(container)
-        
-        self.setLayout(main_layout)
+        self.main_layout.addWidget(self.scroll_area)
+        self.scroll_area.setWidget(self.container)
         
         self.subject_check_box_tracker = {}
         self.class_check_box_tracker = {}
@@ -321,11 +333,11 @@ class TeacherDropdownCheckBoxes(QDialog):
             self.class_check_box_tracker[subject_id] = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "max_random": {}, "widget": {}}
             
             main_widget = QWidget()
-            main_layout = QVBoxLayout()
+            sub_main_layout = QVBoxLayout()
             
             main_widget.setProperty("class", "Bordered")
             main_widget.setProperty("class", "DropdownCheckboxes")
-            main_widget.setLayout(main_layout)
+            main_widget.setLayout(sub_main_layout)
             
             open_dp_func = self.make_open_subject_func(self.subject_check_box_tracker[subject_id])
             
@@ -358,12 +370,70 @@ class TeacherDropdownCheckBoxes(QDialog):
             self.subject_check_box_tracker[subject_id]["icon"] = dp_icon
             self.subject_check_box_tracker[subject_id]["widget"] = self.make_subject_widget(info, self.general_data[subject_id], self.class_check_box_tracker[subject_id])
             
-            main_layout.addWidget(header)
-            main_layout.addWidget(self.subject_check_box_tracker[subject_id]["widget"])
+            sub_main_layout.addWidget(header)
+            sub_main_layout.addWidget(self.subject_check_box_tracker[subject_id]["widget"])
             
             self.container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
         
         self.container_layout.addStretch()
+    
+    def go_to(self, _id):
+        for subj_id, subj_data in self.get()["content"].items():
+            if subj_id == _id:
+                if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
+                    self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                
+                self.scroll_area.verticalScrollBar().setValue(self.subject_check_box_tracker[subj_id]["widget"].y())
+                
+                self.subject_check_box_tracker[subj_id]["widget"].setFocus()
+                break
+            
+            for lvl_id, (randomly_selected, lvl_data) in subj_data.items():
+                if randomly_selected is None:
+                    continue
+                
+                if _id.count("-") == 1 or lvl_id == _id:
+                    if lvl_id != _id:
+                        f_subj_id, f_lvl_id = _id.split("-")
+                        if subj_id != f_subj_id or lvl_id != f_lvl_id:
+                            continue
+                    
+                    if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
+                        self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                    
+                    if not self.class_check_box_tracker[subj_id]["widget"][lvl_id].isVisible():
+                        self.class_check_box_tracker[subj_id]["icon"][lvl_id].mouseclicked.emit()
+                    
+                    self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker[subj_id]["widget"][lvl_id].y())
+                    
+                    self.class_check_box_tracker[subj_id]["widget"][lvl_id].setFocus()
+                    
+                    break
+                
+                for cls_id, cls_state in lvl_data.items():
+                    if not cls_state:
+                        continue
+                    
+                    if _id.count("-") == 2 or cls_id == _id:
+                        if cls_id != _id:
+                            f_subj_id, f_lvl_id, f_cls_id = _id.split("-")
+                            if subj_id != f_subj_id or lvl_id != f_lvl_id or cls_id != f_cls_id:
+                                continue
+                        
+                        if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
+                            self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                        
+                        if not self.class_check_box_tracker[subj_id]["widget"][lvl_id].isVisible():
+                            self.class_check_box_tracker[subj_id]["icon"][lvl_id].mouseclicked.emit()
+                        
+                        self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker[subj_id]["sub_cbs"][lvl_id][cls_id].y())
+                        
+                        self.class_check_box_tracker[subj_id]["sub_cbs"][lvl_id][cls_id].setFocus()
+                        break
+                else:
+                    continue
+                
+                break
     
     def _create_checkbox_widgets(self, data: dict[str, dict[str, dict[str, str | bool]]] | dict[int, str], general_data, class_check_box_tracker: dict[str, dict[str, QCheckBox | QWidget | dict[str, QCheckBox]]]):
         updated_data = deepcopy(general_data)
@@ -447,9 +517,6 @@ class TeacherDropdownCheckBoxes(QDialog):
             cb.click()
         
         return widgets
-    
-    def get(self):
-        return self.info
     
     def make_open_dp_func(self, class_id: str, class_check_box_tracker: dict[str, Any]):
         def open_dp():
@@ -563,7 +630,7 @@ class TeacherDropdownCheckBoxes(QDialog):
     
     def make_open_subject_func(self, subject_dp_tracker: dict[str, Any]):
         def open_subject():
-            widget = subject_dp_tracker["widget"]
+            widget: QWidget = subject_dp_tracker["widget"]
             
             subject_dp_tracker["icon"].setAngle(0 if subject_dp_tracker["icon"].angle != 0 else 270)
             
@@ -585,27 +652,20 @@ class TeacherDropdownCheckBoxes(QDialog):
         
         return func
 
-class SubjectSelection(QDialog):
+class SubjectSelection(BaseSubWidget):
     def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None] | dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], week_total: int, saved_state_changed: pyqtBoundSignal):
-        super().__init__()
+        super().__init__(title, info, saved_state_changed)
         
-        self.setWindowTitle(title)
         self.setFixedSize(600, 400)
         
-        self.info = info
         self.week_total = week_total
-        self.saved_state_changed = saved_state_changed
         
-        self.main_layout = QVBoxLayout(self)
-        
+        self.subject_widgets: dict[str, QWidget] = {}
         self.number_edits: dict[str, tuple[NumberLineEdit, NumberLineEdit]] = {}
         
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         
-        self.container = QWidget()
-        
-        self.container_layout = QVBoxLayout(self.container)
         self.container_layout.setSpacing(20)
         
         self.scroll_area.setWidget(self.container)
@@ -613,14 +673,19 @@ class SubjectSelection(QDialog):
         self.main_layout.addWidget(self.scroll_area)
         
         for subject_id, (subject_name, subject_info) in self.info.items():
-            self.add_subject(subject_id, subject_name, subject_info, False) # type: ignore
+            self.add_subject(subject_id, subject_name, subject_info) # type: ignore
         
         self.container_layout.addStretch()
     
-    def get(self):
-        return self.info
+    def go_to(self, _id):
+        for subject_id, widget in self.subject_widgets.items():
+            if subject_id == _id:
+                self.scroll_area.verticalScrollBar().setValue(widget.y())
+                widget.setFocus()
+                
+                break
     
-    def add_subject(self, subject_id: str, subject_name: str, info: dict, new: bool = True):
+    def add_subject(self, subject_id: str, subject_name: str, info: dict):
         selection_widget = QWidget()
         selection_widget.setProperty("class", "SubjectClassViewEntry")
         
@@ -676,9 +741,7 @@ class SubjectSelection(QDialog):
         self.container_layout.addWidget(selection_widget, alignment=Qt.AlignmentFlag.AlignTop)
         
         self.number_edits[subject_id] = per_day_edit, per_week_edit
-        
-        if new:
-            self._update_max_per_week(int(info["per_week"]))
+        self.subject_widgets[subject_id] = selection_widget
     
     def make_per_day_text_changed_func(self, subject_id: str, input_edit: 'NumberLineEdit'):
         def text_changed_func():
@@ -712,30 +775,23 @@ class SubjectSelection(QDialog):
             if self.number_edits[s_id][1].max_num < self.info[s_id][1]["per_week"] and self.number_edits[s_id][1].number() > self.number_edits[s_id][1].max_num:
                 self.number_edits[s_id][1].setNumber(self.number_edits[s_id][1].max_num)
 
-
-class OptionsMaker(QDialog):
+class OptionsMaker(BaseSubWidget):
     def __init__(self, title: str, info: dict[str, str], saved_state_changed: pyqtBoundSignal):
-        super().__init__()
-        self.title = title
-        self.info = info
-        self.saved_state_changed = saved_state_changed
-        
-        self.setWindowTitle(self.title)
-        
-        self.options: list[OptionTag] = []
+        super().__init__(title, info, saved_state_changed)
+        self.option_widgets: dict[str, OptionTag] = {}
         self.current_row = 0
         self.current_col = 0
         self.max_cols = 4  # Maximum number of columns before wrapping
         
-        self.main_layout = QVBoxLayout(self)
-        
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         
+        del self.container, self.container_layout
+        
         self.container = QWidget()
-        self.grid_layout = QGridLayout(self.container)  # Use QGridLayout
-        self.grid_layout.setSpacing(4)
-        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.container_layout = QGridLayout(self.container)  # Use QGridLayout
+        self.container_layout.setSpacing(4)
+        self.container_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self.scroll_area.setWidget(self.container)
         
         self.add_button = QPushButton("Add Option")
@@ -745,7 +801,7 @@ class OptionsMaker(QDialog):
         self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
         
         temp_option = OptionTag("IFE")
-        self.setFixedSize((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.grid_layout.spacing()) * self.max_cols, 300)
+        self.setFixedSize((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.container_layout.spacing()) * self.max_cols, 300)
         
         del temp_option
         
@@ -753,13 +809,18 @@ class OptionsMaker(QDialog):
         for option_id, option_name in self.info.items():
             self.add_option(option_id, option_name)
     
-    def get(self):
-        return self.info
+    def go_to(self, _id: str):
+        for option_id, widget in self.option_widgets:
+            if option_id == _id:
+                self.scroll_area.verticalScrollBar().setValue(widget.y())
+                widget.setFocus()
+                
+                break
     
     def add_option(self, _id: str | None = None, text: str | None = None):
         option = OptionTag(text)
         
-        _id = str(hex(id(option)).upper()) if _id is None else _id
+        _id = str(hex(id(option)).lower().replace("0x")) if _id is None else _id
         
         def update_option():
             self.info[_id] = option.get_text()
@@ -770,17 +831,17 @@ class OptionsMaker(QDialog):
         option.finished_editing_signal.connect(update_option)
         
         def remove_option():
-            self.options.remove(option)
             self.info.pop(_id)
-            self.grid_layout.removeWidget(option)
+            self.option_widgets.pop(_id)
+            self.container_layout.removeWidget(option)
             option.deleteLater()
             self.reflow_items()  # Reflow remaining items
         
         option.deleted.connect(remove_option)
-        self.options.append(option)
+        self.option_widgets[_id] = option
         
         # Add to grid and wrap to next row if needed
-        self.grid_layout.addWidget(option, self.current_row, self.current_col)
+        self.container_layout.addWidget(option, self.current_row, self.current_col)
         self.current_col += 1
         if self.current_col >= self.max_cols:
             self.current_col = 0
@@ -789,8 +850,23 @@ class OptionsMaker(QDialog):
         if text is None:
             option.start_editing()
     
+    def reflow_items(self):
+        # Remove all widgets from grid
+        for option in self.option_widgets.values():
+            self.container_layout.removeWidget(option)
+        
+        # Re-add widgets in order
+        self.current_row = 0
+        self.current_col = 0
+        for option in self.option_widgets.values():
+            self.container_layout.addWidget(option, self.current_row, self.current_col)
+            self.current_col += 1
+            if self.current_col >= self.max_cols:
+                self.current_col = 0
+                self.current_row += 1
+    
     def closeEvent(self, a0):
-        for option in self.options:
+        for option in self.option_widgets.values():
             if option.is_editing:
                 QMessageBox.critical(self, "Setting OM Error", "Please finish edting the option")
                 a0.ignore() # type: ignore
@@ -798,35 +874,13 @@ class OptionsMaker(QDialog):
                 return
         
         return super().closeEvent(a0)
-    
-    def reflow_items(self):
-        # Remove all widgets from grid
-        for option in self.options:
-            self.grid_layout.removeWidget(option)
-        
-        # Re-add widgets in order
-        self.current_row = 0
-        self.current_col = 0
-        for option in self.options:
-            self.grid_layout.addWidget(option, self.current_row, self.current_col)
-            self.current_col += 1
-            if self.current_col >= self.max_cols:
-                self.current_col = 0
-                self.current_row += 1
 
-class OptionSelector(QDialog):
+class OptionSelector(BaseSubWidget):
     closed = pyqtSignal()
     
-    def __init__(self, title: str, info: dict[str, list[str | None] | dict[int, str]], saved_state_changed: pyqtBoundSignal):
-        super().__init__()
-        
+    def __init__(self, title: str, info: dict[str, list[str] | dict[int, str]], saved_state_changed: pyqtBoundSignal):
+        super().__init__(title, info, saved_state_changed)
         self.setFixedHeight(400)
-        
-        self.title = title
-        self.info = info
-        self.saved_state_changed = saved_state_changed
-        
-        self.setWindowTitle(self.title)
         
         self.content = self.info["content"]
         self.id_mapping = self.info["id_mapping"]
@@ -837,15 +891,9 @@ class OptionSelector(QDialog):
         self.main_options_tracker: list[list[OptionTag]] = []
         self.sub_options_tracker: list[list[QLabel]] = []
         
-        layout = QVBoxLayout()
-        self.setLayout(layout)
-        
-        self.container = QWidget()
-        self.main_layout = QVBoxLayout()
-        self.main_layout.setSpacing(10)
+        self.container_layout.setSpacing(10)
         
         self.container.setContentsMargins(10, 10, 10, 10)
-        self.container.setLayout(self.main_layout)
         
         
         self.main_max_cols = 4
@@ -879,17 +927,17 @@ class OptionSelector(QDialog):
         for index, option_name in enumerate(self.content[self.content.index(None) + 1:].copy()):
             self._remove_new_option(option_name, index)
         
-        self.main_layout.setSpacing(20)
+        self.container_layout.setSpacing(20)
         
-        self.main_layout.addWidget(QLabel("Selected"))
-        self.main_layout.addWidget(main_options_widget, 8)
-        self.main_layout.addWidget(QLabel("Unselected"))
-        self.main_layout.addWidget(sub_options_widget, 2)
-        # self.main_layout.addWidget(main_options_scroll_area, 7)
-        # self.main_layout.addWidget(sub_options_scroll_area, 3)
+        self.container_layout.addWidget(QLabel("Selected"))
+        self.container_layout.addWidget(main_options_widget, 8)
+        self.container_layout.addWidget(QLabel("Unselected"))
+        self.container_layout.addWidget(sub_options_widget, 2)
+        # self.container_layout.addWidget(main_options_scroll_area, 7)
+        # self.container_layout.addWidget(sub_options_scroll_area, 3)
         
         
-        layout.addWidget(self.container)
+        self.main_layout.addWidget(self.container)
         
         temp_option = OptionTag("Ife")
         self.setFixedWidth((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.main_options_layout.spacing()) * self.sub_max_cols)
@@ -1018,9 +1066,6 @@ class OptionSelector(QDialog):
         else:
             self.sub_options_rows_layout_list[row].addWidget(option)
             self.sub_options_tracker[row].append(option)
-    
-    def get(self):
-        return self.info
     
     def get_selected(self):
         return self.info["content"][:self.info["content"].index(None)]

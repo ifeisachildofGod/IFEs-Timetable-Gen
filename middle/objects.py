@@ -40,14 +40,50 @@ class Subject:
         return subject
     
     def fullReset(self):
-        self.total = self.TOTAL
+        self.resetTotal()
         self.perWeek = self.PERWEEK
     
     def resetTotal(self):
         self.total = self.TOTAL
     
-    def get(self):
-        return [self.name for _ in range(self.total)]
+    def remove(self, amount):
+        assert amount <= self.total, f"Invalid removal amount: {amount}, for day total: {self.total}"
+        assert amount <= self.perWeek, f"Invalid removal amount: {amount}, for week total: {self.perWeek}"
+        
+        self.total -= amount
+        self.perWeek -= amount
+
+class CompoundSubject:
+    def __init__(self, _id: str, name: str, total: int, perWeek: int, subjects: list['SubjectType'], cls: 'Class'):
+        self.TOTAL = total
+        self.PERWEEK = perWeek
+        
+        self.id = _id
+        self.name = name
+        self.total = self.TOTAL
+        self.perWeek = self.PERWEEK
+        self.subjects = subjects
+        self.cls = cls
+        self.uniqueID = self.id + self.cls.uniqueID
+        
+        self.lockedPeriod = None
+    
+    def copy(self):
+        compSubject = CompoundSubject(self.id, self.name, self.total, self.perWeek, self.subjects, self.cls)
+        
+        compSubject.TOTAL = self.TOTAL
+        compSubject.PERWEEK = self.PERWEEK
+        
+        compSubject.lockedPeriod = self.lockedPeriod
+        
+        return compSubject
+    
+    def fullReset(self):
+        self.resetTotal()
+        self.perWeek = self.PERWEEK
+    
+    def resetTotal(self):
+        self.total = self.TOTAL
     
     def remove(self, amount):
         assert amount <= self.total, f"Invalid removal amount: {amount}, for day total: {self.total}"
@@ -57,7 +93,7 @@ class Subject:
         self.perWeek -= amount
 
 class Class:
-    def __init__(self, index: int, classID: str, className: str, subjects: list[Subject], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolSubjects: dict[str, "Teacher"], weekdays: list[str], breakTimePeriods: list[int]) -> None:
+    def __init__(self, index: int, classID: str, className: str, subjects: list['SubjectType'], periodsPerDay: list[int], namingConvention: list[str], school, schoolDict: dict, schoolSubjects: dict[str, "Teacher"], weekdays: list[str], breakTimePeriods: list[int]) -> None:
         self.school = school
         self.schoolDict = schoolDict
         self.schoolSubjects = schoolSubjects
@@ -73,11 +109,13 @@ class Class:
         self.name = self.namingConvention[self.index] + " " + self.className
         self.subjects = subjects
         self.periodsPerDay = periodsPerDay
-        self.teachers: dict[Teacher, Subject] = {}
-        
         self.breakTimePeriods = breakTimePeriods
+        self.teachers: dict[Teacher, SubjectType] = {}
         
         self.timetable = Timetable(self, [subject.copy() for subject in self.subjects], self.schoolSubjects, self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
+    
+    def copy(self):
+        return Class(self.index, self.classID, self.className, [s.copy() for s in self.subjects], self.periodsPerDay, self.namingConvention, self.school, self.schoolDict, self.schoolSubjects, self.weekdays, self.breakTimePeriods)
     
     @staticmethod
     def getUniqueID(index: int, classID: str):
@@ -90,13 +128,13 @@ class Teacher:
         self.subjectIDs = subjectIDs
 
 class Timetable:
-    def __init__(self, cls: Class, subjects: list[Subject], schoolSubjects: dict[str, Subject], periodsPerDay: list[int], breakTimePeriods: list[int], schoolDict: dict[Class, "Timetable"]) -> None:
+    def __init__(self, cls: Class, subjects: list['SubjectType'], schoolSubjects: dict[str, 'SubjectType'], periodsPerDay: list[int], breakTimePeriods: list[int], schoolDict: dict[Class, "Timetable"]) -> None:
         self.cls = cls
         self.schoolDict = schoolDict
         self.schoolSubjects = schoolSubjects
         
         self.subjects = subjects
-        self._subjects: list[Subject] = [subject.copy() for subject in self.subjects]
+        self._subjects: list[SubjectType] = [subject.copy() for subject in self.subjects]
         
         self.periodsPerDay = periodsPerDay
         self.breakTimePeriods = breakTimePeriods
@@ -111,12 +149,22 @@ class Timetable:
         self._maxPerfectTimetableTries = 30
         self._foundPerfectTimeTable = False
         
-        self.table: dict[str, list[Subject]] = {day: [] for day, _, _ in self.weekInfo}
-        self.remainderContent: list[Subject] = []
+        self.table: dict[str, list[SubjectType]] = {day: [] for day, _, _ in self.weekInfo}
+        self.remainderContent: list[SubjectType] = []
         
         self.reset()
         
         random.shuffle(self.subjects)
+    
+    def copy(self):
+        timetable = Timetable(self.cls, [s.copy() for s in self._subjects], self.schoolSubjects, self.periodsPerDay, self.breakTimePeriods, self.schoolDict)
+        
+        for day, subjects in self.table.items():
+            timetable.table[day] = [s.copy() for s in subjects]
+        
+        self.remainderContent = [s.copy() for s in timetable.remainderContent]
+        
+        return timetable
     
     def addFreePeriod(self, day: str, total: int, perWeek: int):
         self.table[day].append(Subject(self.freePeriodID, "Free", total, perWeek, None, self.cls))
@@ -130,7 +178,7 @@ class Timetable:
         self.subjects = self._subjects
         self._subjects = [subject.copy() for subject in self.subjects if subject.id != self.freePeriodID]
         
-        self.table: dict[str, list[Subject]] = {day: [Subject(self.freePeriodID, "Free", b - 1, 0, None, self.cls), Subject(self.breakPeriodID, "Break", 1, 0, None, self.cls), Subject(self.freePeriodID, "Free", p - b, 0, None, self.cls)] for day, p, b in self.weekInfo}
+        self.table: dict[str, list[SubjectType]] = {day: [Subject(self.freePeriodID, "Free", b - 1, 0, None, self.cls), Subject(self.breakPeriodID, "Break", 1, 0, None, self.cls), Subject(self.freePeriodID, "Free", p - b, 0, None, self.cls)] for day, p, b in self.weekInfo}
         self.remainderContent = []
         
         for subject in self.subjects:
@@ -138,7 +186,35 @@ class Timetable:
         
         random.shuffle(self.subjects)
     
-    def switchExtras(self, day: str, subjects: list[Subject]):
+    def findClashes(self, subject: 'SubjectType', day: str, period: int):
+        clashes: list[tuple[SubjectType, Class]] = []
+        
+        for ttCls, timetable in self.schoolDict.items():
+            if subject.cls.uniqueID != ttCls.uniqueID:
+                subjPeriod = 1
+                for subj in timetable.table[day]:
+                    if period <= subjPeriod <= period + subject.total - 1:
+                        if isinstance(subj, Subject):
+                            if isinstance(subject, Subject):
+                                if subject.teacher is not None and subj.teacher is not None and subject.teacher.id == subj.teacher.id:
+                                    clashes.append([subj, ttCls])
+                            else:
+                                if subj.teacher is not None and next((True for s in subject.subjects if s.teacher is not None and subj.teacher.id == s.teacher.id), False):
+                                    clashes.append([subj, ttCls])
+                        else:
+                            if isinstance(subject, Subject):
+                                if subject.teacher is not None and next((True for s in subj.subjects if s.teacher is not None and subject.teacher.id == s.teacher.id), False):
+                                    clashes.append([subj, ttCls])
+                            else:
+                                if next((True for s in subj.subjects if s.teacher.id in [s_s.teacher.id for s_s in subject.subjects if s_s.teacher is not None]), False):
+                                    clashes.append([subj, ttCls])
+                    
+                    subjPeriod += subj.total
+        
+        return clashes
+    
+    
+    def switchExtras(self, day: str, subjects: list['SubjectType']):
         for subjectIndex, subject in enumerate(subjects):
             if subject.perWeek > subject.total:
                 for timetableDay, subj in self.table.items():
@@ -152,8 +228,8 @@ class Timetable:
                             if not [True for subjInfo in subjects if subjInfo.id == s.id]\
                                and s.id != self.breakPeriodID and subject.perWeek > s.total\
                                and subject.total + s.total == subject.perWeek\
-                               and not self.cls.school.findClashes(subject, timetableDay, replacementPeriod, self.cls)\
-                               and not self.cls.school.findClashes(s, day, subjectPeriod, self.cls)\
+                               and not self.findClashes(subject, timetableDay, replacementPeriod)\
+                               and not self.findClashes(s, day, subjectPeriod)\
                                and not s.lockedPeriod\
                                and not subject.lockedPeriod:
                                    tableReplace = subject.copy()
@@ -177,7 +253,7 @@ class Timetable:
                         
                     if replaced: break
     
-    def classSort(self, subjects: list[Subject], subjectDay: str):
+    def classSort(self, subjects: list['SubjectType'], subjectDay: str):
         subjectsCopy = [subject.copy() for subject in subjects]
         
         period = 1
@@ -187,7 +263,7 @@ class Timetable:
             for nonClashingPeriod in range(self.periodsPerDay[self.cls.weekdays.index(subjectDay)]):
                 condition = not (subject.lockedPeriod[0] <= nonClashingPeriod + 1 <= subject.lockedPeriod[0] + subject.lockedPeriod[1] - 1) if subject.lockedPeriod is not None else True
                 if condition:
-                    if not self.cls.school.findClashes(subject, subjectDay, nonClashingPeriod + 1, self.cls):
+                    if not self.findClashes(subject, subjectDay, nonClashingPeriod + 1):
                         tmpSubjPeriod = 1
                         for subjIndex, subj in enumerate(subjectsCopy):
                             if nonClashingPeriod + 1 <= tmpSubjPeriod <= nonClashingPeriod + subject.total:
@@ -271,30 +347,45 @@ class Timetable:
         if subjects[index].total <= 0:
             subjects.pop(index)
     
-    def insert(self, subject: Subject, row: int, col: int):
+    def insert(self, subject: 'SubjectType', row: int, col: int):
         day = self.weekInfo[col][0]
         
         self.spread(self.table[day])
-        
-        free_periods = self.weekInfo[col][1] - len(self.table[day])
-        if free_periods:
-            for _ in range(free_periods):
-                self.table[day].append(Subject(self.freePeriodID, "Free", 1, 0, None, self.cls))
-        
         self.table[day].insert(row, subject)
-        
         self.flatten(self.table[day])
     
-    def replace(self, subject: Subject, row: int, col: int):
-        subjects = self.table[self.weekInfo[col][0]]
+    def replace(self, subject: 'SubjectType', row: int, col: int):
+        assert subject.total == 1, f"Replace only replaces subjects with a total of 1 not {subject.total}"
         
-        free_periods = self.weekInfo[col][1] - sum(s.total for s in subjects)
-        if free_periods:
-            subjects.append(Subject(self.freePeriodID, "Free", free_periods, 0, None, self.cls))
+        day = self.weekInfo[col][0]
         
-        self.remove(row, col)
+        self.spread(self.table[day])
+        self.table[day][row] = subject
+        self.flatten(self.table[day])
+    
+    def swap(self, row1: int, col1: int, row2: int, col2: int):
+        src_subjs = self.table[self.weekInfo[col1][0]]
+        tar_subjs = self.table[self.weekInfo[col2][0]]
         
-        self.insert(subject, row, col)
+        self.spread(src_subjs)
+        self.spread(tar_subjs)
+        
+        # Exchange
+        temp_src_subj = src_subjs[row1]
+        temp_tar_subj = tar_subjs[row2]
+        
+        src_subjs[row1] = temp_tar_subj
+        tar_subjs[row2] = temp_src_subj
+        
+        if temp_src_subj.id == self.breakPeriodID:
+            self.weekInfo[col1][2] = self.cls.breakTimePeriods[col1]\
+                = self.breakTimePeriods[col1] = row2 + 1
+        elif temp_tar_subj.id == self.breakPeriodID:
+            self.weekInfo[col2][2] = self.cls.breakTimePeriods[col2]\
+                = self.breakTimePeriods[col2] = row1 + 1
+        
+        self.flatten(src_subjs)
+        self.flatten(tar_subjs)
     
     def correct(self, col: int):
         subjects = self.table[self.weekInfo[col][0]]
@@ -328,7 +419,7 @@ class Timetable:
         self.flatten(subjects)
     
     @staticmethod
-    def flatten(subjects: list[Subject]):
+    def flatten(subjects: list['SubjectType']):
         new_subjects = []
         
         for subject in subjects:
@@ -341,7 +432,7 @@ class Timetable:
         subjects.extend(new_subjects)
     
     @staticmethod
-    def spread(subjects: list[Subject]):
+    def spread(subjects: list['SubjectType']):
         new_subjects = []
         
         for subject in subjects:
@@ -398,7 +489,12 @@ class Timetable:
                 if not breakTime:
                     period += subjectAmount
                     subject.remove(subjectAmount)
-                    subjects.append(Subject(subject.id, subject.name, subjectAmount, subject.perWeek, subject.teacher, subject.cls))
+                    s = (
+                        CompoundSubject(subject.id, subject.name, subjectAmount, subject.perWeek, subject.subjects, subject.cls)
+                        if isinstance(subject, CompoundSubject) else
+                        Subject(subject.id, subject.name, subjectAmount, subject.perWeek, subject.teacher, subject.cls)
+                    )
+                    subjects.append(s)
                 else:
                     period += 1
                     subjects.append(Subject(self.breakPeriodID, 'Break', 1, 1, None, self.cls))
@@ -431,7 +527,12 @@ class Timetable:
                             subject.total -= replacementAmt
                             
                             subjects.insert(subjectIndex + 1, Subject(self.breakPeriodID, 'Break', 1, 1, None, subject.cls))
-                            subjects.insert(subjectIndex + 2, Subject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.teacher, subject.cls))
+                            s = (
+                                CompoundSubject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.subjects, subject.cls)
+                                if isinstance(subject, CompoundSubject) else
+                                Subject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.teacher, subject.cls)
+                            )
+                            subjects.insert(subjectIndex + 2, s)
                         break
         
         self.remainderContent = list(flatten([[subj.copy() for _ in range(subj.perWeek)] for subj in self.subjects]))
@@ -456,4 +557,7 @@ class Timetable:
                 self.generate()
         else:
             self.schoolDict[self.cls] = self
+
+SubjectType = Subject | CompoundSubject
+
 

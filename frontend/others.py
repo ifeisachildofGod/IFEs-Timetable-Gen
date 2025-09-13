@@ -1,5 +1,5 @@
 from frontend.imports import *
-
+from frontend.theme.theme import *
 
 EXTENSION_NAME = "ttbl"
 
@@ -27,6 +27,8 @@ class Thread(QThread):
         super().__init__()
         self.setParent(None)
         
+        self.main_window = main_window
+        
         self.func = func is not None and func or (lambda: ())
         main_window.close = self._window_closed()
     
@@ -41,6 +43,7 @@ class Thread(QThread):
         try:
             self.func()
         except Exception as e:
+            QMessageBox.critical(None, e.__class__.__name__, str(e))
             self.crashed.emit(e)
             self.exit(-1)
 
@@ -122,205 +125,6 @@ class FileManager:
                 QMessageBox.critical(self.parent, type(e).__name__, str(e))
 
 
-class CustomTitleBar(QWidget):
-    def __init__(self, parent: QWidget, get_search_data: Callable[[], dict | list | set | tuple | str | int]):
-        super().__init__(parent)
-        self.master = parent
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.get_search_data = get_search_data
-        
-        self.container = QWidget()
-        self.mian_layout = QHBoxLayout()
-        self.container.setFixedHeight(40)
-        self.container.setProperty("class", "TitleBar")
-        self.container.setLayout(self.mian_layout)
-        self.mian_layout.setContentsMargins(0, 0, 0, 0)
-        self.mian_layout.setSpacing(0)
-        
-        layout.addWidget(self.container)
-        
-        left_widget = QWidget()
-        self.left_layout = QHBoxLayout()
-        left_widget.setProperty("class", "TitleBar")
-        left_widget.setLayout(self.left_layout)
-        self.left_layout.setContentsMargins(0, 0, 60, 0)
-        self.left_layout.setSpacing(0)
-        
-        center_widget = QWidget()
-        self.center_layout = QHBoxLayout()
-        center_widget.setProperty("class", "TitleBar")
-        center_widget.setLayout(self.center_layout)
-        self.center_layout.setContentsMargins(60, 5, 60, 5)
-        
-        right_widget = QWidget()
-        self.right_layout = QHBoxLayout()
-        right_widget.setProperty("class", "TitleBar")
-        right_widget.setLayout(self.right_layout)
-        self.right_layout.setContentsMargins(60, 0, 0, 0)
-        self.right_layout.setSpacing(0)
-        
-        # Center widget
-        self.set_search_visible_button = QPushButton("Search")
-        self.set_search_visible_button.setFixedHeight(30)
-        self.set_search_visible_button.setStyleSheet("min-width: 600px; min-height: 30px; border-radius: 10px; padding: 0px;")
-        self.set_search_visible_button.clicked.connect(self._toggle_search)
-        
-        self.search_edit = QLineEdit("Search file by name")
-        self.search_edit.setFixedHeight(30)
-        self.search_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.search_edit.textChanged.connect(self._search)
-        self.search_edit.setVisible(False)
-        
-        self.center_layout.addWidget(self.set_search_visible_button)
-        self.center_layout.addWidget(self.search_edit)
-        
-        # # Right widget
-        # # Minimize Button
-        # btn_min = QPushButton("—")
-        # btn_min.setProperty("class", "FileMinumum")
-        # btn_min.clicked.connect(self.master.showMinimized)
-        # self.right_layout.addWidget(btn_min)
-        
-        # # Maximize/Restore Button
-        # btn_max = QPushButton("□")
-        # btn_max.setProperty("class", "FileMaximum")
-        # btn_max.clicked.connect(self.toggle_max_restore)
-        # self.right_layout.addWidget(btn_max)
-        
-        # # Close Button
-        # btn_close = QPushButton("✕")
-        # btn_close.setProperty("class", "FileClose")
-        # btn_close.clicked.connect(self.master.close)
-        # self.right_layout.addWidget(btn_close)
-        
-        # self._maximized = True
-        
-        # self._drag_pos = QPoint()
-        
-        self.mian_layout.addWidget(left_widget, alignment=Qt.AlignmentFlag.AlignLeft)
-        self.mian_layout.addWidget(center_widget)
-        self.mian_layout.addWidget(right_widget, alignment=Qt.AlignmentFlag.AlignRight)
-    
-    # def toggle_max_restore(self):
-    #     if self._maximized:
-    #         self.master.showNormal()
-    #     else:
-    #         self.master.showMaximized()
-    #     self._maximized = not self._maximized
-    
-    def _toggle_search(self):
-        self.set_search_visible_button.setVisible(not self.set_search_visible_button.isVisible())
-        self.search_edit.setVisible(not self.search_edit.isVisible())
-        
-        if self.search_edit.isVisible():
-            self.search_edit.setFocus()
-        else:
-            self.setFocus()
-    
-    def _search_compare(self, text: str, search_text: str):
-        compared_indices = []
-        
-        search_text_index = -1
-        index = 0
-        
-        for c in text:
-            index = search_text[index + 1:].find(c)
-            
-            if index == -1:
-                return
-            
-            search_text_index += index + 1
-            
-            compared_indices.append(search_text_index)
-        
-        return compared_indices
-    
-    def _search(self, text: str, search_scope: dict | list | set | tuple | str | int | None = None):
-        search_scope = search_scope if search_scope is not None else self.get_search_data()
-        
-        data = None
-        
-        if isinstance(search_scope, dict):
-            data = {}
-            
-            for key, value in search_scope.items():
-                s_key = self._search(text, key)
-                s_value = self._search(text, value)
-                
-                if (s_key, s_value).count(None) < 2:
-                    data[s_key] = s_value
-            
-            if not data:
-                data = None
-        elif isinstance(search_scope, (list, tuple, set)):
-            data = []
-            
-            for value in search_scope:
-                s_value = self._search(text, value)
-                
-                if s_value is not None:
-                    data.append(s_value)
-            
-            if not data:
-                data = None
-        elif isinstance(search_scope, str):
-            data = search_scope, self._search_compare(text, search_scope)
-        elif isinstance(search_scope, int):
-            data = str(search_scope), self._search_compare(text, str(search_scope))
-        
-        return data
-    
-    # # Enable window dragging
-    # def mousePressEvent(self, event):
-    #     if event.button() == Qt.MouseButton.LeftButton:
-    #         self._drag_pos = event.globalPosition().toPoint()
-    
-    # def mouseDoubleClickEvent(self, _):
-    #     self.toggle_max_restore()
-    
-    # def mouseMoveEvent(self, event):
-    #     if event.buttons() == Qt.MouseButton.LeftButton:
-    #         delta = event.globalPosition().toPoint() - self._drag_pos
-            
-    #         if delta and self._maximized:
-    #             self.toggle_max_restore()
-                
-    #             mouse_point = event.globalPosition().toPoint()
-                
-    #             mouse_x_index = mouse_point.x() / self.window().width()
-    #             mouse_y_index = mouse_point.y() / self.window().height()
-                
-    #             point_offset = QPoint(int(self.master.width() * mouse_x_index), int(self.master.height() * mouse_y_index))
-                
-    #             self.master.move(point_offset - QPoint(int(self.window().width() * 0.5), int(40 * 0.5)))
-            
-    #         if not self._maximized:
-    #             self.master.move(self.master.pos() + delta)
-    #             self._drag_pos = event.globalPosition().toPoint()
-
-
-class MainTitleBar(CustomTitleBar):
-    def __init__(self, parent, menu_bar: QMenuBar, go_back_func: Callable, go_forward_func: Callable):
-        super().__init__(parent, lambda: {})
-        
-        menu_bar.setFixedHeight(40)
-        menu_bar.setStyleSheet("QMenuBar {background-color: transparent; border: none;}")
-        self.left_layout.addWidget(menu_bar)
-        
-        self.go_back_button = QPushButton("<")
-        self.go_forward_button = QPushButton(">")
-        
-        self.go_back_button.setProperty("class", "GoButton")
-        self.go_forward_button.setProperty("class", "GoButton")
-        
-        self.go_back_button.clicked.connect(go_back_func)
-        self.go_forward_button.clicked.connect(go_forward_func)
-        
-        self.center_layout.insertWidget(0, self.go_back_button)
-        self.center_layout.insertWidget(1, self.go_forward_button)
-
 
 class ClashesViewer(QDialog):
     def __init__(self, school: School):
@@ -337,7 +141,6 @@ class ClashesViewer(QDialog):
         self.main_layout.setSpacing(30)
         
         self.school = school
-        self.clashes: dict[str, list[tuple[tuple[Subject, Class], tuple[Subject, Class]]]] = {}
     
     def _make_new_widget(self, layout_type: type[QHBoxLayout] | type[QVBoxLayout], parent_layout: QHBoxLayout | QVBoxLayout | None = None):
         widget = QWidget()
@@ -355,7 +158,6 @@ class ClashesViewer(QDialog):
         
         widget = QWidget()
         layout = layout_type()
-        
         widget.setLayout(layout)
         
         scroll_area.setWidget(widget)
@@ -365,50 +167,181 @@ class ClashesViewer(QDialog):
         
         return widget, layout
     
-    def update_clashes(self):
-        clash_data = self.school.getClashes()
-        
-        for subject, week_clashes in clash_data.items():
-            if subject.teacher.id not in self.clashes:
-                self.clashes[subject.teacher.id] = []
-            
-            for subject_clashes in week_clashes.values():
-                for clash_subject, clash_cls in subject_clashes:
-                    self.clashes[subject.teacher.id].append(((subject, subject.cls), (clash_subject, clash_cls)))
-    
     def display_clashes(self):
-        for teacher_id, clash_data in self.clashes.items():
+        for teacher_id, day_mapping in self.school.getClashes().items():
             _, display_layout = self._make_new_widget(QHBoxLayout, self.main_layout)
             
             display_layout.addWidget(QLabel(self.school.teachers[teacher_id].name))
-            _, clash_display_layout = self._make_new_scrollable_widget(QHBoxLayout, display_layout)
+            _, days_display_layout = self._make_new_widget(QVBoxLayout, display_layout)
             
-            for (subject, cls), (clash_subject, clash_cls) in clash_data:
-                _, main_clash_layout = self._make_new_widget(QHBoxLayout, clash_display_layout)
+            for day, day_clash_sub_data in day_mapping.items():
+                days_display_layout.addWidget(QLabel(day))
+                _, main_clashes_layout = self._make_new_scrollable_widget(QVBoxLayout, days_display_layout)
                 
-                _, subject_layout = self._make_new_widget(QVBoxLayout, main_clash_layout)
-                _, subject_clash_layout = self._make_new_widget(QVBoxLayout, main_clash_layout)
-                
-                subject_layout.addWidget(QLabel(f"<span style: 'font-weight: 100;'>{cls.name}</span>"))
-                subject_layout.addWidget(QLabel(f"<b>{subject.name}</b>"))
-                
-                subject_clash_layout.addWidget(QLabel(f"<span style: 'font-weight: 100;'>{clash_cls.name}</span>"))
-                subject_clash_layout.addWidget(QLabel(f"<b>{clash_subject.name}</b>"))
+                for period, s1, s2 in day_clash_sub_data:
+                    main_clashes_layout.addWidget(QLabel(f"Period {period}"))
+                    _, sub_clashes_layout = self._make_new_widget(QHBoxLayout, main_clashes_layout)
+                    
+                    _, clash_s1_layout = self._make_new_widget(QVBoxLayout, sub_clashes_layout)
+                    clash_s1_layout.addWidget(QLabel(s1.cls.name))
+                    clash_s1_layout.addWidget(QLabel(s1.name))
+                    
+                    _, clash_s2_layout = self._make_new_widget(QVBoxLayout, sub_clashes_layout)
+                    clash_s2_layout.addWidget(QLabel(s2.cls.name))
+                    clash_s2_layout.addWidget(QLabel(s2.name))
     
     def reset(self):
-        self.clashes = {}
-        
         for _ in range(len(self.main_layout.children())):
             widget = self.main_layout.children()[0]
             
             self.main_layout.removeWidget(widget)
             widget.deleteLater()
         
-        self.update_clashes()
         self.display_clashes()
     
     def exec(self):
         self.reset()
         return super().exec()
 
+
+
+# class ThreshDial(QWidget):
+#     def __init__(self, parent=None, minimum:int=None, maximum:int=None, readonly=True, gradient_start_color=None, gradient_middle_color=None, gradient_end_color=None):
+#         super().__init__(parent)
+#         self.setMinimum(0 if minimum is None else minimum)
+#         self.setMaximum(100 if maximum is None else maximum)
+#         self.setNotchesVisible(True)
+#         self.setWrapping(False)
+        
+#         if readonly:
+#             self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+#             self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        
+#         self.setStyleSheet("""
+#             QDial {
+#                 background-color: """ + THEME_MANAGER.get_current_palette()["highlight"] + """;
+#             }
+#             QDial::groove {
+#                 background: transparent;
+#             }
+#             QDial::handle {
+#                 background-color: #00c896;
+#                 border: 2px solid #00ffcc;
+#                 width: 16px;
+#                 height: 16px;
+#                 border-radius: 8px;
+#             }
+#         """)
+        
+#         self.thresh_value = 0
+        
+#         self.gradient_start_color = gradient_start_color
+#         self.gradient_middle_color = gradient_middle_color
+#         self.gradient_end_color = gradient_end_color
+    
+#     def set_thresh_value(self, value: float | int):
+#         self.thresh_value = value
+    
+    
+#     def paintEvent(self, a0):
+#         super().paintEvent(a0)
+        
+#         painter = QPainter(self)
+#         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+#         # Draw outer gradient ring *around* the dial
+#         center = self.rect().center().toPointF()
+#         radius = min(self.width(), self.height()) // 2 - 5
+#         gradient = QConicalGradient(center, -90)
+#         gradient.setColorAt(0.0, QColor("#15ff00") if self.gradient_start_color is None else QColor(self.gradient_start_color))
+#         gradient.setColorAt(0.5, QColor("#c8c500") if self.gradient_middle_color is None else QColor(self.gradient_middle_color))
+#         gradient.setColorAt(1.0, QColor("#ff0000") if self.gradient_end_color is None else QColor(self.gradient_end_color))
+        
+#         pen = painter.pen()
+#         pen.setWidth(5)
+#         pen.setBrush(gradient)
+#         painter.setPen(pen)
+        
+#         painter.setBrush(Qt.BrushStyle.NoBrush)
+#         painter.drawArc(
+#             int(center.x() - radius),
+#             int(center.y() - radius),
+#             int(radius * 2),
+#             int(radius * 2),
+#             0 * 16,
+#             360 * 16
+#         )
+        
+#         thresh_indicator_radius = 2
+        
+#         pen = painter.pen()
+#         pen.setWidth(5)
+#         pen.setBrush(QColor(THEME_MANAGER.get_current_palette()["prefect"]))
+#         painter.setPen(pen)
+        
+#         angle_offset = 30
+#         max_turn = (360 - (angle_offset * 2))
+#         angle = -(self.thresh_value - self.minimum()) * max_turn / (self.maximum() - self.minimum())
+#         angle += 270 - angle_offset
+#         angle = angle % 360
+        
+#         thresh_radius = radius - thresh_indicator_radius - 5
+#         painter.drawLine()    
+#         painter.drawEllipse(
+#             int(center.x() + thresh_radius * math.cos(math.radians(angle))),
+#             int(center.y() - thresh_radius * math.sin(math.radians(angle))),
+#             int(thresh_indicator_radius * 2),
+#             int(thresh_indicator_radius * 2)
+#         )
+    
+#     # def paintEvent(self, a0):
+#     #     super().paintEvent(a0)
+        
+#     #     painter = QPainter(self)
+#     #     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+#     #     # Draw outer gradient ring *around* the dial
+#     #     center = self.rect().center().toPointF()
+#     #     radius = min(self.width(), self.height()) // 2 - 5
+#     #     gradient = QConicalGradient(center, -90)
+#     #     gradient.setColorAt(0.0, QColor("#15ff00") if self.gradient_start_color is None else QColor(self.gradient_start_color))
+#     #     gradient.setColorAt(0.5, QColor("#c8c500") if self.gradient_middle_color is None else QColor(self.gradient_middle_color))
+#     #     gradient.setColorAt(1.0, QColor("#ff0000") if self.gradient_end_color is None else QColor(self.gradient_end_color))
+        
+#     #     pen = painter.pen()
+#     #     pen.setWidth(5)
+#     #     pen.setBrush(gradient)
+#     #     painter.setPen(pen)
+        
+#     #     painter.setBrush(Qt.BrushStyle.NoBrush)
+#     #     painter.drawArc(
+#     #         int(center.x() - radius),
+#     #         int(center.y() - radius),
+#     #         int(radius * 2),
+#     #         int(radius * 2),
+#     #         0 * 16,
+#     #         360 * 16
+#     #     )
+        
+#     #     thresh_indicator_radius = 2
+        
+#     #     pen = painter.pen()
+#     #     pen.setWidth(5)
+#     #     pen.setBrush(QColor(THEME_MANAGER.get_current_palette()["prefect"]))
+#     #     painter.setPen(pen)
+        
+#     #     angle_offset = 30
+#     #     max_turn = (360 - (angle_offset * 2))
+#     #     angle = -(self.thresh_value - self.minimum()) * max_turn / (self.maximum() - self.minimum())
+#     #     angle += 270 - angle_offset
+#     #     angle = angle % 360
+        
+#     #     thresh_radius = radius - thresh_indicator_radius - 5
+        
+#     #     painter.drawEllipse(
+#     #         int(center.x() + thresh_radius * math.cos(math.radians(angle))),
+#     #         int(center.y() - thresh_radius * math.sin(math.radians(angle))),
+#     #         int(thresh_indicator_radius * 2),
+#     #         int(thresh_indicator_radius * 2)
+#     #     )
 

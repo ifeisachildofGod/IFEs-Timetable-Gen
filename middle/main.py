@@ -33,14 +33,116 @@ ProjectType = dict[str, PotentialOptionType]
 
 class School:
     def __init__(self, project: ProjectType):
-        self.subjects: dict[str, Subject] = {}
+        self.subjects: dict[str, SubjectType] = {}
         self.classes: dict[str, Class] = {}
         self.teachers: dict[str, Teacher] = {}
         self.schoolDict: dict[Class, Timetable] = {}
         
         self.setProjectData(project)
     
-    def _getSubjects(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
+    def _add_subject_clash(self, clashes: dict[str, dict[str, list[tuple[int, Subject, Subject]]]], s1: Subject, s2: Subject, day: str, period: int):
+        if None not in (s1.teacher, s2.teacher) and s1.teacher.id == s2.teacher.id:
+            period += 1  # Convert period index to actual period
+            
+            clashing_subject_ids = (period, s1, s2)
+            
+            if s1.teacher.id not in clashes:
+                clashes[s1.teacher.id] = {}
+            
+            clash_point = clashes[s1.teacher.id][day] = clashes[s1.teacher.id].get(day, [])
+            
+            if next((
+                False
+                for p, s, ps in clash_point
+                if (
+                    p == period
+                    and
+                    (
+                        (
+                            (ps.id == s2.id and ps.cls.uniqueID == s2.cls.uniqueID) and
+                            (s.id == s1.id and s.cls.uniqueID == s1.cls.uniqueID)
+                            ) or
+                        (
+                            (s.id == s2.id and s.cls.uniqueID == s2.cls.uniqueID) and
+                            (ps.id == s1.id and ps.cls.uniqueID == s1.cls.uniqueID)
+                            )
+                        )
+                    )
+                ), True):
+                
+                clash_point.append(clashing_subject_ids)
+    
+    def setProjectData(self, project: ProjectType):
+        self.project = project
+    
+    @staticmethod
+    def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):
+        placedClassLevels = {}
+        
+        for maxClasses, strClassIndex, t_data, available_options in randomTeachers:
+            classAmt = 0
+            placedSubClasses = {}
+            
+            if random.choice([True, False]):
+                random.shuffle(available_options)
+            
+            for option in available_options:
+                if classAmt >= maxClasses:
+                    break
+                
+                placedSubClasses[option] = [t_data, []]
+                classAmt += 1
+            
+            placedClassLevels[strClassIndex] = placedSubClasses
+        
+        return placedClassLevels
+    
+    def getClashes(self):
+        def create_ttbl_copy(ttbl: Timetable):
+            ttbl_copy = ttbl.copy()
+            
+            for i in range(len(ttbl_copy.table)):
+                ttbl_copy.correct(i)
+            
+            return ttbl_copy
+        
+        clashes: dict[str, dict[str, list[tuple[int, Subject, Subject]]]] = {}
+        
+        school_dict_copy = {s_cls.copy(): create_ttbl_copy(s_ttbl) for s_cls, s_ttbl in self.schoolDict.items()}
+        
+        for cls, timetable in school_dict_copy.items():
+            for day, subjects in timetable.table.items():
+                Timetable.spread(subjects)
+                for period, subject in enumerate(subjects):
+                    for sub_cls, sub_timetable in school_dict_copy.items():
+                        if sub_cls.uniqueID != cls.uniqueID:
+                            Timetable.spread(sub_timetable.table[day])
+                            possible_clash_subject = sub_timetable.table[day][period]
+                            
+                            if isinstance(subject, Subject) and isinstance(possible_clash_subject, Subject):
+                                self._add_subject_clash(clashes, subject, possible_clash_subject, day, period)
+                            elif isinstance(subject, Subject) and isinstance(possible_clash_subject, CompoundSubject):
+                                for sub_p_subject in possible_clash_subject.subjects:
+                                    self._add_subject_clash(clashes, subject, sub_p_subject, day, period)
+                            elif isinstance(subject, CompoundSubject) and isinstance(possible_clash_subject, Subject):
+                                for sub_subject in subject.subjects:
+                                    self._add_subject_clash(clashes, possible_clash_subject, sub_subject, day, period)
+                            elif isinstance(subject, CompoundSubject) and isinstance(possible_clash_subject, CompoundSubject):
+                                for sub_subject in subject.subjects:
+                                    for sub_p_subject in possible_clash_subject.subjects:
+                                        self._add_subject_clash(clashes, sub_subject, sub_p_subject, day, period)
+        
+        return clashes
+    
+    def generateTimetable(self, cls: Class):
+        cls.timetable.reset()
+        cls.timetable.generate()
+    
+    def generateNewSchoolTimetables(self):
+        for cls in self.classes.values():
+            self.generateTimetable(cls)
+    
+    def createSubjectsFromSubjectTeacherMapping(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
         subjects = {}
         
         for subjectID, (subjectName, subjectInfo) in mappings.items():
@@ -78,67 +180,6 @@ class School:
         
         return subjects
     
-    @staticmethod
-    def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):
-        placedClassLevels = {}
-        
-        for maxClasses, strClassIndex, t_data, available_options in randomTeachers:
-            classAmt = 0
-            placedSubClasses = {}
-            
-            if random.choice([True, False]):
-                random.shuffle(available_options)
-            
-            for option in available_options:
-                if classAmt >= maxClasses:
-                    break
-                
-                placedSubClasses[option] = [t_data, []]
-                classAmt += 1
-            
-            placedClassLevels[strClassIndex] = placedSubClasses
-        
-        return placedClassLevels
-    
-    def findClashes(self, subject: Subject, day: str, period: int, cls: Class):
-        clashes: list[tuple[Subject, Class]] = []
-        
-        for ttCls, timetable in self.schoolDict.items():
-            subjPeriod = 1
-            for subj in timetable.table[day]:
-                if cls.uniqueID != ttCls.uniqueID and period <= subjPeriod <= period + subject.total - 1 and subject.teacher is not None and subj.teacher is not None and subject.teacher.id == subj.teacher.id:
-                    clashes.append([subj, ttCls])
-                subjPeriod += subj.total
-        
-        return clashes
-    
-    def getClashes(self):
-        clashes: dict[Subject, dict[str, list[Subject, Class]]] = {}
-        
-        for cls, timetable in self.schoolDict.items():
-            for day, subjects in timetable.table.items():
-                for subjectIndex, subject in enumerate(subjects):
-                    if subject.teacher is not None:
-                        period = sum([subj.total for subj in subjects[:subjectIndex]]) + 1
-                        clash = self.findClashes(subject, day, period, cls)
-                        if clash:
-                            if clashes.get(subject) is None:
-                                clashes[subject] = {}
-                            clashes[subject][day] = clash
-        
-        return clashes
-    
-    def generateTimetable(self, cls: Class):
-        cls.timetable.reset()
-        cls.timetable.generate()
-    
-    def generateNewSchoolTimetables(self):
-        for cls in self.classes.values():
-            self.generateTimetable(cls)
-    
-    def setProjectData(self, project: ProjectType):
-        self.project = project
-    
     def setSchoolInfoFromProjectDict(self):
         self.subjects = {}
         self.classes = {}
@@ -156,7 +197,7 @@ class School:
         subjects = self.project.get("subjects")
         
         if subjects is None:
-            subjects = self.project["subjects"] = self._getSubjects(classOptions, self.project["subjectTeacherMapping"])
+            subjects = self.project["subjects"] = self.createSubjectsFromSubjectTeacherMapping(classOptions, self.project["subjectTeacherMapping"])
         
         for classIndex, classIDs in enumerate(classOptions):
             for classID in classIDs:
@@ -302,7 +343,7 @@ def _display_school(school: dict[Class, Timetable], drawType: int = 1):
             print(f"| {cls.name} |")
             
             for day, todaysSubjects in timetable.table.items():
-                subjectsContent = [subjs.get() for subjs in todaysSubjects]
+                subjectsContent = [[subjs.name for _ in range(subjs.total)] for subjs in todaysSubjects]
                 
                 print(day, ":", ", ".join(list(flatten(subjectsContent))))
             
@@ -323,7 +364,7 @@ def _display_school(school: dict[Class, Timetable], drawType: int = 1):
             for cls, timetable in school.items():
                 for timetableDay, todaysSubjects in timetable.table.items():
                     if day == timetableDay:
-                        subjectsContent = [subjs.get() for subjs in todaysSubjects]
+                        subjectsContent = [[subjs.name for _ in range(subjs.total)] for subjs in todaysSubjects]
                         print(f"{cls.name}: {str(subjectsContent).replace('[', '').replace(']', '').replace("'", '')}")
                         break
     
@@ -338,7 +379,7 @@ def _display_school(school: dict[Class, Timetable], drawType: int = 1):
                         todaysSubjects
                         
                         for subjs in todaysSubjects:
-                            subjectsContent += [subjs.name + ", " + (subjs.teacher.name if subjs.teacher is not None else "null") + ", " + timetable.cls.name for _ in range(subjs.total)]
+                            subjectsContent += [subjs.name + ", " + (f"({",".join([s.name for s in subjs.subjects])})" if isinstance(subjs, CompoundSubject) else (subjs.teacher.name if subjs.teacher is not None else "null")) + ", " + timetable.cls.name for _ in range(subjs.total)]
                             # subjectsContent += [(subjs.teacher.name if subjs.teacher is not None else None) for _ in range(subjs.total)]
                             # print(subjs.name)
                         

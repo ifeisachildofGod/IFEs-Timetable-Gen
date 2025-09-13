@@ -1,185 +1,7 @@
 from frontend.imports import *
 from frontend.sub_widgets import *
 
-class SettingWidget(QWidget):
-    def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[tuple[str, int]], saved_state_changed: pyqtBoundSignal, data: dict | None = None):
-        super().__init__()
-        self.main_window = main_window
-        
-        self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
-        
-        self.info = {}
-        self.id_mapping = {}
-        self.input_placeholders = input_placeholders
-        self.saved_state_changed = saved_state_changed
-        
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setSpacing(10)
-        self.main_layout.setContentsMargins(0, 0, 10, 10)
-        
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        
-        self.container = QWidget()
-        self.container.setContentsMargins(20, 10, 20, 10)
-        
-        self.container_layout = QVBoxLayout(self.container)
-        self.container_layout.setSpacing(20)
-        self.scroll_area.setWidget(self.container)
-        
-        def add_func():
-            self.add(self.input_placeholders)
-            self.saved_state_changed.emit()
-        
-        self.add_button = QPushButton()
-        self.add_button.clicked.connect(add_func)
-        
-        self.main_layout.addWidget(self.scroll_area)
-        self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
-        
-        self.setLayout(self.main_layout)
-        self.setObjectName(name)
-        
-        if data is not None:
-            self.__dict__.update(data["constants"])
-            
-            for _id, values in data["variables"].items():
-                self.add(self.input_placeholders, _id, values)
-        
-        self.container_layout.addStretch()
-        
-        self.scroll_area.verticalScrollBar().setValue(0) # type: ignore
-    
-    def keyPressEvent(self, a0):
-        if a0.key() == 16777220: # type: ignore
-            focus_widget = self.focusWidget()
-            
-            if isinstance(focus_widget, (QLineEdit, QScrollArea)):
-                self.add(self.input_placeholders)
-        
-        return super().keyPressEvent(a0)
-    
-    def get(self):
-        return self.info
-    
-    def get_constants(self):
-        return {}
-    
-    def add(self, input_placeholders: list[tuple[str, int]], _id: str | None = None, data: dict | None = None):
-        widget = QWidget()
-        layout = QVBoxLayout()
-        
-        widget.setProperty("class", "SettingOptionEntry")
-        widget.setContentsMargins(20, 5, 20, 5)
-        widget.setLayout(layout)
-        
-        buttons_layout = QHBoxLayout()
-        header_layout = QHBoxLayout()
-        
-        _id = hex(id(widget)).lower().replace("0x", "") if _id is None else _id
-        
-        if data is None:
-            self.info[_id] = self.get_new_data()
-        else:
-            self.info[_id] = data
-        
-        text_edits = self._make_inputs(_id, input_placeholders, data)
-        
-        delete_button = QPushButton("×")
-        delete_button.setProperty("class", 'Close')
-        delete_button.clicked.connect(self._make_delete_func(_id, widget))
-        
-        self.make_popups(_id, buttons_layout)
-        buttons_layout.addWidget(delete_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
-        
-        layout.addLayout(buttons_layout)
-        layout.addLayout(header_layout)
-        
-        self.container_layout.insertWidget(len(self.info) - 1, widget, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignVCenter)
-        
-        self.scroll_area.update()
-        self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum()) # type: ignore
-        
-        for index, (edit, stretch) in enumerate(text_edits):
-            header_layout.addWidget(edit, stretch=stretch)
-            edit.show()
-            
-            if not index:
-                edit.setFocus()
-    
-    def make_popups(self, _id: str, layout: QHBoxLayout):
-        pass
-    
-    def get_new_data(self) -> dict[str, Any] | None:
-        pass
-    
-    def update_data_interaction(self, prev_index: int, curr_index: int):
-        pass
-    
-    def entry_deleted(self, _id):
-        pass
-    
-    def _make_inputs(self, _id: str, placeholders: list[tuple[str, int]], data: dict | None):
-        text_edits: list[tuple[QLineEdit, int]] = []
-        
-        for index, (placeholder, stretch) in enumerate(placeholders):
-            text = data["text"][index] if data is not None else ""
-            
-            edit = QLineEdit()
-            edit.setPlaceholderText(placeholder)
-            edit.setFixedHeight(80)
-            if data is None: self.info[_id]["text"].append(text)
-            edit.textChanged.connect(self._make_text_changed_func(_id, index))
-            edit.setText(text)
-            
-            text_edits.append((edit, stretch))
-        
-        return text_edits
-    
-    def _make_text_changed_func(self, _id, index):
-        def text_changed_func(text: str):
-            self.info[_id]["text"][index] = text
-            self.saved_state_changed.emit()
-        
-        return text_changed_func
-    
-    def _make_delete_func(self, _id: str, widget: QWidget):
-        def del_widget():
-            self.container_layout.removeWidget(widget)
-            widget.deleteLater()
-            self.entry_deleted(_id)
-            self.info.pop(_id)
-            
-            self.saved_state_changed.emit()
-        
-        return del_widget
-    
-    def _make_popup(self, _id: str, title: str, layout: QHBoxLayout, popup_class: type[SelectionList] | type[SubjectSelection] | type[OptionsMaker] | type[SubjectDropdownCheckBoxes] | type[TeacherDropdownCheckBoxes], var_name: str, button_name: str | None = None, closed_func: Callable[[str], None] | None = None, alignment: Qt.AlignmentFlag | None = None, *args, **kwargs):
-        button = QPushButton(button_name if button_name is not None else title)
-        
-        button.setFixedWidth(100)
-        button.setProperty("class", 'action')
-        button.clicked.connect(self._make_popup_func(_id, title, popup_class, var_name, closed_func, *args, **kwargs))
-        
-        if alignment is not None:
-            layout.addWidget(button, alignment=alignment)
-        else:
-            layout.addWidget(button)
-    
-    def _make_popup_func(self, _id: str, title: str, popup_class: type[SelectionList] | type[SubjectSelection] | type[OptionsMaker] | type[SubjectDropdownCheckBoxes] | type[TeacherDropdownCheckBoxes], var_name: str, closed_func: Callable[[str], None] | None, *args, **kwargs):
-        def show_popup():
-            popup = popup_class(title=title, info=self.info[_id].get(var_name, {}), saved_state_changed=self.saved_state_changed, *args, **kwargs)
-            
-            popup.exec()
-            self.info[_id][var_name] = popup.get()
-            
-            if closed_func is not None:
-                closed_func(_id)
-        
-        return show_popup
-
-
-class Subjects(SettingWidget):
+class Subjects(BaseSettingWidget):
     def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):
         self.teachers = [None]
         self.classes_data = {"content": {}, "id_mapping": {"main": {}, "sub": {}}}
@@ -299,8 +121,28 @@ class Subjects(SettingWidget):
                 for option_id in options_data.copy():
                     if option_id not in class_info[class_id]["options"]:
                         options_data.pop(option_id)
+    
+    def popup_closed(self, _id, popup, var_name, init = False):
+        if isinstance(popup, SelectionList):
+            self.clear_display_data_info(_id, var_name)
+            
+            popup_data = popup.get()
+            
+            for _, text in popup_data[:popup_data.index(None)]:
+                self.add_display_data_info(_id, text, var_name)
+        elif isinstance(popup, SubjectDropdownCheckBoxes):
+            class_data = self.main_window.school.project.get("classesInfo", {}).get("variables", {})
+            
+            self.clear_display_data_info(_id, var_name)
+            
+            popup_data = popup.get()
+            
+            for lvl_id, lvl_data in popup_data.items():
+                for cls_id, cls_state in lvl_data.items():
+                    if cls_state:
+                        self.add_display_data_info(_id, f"{"".join(class_data[lvl_id]["text"])} {class_data[lvl_id]["options"][cls_id]}", var_name)
 
-class Teachers(SettingWidget):
+class Teachers(BaseSettingWidget):
     def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):
         self.subjects = [None]
         self.all_subject_classes_info = {}
@@ -392,7 +234,26 @@ class Teachers(SettingWidget):
     
     def make_popups(self, _id, layout):
         self._make_popup(_id, "Classes", layout, TeacherDropdownCheckBoxes, "classes", teacher_id=_id, general_data=self.all_subject_classes_info, default_max_classes=self.main_window.default_max_classes) # type: ignore
-        self._make_popup(_id, "Subjects", layout, SelectionList, "subjects", closed_func=self._update_classes, alignment=Qt.AlignmentFlag.AlignLeft)
+        self._make_popup(_id, "Subjects", layout, SelectionList, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
+    
+    def popup_closed(self, _id, popup, var_name, init = False):
+        if isinstance(popup, SelectionList):
+            if not init:
+                self._update_classes(_id)
+            
+            self.clear_display_data_info(_id, var_name)
+            
+            popup_data = popup.get()
+            
+            for _, text in popup_data[:popup_data.index(None)]:
+                self.add_display_data_info(_id, text, var_name)
+        elif isinstance(popup, TeacherDropdownCheckBoxes):
+            self.clear_display_data_info(_id, var_name)
+            
+            popup_data = popup.get()
+            
+            for text in popup_data["id_mapping"].values():
+                self.add_display_data_info(_id, text, var_name)
     
     def _update_classes_deactivated_general(self, _id):
         selected_subjects_data = {t_s_id: t_s_index for t_s_index, (t_s_id, _) in enumerate(SelectionList.fix_none_selection_content_problem(self.info[_id]["subjects"])) if t_s_index < self.info[_id]["subjects"].index(None)}
@@ -499,7 +360,7 @@ class Teachers(SettingWidget):
                     if option_id not in class_info[class_id]["options"] or option_id not in subject_info[subject_id]["classes"][class_id]:
                         subject_class_data[class_id][1].pop(option_id)
 
-class Classes(SettingWidget):
+class Classes(BaseSettingWidget):
     def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):
         super().__init__(main_window, "Classes", [("Enter the class section name", 10)], saved_state_changed, save_data)
     
@@ -536,9 +397,6 @@ class Classes(SettingWidget):
             "subjects": {}
         }
     
-    def get_constants(self):
-        return {}
-    
     def make_popups(self, _id, layout):
         index = len(self.get()) - 1
         
@@ -553,7 +411,17 @@ class Classes(SettingWidget):
                 {}
             ])
         
-        self._make_popup(_id, "Option Selector", layout, OptionsMaker, "options", button_name="Options", closed_func=lambda _: self.main_window.subjects_widget.update_classes()) # type: ignore
+        self._make_popup(_id, "Option Selector", layout, OptionsMaker, "options", button_name="Options") # type: ignore
         self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, week_total=sum(self.main_window.school.project["levels"][index][1][1]))
-
+    
+    def popup_closed(self, _id, popup, var_name, init = False):
+        if isinstance(popup, OptionsMaker):
+            if not init:
+                self.main_window.subjects_widget.update_classes()
+            
+            self.clear_display_data_info(_id, var_name)
+            
+            for option_name in popup.get().values():
+                self.add_display_data_info(_id, option_name, var_name)
+            
 

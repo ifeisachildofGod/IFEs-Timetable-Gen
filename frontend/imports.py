@@ -1,5 +1,10 @@
+import pickle
 from imports import *
 from pathlib import Path
+
+from docx import Document
+from docx.shared import RGBColor
+from docx.oxml import OxmlElement
 
 from middle.main import School
 from middle.objects import *
@@ -19,7 +24,7 @@ from PyQt6.QtGui import (
     QDragMoveEvent, QDropEvent, QPixmap
 )
 from PyQt6.QtCore import (
-    Qt, QTimer, QThread, QMimeData,
+    Qt, QTimer, QThread, QMimeData, QSize,
     pyqtSignal, pyqtBoundSignal, QPoint
 )
 from PyQt6.QtPrintSupport import QPrinter

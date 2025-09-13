@@ -7,29 +7,6 @@ DOTW_DATA = {
     "id_mapping": {0: "ID:monday3231", 1: "ID:tuesday6456", 2: "ID:wednesday0921", 3: "ID:thursday9182", 4: "ID:friday8765", 6: "ID:saturday8728", 7: "ID:sunday0091"}
 }
 
-class MenuFrame(QFrame):
-    def __init__(self):
-        super().__init__()
-        self.setProperty("class", "Menu")
-        self.setStyleSheet("QFrame.Menu { border: 1px solid "+ THEME_MANAGER.parse_stylesheet("{border2}") +"; }")
-        self.setWindowFlags(Qt.WindowType.Popup)
-        self.setFrameShape(QFrame.Shape.Box)
-        
-        self.main_layout = QVBoxLayout()
-        self.setLayout(self.main_layout)
-        
-        self._pos = self.pos()
-    
-    def set_pos(self, pos: QPoint):
-        self._pos = pos
-    
-    def toogle(self):
-        if self.isVisible():
-            self.hide()
-        else:
-            self.move(self._pos)
-            self.show()
-
 class _ProgressBar(QProgressBar):
     def __init__(self, master: QWidget):
         super().__init__()
@@ -315,6 +292,13 @@ class ClassTimetable(QTableWidget):
         
         return total_subject_amt
     
+    def update_break_time_color(self):
+        for row in range(self.rowCount()):
+            for col in range(self.columnCount()):
+                item = self.item(row, col)
+                if item.break_time:
+                    item.set_color()
+    
     def timetable_exchange(self, source_item: TimeTableItem, target_item: TimeTableItem):
         source_row, source_col = self.row(source_item), self.column(source_item)
         target_row, target_col = self.row(target_item), self.column(target_item)
@@ -335,32 +319,33 @@ class ClassTimetable(QTableWidget):
         self.setItem(source_row, source_col, new_source)
         
         # Middle timetable replacement
-        src_subjs = self.timetable.table[self.timetable.weekInfo[source_col][0]]
-        tar_subjs = self.timetable.table[self.timetable.weekInfo[target_col][0]]
-        
-        Timetable.spread(src_subjs)
-        Timetable.spread(tar_subjs)
-        
-        # Exchange
-        temp_tar_subj = tar_subjs[target_row]
-        temp_src_subj = src_subjs[source_row]
-        
-        src_subjs[source_row] = temp_tar_subj
-        tar_subjs[target_row] = temp_src_subj
-        
-        if source_item.break_time:
-            self.timetable.weekInfo[source_col][2] = self.cls.breakTimePeriods[source_col]\
-                = self.timetable.breakTimePeriods[source_col] = target_row + 1
-        elif target_item.break_time:
-            self.timetable.weekInfo[target_col][2] = self.cls.breakTimePeriods[target_col]\
-                = self.timetable.breakTimePeriods[target_col] = source_row + 1
-        
-        Timetable.flatten(src_subjs)
-        Timetable.flatten(tar_subjs)
+        self.timetable.swap(source_row, source_col, target_row, target_col)
         
         # Force refresh
         self.blockSignals(False)
         self.update()
+    
+    def exportify(self):
+        widget = QWidget()
+        layout = QVBoxLayout()
+        
+        widget.setLayout(layout)
+        
+        layout.setSpacing(5)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        new_ttbl_widget = ClassTimetable(self.cls, self.editor, self.remainder_layout, self.saved_state_changed)
+        
+        for row in range(new_ttbl_widget.rowCount()):
+            for col in range(new_ttbl_widget.columnCount()):
+                item = new_ttbl_widget.item(row, col)
+                if item.break_time:
+                    item.set_color("black")
+        
+        layout.addWidget(QLabel(self.cls.name))
+        layout.addWidget(new_ttbl_widget)
+        
+        return widget
     
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -392,10 +377,10 @@ class ClassTimetable(QTableWidget):
             
             source: TimeTableItem = self.item(row, col)
             
-            if source is not None and source.subject.id != self.timetable.freePeriodID:
+            if source is not None and (self.editor.remainder_source_ref is not None or source.subject.id != self.timetable.freePeriodID):
                 event.accept()
                 if self.editor.remainder_source_ref is None:
-                    self.current_source: TimeTableItem = self.item(self.rowAt(int(event.position().y())), self.columnAt(int(event.position().x())))
+                    self.current_source: TimeTableItem = source
     
     def dragMoveEvent(self, event: QDragMoveEvent):
         if event.mimeData().hasText():
@@ -404,7 +389,18 @@ class ClassTimetable(QTableWidget):
             col = self.columnAt(int(event.position().x()))
             row = self.rowAt(int(event.position().y()))
             
-            if source_cls.cls.uniqueID != self.cls.uniqueID or (self.drag_source_col != col and (row == self.cls.breakTimePeriods[col] - 1 or self.cls.breakTimePeriods[self.drag_source_col] == self.drag_source_row + 1)):
+            ignore = True
+            if self.editor.remainder_source_ref is None:
+                ignore = source_cls.cls.uniqueID != self.cls.uniqueID or (
+                    self.drag_source_col != col and (
+                        row == self.cls.breakTimePeriods[col] - 1 or
+                        self.cls.breakTimePeriods[self.drag_source_col] == self.drag_source_row + 1
+                        )
+                    )
+            else:
+                ignore = row == self.cls.breakTimePeriods[col] - 1
+            
+            if ignore:
                 event.ignore()
             else:
                 event.accept()
@@ -442,7 +438,7 @@ class ClassTimetable(QTableWidget):
                 self.takeItem(row, col)
                 self.setItem(row, col, new_target)
                 
-                if target_item and isinstance(target_item, TimeTableItem) and target_item.subject is not None:
+                if isinstance(target_item, TimeTableItem) and not target_item.free_period:
                     target_subject = target_item.subject
                     
                     # Create new items
@@ -532,7 +528,7 @@ class ClassTimetable(QTableWidget):
                 item = TimeTableItem(subject, row + 1 == self.cls.breakTimePeriods[col], subject.id == self.cls.timetable.freePeriodID)
                 self.setItem(row, col, item)
         
-        rem_subjects = [subj for subj in self.timetable.remainderContent if subj.teacher is not None]
+        rem_subjects = [subj for subj in self.timetable.remainderContent if subj.id != self.timetable.freePeriodID]
         
         self.clear_remainder()
         
@@ -545,7 +541,7 @@ class ClassTimetable(QTableWidget):
     def show_context_menu(self, pos):
         item = self.itemAt(pos)
         
-        if item and isinstance(item, TimeTableItem) and item.subject is not None and item.subject.teacher is not None:
+        if item and isinstance(item, TimeTableItem) and not item.free_period and not item.break_time:
             menu = QMenu(self)
             
             lock_action = None
@@ -562,7 +558,7 @@ class ClassTimetable(QTableWidget):
             action = menu.exec(self.viewport().mapToGlobal(pos))
             
             if action == delete_action:
-                free_period_subject = Subject(self.cls.timetable.freePeriodID, "Free", 1, 1, None, self.cls)
+                free_period_subject = Subject(self.cls.timetable.freePeriodID, "Free", 1, 0, None, self.cls)
                 
                 row = self.row(item)
                 col = self.column(item)
@@ -651,6 +647,46 @@ class TimeTableEditor(QWidget):
         self.main_layout.addWidget(self.settings_widget)
         self.main_layout.addWidget(progress_bar_widget)
         self.main_layout.addWidget(self.scroll_area)
+    
+    def exportify_widgets(self, ttbl_widgets: list[ClassTimetable]):
+        style_sheet = """
+            QWidget {
+                background-color: white;
+                color: black;
+            }
+            
+            QLabel {
+                font-size: 20px;
+                color: black;
+                background-color: white;
+            }
+            
+            QTableWidget {
+                background-color: white;
+                border: 2px solid black;
+                gridline-color: black;
+                color: black
+            }
+            QHeaderView::section {
+                background-color: black;
+                color: white;
+                padding: 8px;
+                border: none;
+            }
+        """
+        main_widget = QWidget()
+        main_layout = QVBoxLayout()
+        
+        main_widget.setLayout(main_layout)
+        main_widget.setStyleSheet(style_sheet)
+        
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
+        for ttbl_widget in ttbl_widgets:
+            main_layout.addWidget(ttbl_widget.exportify())
+        
+        return main_widget
     
     def get(self):
         return self.info
@@ -775,7 +811,7 @@ class TimeTableEditor(QWidget):
         
         return func
     
-    def update_data_interaction(self, prev_index: int, curr_index: int):
+    def update_data_interaction(self, _: int, curr_index: int):
         if curr_index == 3:
             subjects_info = self.main_window.subjects_widget.get()
             teachers_info = self.main_window.teachers_widget.get()
@@ -913,6 +949,20 @@ class TimeTableEditor(QWidget):
             if not self._leave_updated:
                 for ttbl in self.timetable_widgets.values():
                     ttbl.save_timetable()
+    
+    # def paintEvent(self, a0):
+    #     super().paintEvent(a0)
+        
+    #     painter = QPainter(self)
+    #     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+    #     pen = painter.pen()
+    #     pen.setWidth(5)
+    #     pen.setBrush(QColor("#12ab93"))
+    #     painter.setPen(pen)
+        
+    #     painter.setBrush(Qt.BrushStyle.NoBrush)
+    #     painter.drawLine(0, 0, 700, 500)
     
     def _certify_class_level_info(self, class_index: int, class_id: str, option_id: str):
         if class_index < len(self.school.project["levels"]):
