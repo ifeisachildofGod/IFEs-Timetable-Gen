@@ -2,7 +2,7 @@ from frontend.imports import *
 from frontend.base_widgets import *
 
 class SelectionList(BaseSubWidget):
-    def __init__(self, title: str, info: list, saved_state_changed: pyqtBoundSignal):
+    def __init__(self, title: str, info: list, saved_state_changed: pyqtBoundSignal, constant_indexing: bool = False):
         super().__init__(title, info, saved_state_changed)
         self.setFixedSize(400, 300)
         self.container.setProperty("class", "SelectionList")
@@ -21,15 +21,21 @@ class SelectionList(BaseSubWidget):
         selected_items = info[:split_index]
         unselected_items = info[split_index+1:]
         
+        self.index_tracker = {}
+        
         # Add selected items
-        for item_id, item_name in selected_items:
-            widget = SelectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
+        for item_index, (item_id, item_name) in enumerate(selected_items):
+            widget = SelectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed, self.index_tracker if constant_indexing else None)
             self.container_layout.addWidget(widget)
+            
+            self.index_tracker[item_id] = item_index
         
         # Add unselected items
-        for item_id, item_name in unselected_items:
-            widget = UnselectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
+        for item_index, (item_id, item_name) in enumerate(unselected_items):
+            widget = UnselectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed, self.index_tracker if constant_indexing else None)
             self.container_layout.addWidget(widget)
+            
+            self.index_tracker[item_id] = len(selected_items) + item_index
         
         self.container_layout.addStretch()
     
@@ -304,13 +310,14 @@ class SubjectDropdownCheckBoxes(BaseSubWidget):
         return checkbox_func
 
 class TeacherDropdownCheckBoxes(BaseSubWidget):
-    def __init__(self, title, info, saved_state_changed, teacher_id, general_data, default_max_classes):
+    def __init__(self, title, info, saved_state_changed, teacher_id, general_data, default_max_classes, main_window):
         super().__init__(title, info, saved_state_changed)
         
         self.teacher_id = teacher_id
         self.general_data = general_data
         self.default_max_classes = default_max_classes
         self.saved_state_changed = saved_state_changed
+        self.main_window = main_window
         
         self.setFixedSize(400, 300)
         
@@ -483,7 +490,7 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
             
             title = QLabel(id_mapping["main"][class_id])
             
-            max_random_text_input = NumberLineEdit(random_on if random_on is not None else -1, len(class_options))
+            max_random_text_input = NumberLineEdit(random_on if random_on is not None else self.main_window.default_max_classes, len(class_options))
             max_random_text_input.edit.setToolTip("Max Classes")
             max_random_text_input.setVisible(False)
             max_random_text_input.textChanged.connect(self.make_random_text_changed_func(class_id, data))
@@ -653,7 +660,7 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
         return func
 
 class SubjectSelection(BaseSubWidget):
-    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None] | dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], week_total: int, saved_state_changed: pyqtBoundSignal):
+    def __init__(self, title: str, info: dict[str, tuple[str, dict[str, int | dict[str, str]]]], week_total: int, saved_state_changed: pyqtBoundSignal):
         super().__init__(title, info, saved_state_changed)
         
         self.setFixedSize(600, 400)
@@ -820,7 +827,7 @@ class OptionsMaker(BaseSubWidget):
     def add_option(self, _id: str | None = None, text: str | None = None):
         option = OptionTag(text)
         
-        _id = str(hex(id(option)).lower().replace("0x")) if _id is None else _id
+        _id = str(hex(id(option)).lower().replace("0x", "")) if _id is None else _id
         
         def update_option():
             self.info[_id] = option.get_text()

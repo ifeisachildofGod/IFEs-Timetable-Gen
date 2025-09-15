@@ -30,7 +30,7 @@ class BaseSubWidget(QDialog):
     def get(self):
         return self.info
     
-    def find(self, _id: str):
+    def go_to(self, _id: str):
         pass
 
 
@@ -49,7 +49,7 @@ class BaseSettingWidget(QWidget):
         self.widgets: dict[str, QWidget] = {}
         self.display_data_widgets: dict[str, dict[str, QWidget]] = {}
         self.sub_display_data_widgets: dict[str, dict[str, list[QWidget]]] = {}
-        self._temp_popups: dict = {}
+        self.popups_data: dict[str, dict[str, tuple[type[BaseSubWidget], str, list, dict[str, Any]]]] = {}
         self.input_placeholders = input_placeholders
         self.saved_state_changed = saved_state_changed
         
@@ -71,11 +71,17 @@ class BaseSettingWidget(QWidget):
             self.add(self.input_placeholders)
             self.saved_state_changed.emit()
         
+        main_base_widget = QWidget()
+        self.base_widget_layout = QHBoxLayout()
+        main_base_widget.setLayout(self.base_widget_layout)
+        
         self.add_button = QPushButton()
         self.add_button.clicked.connect(add_func)
         
+        self.base_widget_layout.addWidget(self.add_button)
+        
         self.main_layout.addWidget(self.scroll_area)
-        self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
+        self.main_layout.addWidget(main_base_widget, alignment=Qt.AlignmentFlag.AlignRight)
         
         self.setLayout(self.main_layout)
         self.setObjectName(name)
@@ -88,12 +94,9 @@ class BaseSettingWidget(QWidget):
         
         self.container_layout.addStretch()
         
-        for _id, _temp_popups in self._temp_popups.copy().items():
-            for var_name, popup in _temp_popups.items():
-                self.popup_closed(_id, popup, var_name, True)
-            del self._temp_popups[_id]
+        self._update_display_data_info(True)
         
-        self.scroll_area.verticalScrollBar().setValue(0) # type: ignore
+        self.scroll_area.verticalScrollBar().setValue(0)  # type: ignore
     
     def go_to(self, _id):
         for widget_id, widget in self.widgets.items():
@@ -177,10 +180,20 @@ class BaseSettingWidget(QWidget):
     def entry_deleted(self, _id):
         pass
     
-    def popup_closed(self, _id: str, popup: BaseSubWidget, var_name: str, init: bool = False):
+    def popup_closed(self, _id: str, var_name: str, popup: BaseSubWidget, init: bool = False):
         pass
     
-    def add_display_data_info(self, _id: str, text: str, var_name: str):
+    def add_display_data_info(self, _id: str, var_name: str, text: str, desination_id: str):
+        def display_data_func(ev):
+            popup_class, title, args, kwargs = self.popups_data[_id][var_name]
+            
+            popup = popup_class(title=title, info=self.info[_id][var_name], saved_state_changed=self.saved_state_changed, *args, **kwargs)
+            popup.go_to(desination_id)
+            
+            show_popup_func = self._make_popup_func(_id, var_name, title, popup_class, *args, **kwargs)
+            
+            show_popup_func(popup)
+        
         if not self.sub_display_data_widgets[_id][var_name] or len(self.sub_display_data_widgets[_id][var_name][-1].findChildren(QLabel)) >= self.display_data_max:
             new_sub_widget = QWidget()
             new_sub_layout = QHBoxLayout()
@@ -196,7 +209,7 @@ class BaseSettingWidget(QWidget):
         label.setStyleSheet(f"QLabel {{background-color: blue; border-radius: 8px; font-size: 15px}}")
         label.setFixedSize(100, 35)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.mousePressEvent = self._temp_popups
+        label.mousePressEvent = display_data_func
         
         self.sub_display_data_widgets[_id][var_name][-1].layout().addWidget(label)
     
@@ -209,6 +222,13 @@ class BaseSettingWidget(QWidget):
             self.sub_display_data_widgets[_id][var_name].remove(widget)
             self.display_data_widgets[_id][var_name].layout().removeWidget(widget)
             widget.deleteLater()
+    
+    def _update_display_data_info(self, init: bool = False):
+        for _id, popup_data in self.popups_data.copy().items():
+            for var_name, (popup_class, title, args, kwargs) in popup_data.items():
+                popup = popup_class(title=title, info=self.info[_id][var_name], saved_state_changed=self.saved_state_changed, *args, **kwargs)
+                
+                self.popup_closed(_id, var_name, popup, init)
     
     def _make_inputs(self, _id: str, placeholders: list[tuple[str, int]], data: dict | None):
         text_edits: list[tuple[QLineEdit, int]] = []
@@ -245,7 +265,7 @@ class BaseSettingWidget(QWidget):
         
         return del_widget
     
-    def _make_popup(self, _id: str, title: str, layout: QHBoxLayout, popup_class: type[BaseSubWidget], var_name: str, button_name: str | None = None, alignment: Qt.AlignmentFlag | None = None, *args, **kwargs):
+    def _make_popup(self, _id: str, var_name: str, title: str, layout: QHBoxLayout, popup_class: type[BaseSubWidget], button_name: str | None = None, alignment: Qt.AlignmentFlag | None = None, *args, **kwargs):
         if _id not in self.sub_display_data_widgets:
             self.sub_display_data_widgets[_id] = {}
         if _id not in self.display_data_widgets:
@@ -261,25 +281,27 @@ class BaseSettingWidget(QWidget):
         
         button.setFixedWidth(100)
         button.setProperty("class", 'action')
-        button.clicked.connect(self._make_popup_func(_id, title, popup_class, var_name, *args, **kwargs))
+        
+        show_popup_func = self._make_popup_func(_id, var_name, title, popup_class, *args, **kwargs)
+        button.clicked.connect(lambda: show_popup_func())
         
         if alignment is not None:
             layout.addWidget(button, alignment=alignment)
         else:
             layout.addWidget(button)
     
-    def _make_popup_func(self, _id: str, title: str, popup_class: type[BaseSubWidget], var_name: str, *args, **kwargs):
-        if _id not in self._temp_popups:
-            self._temp_popups[_id] = {}
-        self._temp_popups[_id][var_name] = popup_class(title=title, info=self.info[_id].get(var_name, {}), saved_state_changed=self.saved_state_changed, *args, **kwargs)
+    def _make_popup_func(self, _id: str, var_name: str, title: str, popup_class: type[BaseSubWidget], *args, **kwargs):
+        if _id not in self.popups_data:
+            self.popups_data[_id] = {}
+        self.popups_data[_id][var_name] = popup_class, title, args, kwargs
         
-        def show_popup():
-            popup = popup_class(title=title, info=self.info[_id].get(var_name, {}), saved_state_changed=self.saved_state_changed, *args, **kwargs)
+        def show_popup(popup: BaseSubWidget | None = None):
+            popup = popup if popup is not None else popup_class(title=title, info=self.info[_id].get(var_name, {}), saved_state_changed=self.saved_state_changed, *args, **kwargs)
             
             popup.exec()
             self.info[_id][var_name] = popup.get()
             
-            self.popup_closed(_id, popup, var_name)
+            self.popup_closed(_id, var_name, popup)
         
         return show_popup
 
@@ -460,11 +482,12 @@ class MainTitleBar(CustomTitleBar):
 
 
 class TimeTableItem(QTableWidgetItem):
-    def __init__(self, subject: SubjectType, break_time: bool, free_period: bool):
+    def __init__(self, subject: SubjectType):
         super().__init__()
         self.subject = subject
-        self.break_time = break_time
-        self.free_period = free_period
+        
+        self.free_period = subject.id == FREE_PERIOD_ID
+        self.break_time = subject.id == BREAK_PERIOD_ID
         
         self.setFlags(self.flags() & Qt.ItemFlag.ItemIsEnabled)
         
@@ -525,15 +548,22 @@ class DraggableSubjectLabel(QLabel):
 class NumberLineEdit(QWidget):
     textChanged = pyqtSignal(int)
     
-    def __init__(self, number: int, min_validatorAmt: int = 0, max_validatorAmt: int = 10):
+    def __init__(self, number: int, min_num: int = 0, max_num: int = 10):
         super().__init__()
+        if not isinstance(number, int):
+            raise TypeError(f"Invalid number type {type(number)}")
         
-        self.min_num = min_validatorAmt
-        self.max_num = max_validatorAmt
+        if not (max_num >= number >= min_num):
+            raise Exception(f"({max_num} >= {number} >= {min_num}) is not True")
+        
+        self.min_num = min_num
+        self.max_num = max_num
         
         self.edit = QLineEdit()
         self.edit.textChanged.connect(self._updateNumber)
         self.edit.setValidator(QIntValidator())
+        
+        self._number = str(number)
         self.setNumber(number)
         
         layout = QHBoxLayout()
@@ -568,14 +598,13 @@ class NumberLineEdit(QWidget):
         return int(self._number)
     
     def setNumber(self, number: int):
-        self._number = str(number)
-        self.edit.setText(self._number)
+        self.edit.setText(str(number))
     
     def setPlaceholderText(self, text: str):
         self.edit.setPlaceholderText(text)
     
     def _updateNumber(self, text: str):
-        if not text.isnumeric() or self.max_num < int(text) < self.min_num:
+        if not text.isnumeric() or int(text) > self.max_num or self.min_num > int(text):
             self.edit.setText(self._number)
         else:
             self._number = text
@@ -712,8 +741,8 @@ class OptionTag(QWidget):
         return self.text
 
 
-class SelectedWidget(QWidget):
-    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal):
+class SelectionOptionWidget(QWidget):
+    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal, index_tracker: dict[str, int] | None):
         super().__init__()
         layout = QHBoxLayout()
         layout.setSpacing(8)
@@ -721,100 +750,84 @@ class SelectedWidget(QWidget):
         
         self.setLayout(layout)
         
-        container = QWidget()
+        self.container = QWidget()
         container_layout = QHBoxLayout()
         
-        container.setProperty("class", "SelectedSelectionListEntry")
-        container.setLayout(container_layout)
+        self.container.setLayout(container_layout)
         
-        layout.addWidget(container)
+        layout.addWidget(self.container)
         
         self.id = _id
         self.text = text
         self.host_container_layout = host_container_layout
+        self.saved_state_changed_signal = saved_state_changed_signal
+        self.index_tracker = index_tracker
         
         metrics = QFontMetrics(self.font())
         label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
         label.setFont(self.font())
         label.setToolTip(self.text)
         
-        delete_button = QPushButton("×")
-        delete_button.setProperty("class", 'Close')
-        delete_button.setFixedSize(24, 24)
-        delete_button.clicked.connect(self.delete_self)
+        action_button = QPushButton("×")
+        action_button.setProperty("class", 'Close')
+        action_button.setFixedSize(24, 24)
+        action_button.clicked.connect(self.action_on_self)
         
         container_layout.addWidget(label)
         container_layout.addStretch()
-        container_layout.addWidget(delete_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        
-        self.saved_state_changed_signal = saved_state_changed_signal
+        container_layout.addWidget(action_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
     
-    def delete_self(self):
+    def action_on_self(self):
         self.host_container_layout.removeWidget(self)
+
+class SelectedWidget(SelectionOptionWidget):
+    def __init__(self, _id, text, host_container_layout, saved_state_changed_signal, index_tracker):
+        super().__init__(_id, text, host_container_layout, saved_state_changed_signal, index_tracker)
         
-        widget = UnselectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal)
+        self.container.setProperty("class", "SelectedSelectionListEntry")
+    
+    def action_on_self(self):
+        super().action_on_self()
         
-        # Find the last unselected widget or append at the end
-        insert_index = self.host_container_layout.count() - 1
-        for i in range(self.host_container_layout.count() - 1, -1, -1):
-            if isinstance(self.host_container_layout.itemAt(i).widget(), UnselectedWidget):
-                insert_index = i
-                break
+        widget = UnselectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal, self.index_tracker)
         
-        self.host_container_layout.insertWidget(insert_index, widget)
+        if self.index_tracker is None:
+            # Find the last unselected widget or append at the end
+            insert_index = self.host_container_layout.count() - 1
+            
+            for i in range(self.host_container_layout.count() - 1, -1, -1):
+                if isinstance(self.host_container_layout.itemAt(i).widget(), UnselectedWidget):
+                    insert_index = i
+                    break
+            
+            self.host_container_layout.insertWidget(insert_index, widget)
+        else:
+            self.host_container_layout.insertWidget(self.index_tracker[widget.id], widget)
         
         self.deleteLater()
         
         self.saved_state_changed_signal.emit()
 
-class UnselectedWidget(QWidget):
-    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal):
-        super().__init__()
-        layout = QHBoxLayout()
-        layout.setSpacing(8)
-        layout.setContentsMargins(10, 0, 0, 0)
+class UnselectedWidget(SelectionOptionWidget):
+    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal, index_tracker: bool | None):
+        super().__init__(_id, text, host_container_layout, saved_state_changed_signal, index_tracker)
         
-        self.setLayout(layout)
-        
-        container = QWidget()
-        container_layout = QHBoxLayout()
-        
-        container.setProperty("class", "UnselectedSelectionListEntry")
-        container.setLayout(container_layout)
-        
-        layout.addWidget(container)
-        
-        self.id = _id
-        self.text = text
-        self.host_container_layout = host_container_layout
-        
-        metrics = QFontMetrics(self.font())
-        label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
-        label.setFont(self.font())
-        label.setToolTip(text)
-        
-        add_button = QPushButton("×")
-        add_button.setProperty("class", 'Close')
-        add_button.setFixedSize(24, 24)
-        add_button.clicked.connect(self.add_self)
-        
-        container_layout.addWidget(label)
-        container_layout.addStretch()
-        container_layout.addWidget(add_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        
-        self.saved_state_changed_signal = saved_state_changed_signal
+        self.container.setProperty("class", "UnselectedSelectionListEntry")
     
-    def add_self(self):
-        self.host_container_layout.removeWidget(self)
+    def action_on_self(self):
+        super().action_on_self()
         
-        widget = SelectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal)
+        widget = SelectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal, self.index_tracker)
         
-        insert_index = 0
-        for i in range(self.host_container_layout.count()):
-            if isinstance(self.host_container_layout.itemAt(i).widget(), SelectedWidget):
-                insert_index = i + 1
-        
-        self.host_container_layout.insertWidget(insert_index, widget)
+        if self.index_tracker is None:
+            insert_index = 0
+            for i in range(self.host_container_layout.count()):
+                if isinstance(self.host_container_layout.itemAt(i).widget(), SelectedWidget):
+                    insert_index = i + 1
+            
+            self.host_container_layout.insertWidget(insert_index, widget)
+        else:
+            self.host_container_layout.insertWidget(self.index_tracker[widget.id], widget)
         
         self.deleteLater()
         

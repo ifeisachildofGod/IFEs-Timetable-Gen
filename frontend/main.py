@@ -15,19 +15,25 @@ class Window(QMainWindow):
         
         self.app = app
         self.title = "IFEs Timetable Generator"
-        self.export_file_filter = "JSON File (*.json);;Image File (*.png *.jpg *.wpeg *.svg);;Microsoft Document (*.msix);;Pickle File (*.pickle);;CSV File (*.csv);;HTML File (*.html);;PDF File (*.pdf)"
+        self.export_file_filter = "JSON File (*.json);;Image File (*.png *.jpg *.wpeg *.svg);;Microsoft Document (*.msix);;Excel Document (*.xlsx);;Pickle File (*.pickle);;CSV File (*.csv);;HTML File (*.html);;PDF File (*.pdf)"
         
         self.file = FileManager(self, path, f"Timetable Files (*.{EXTENSION_NAME})")
         self.file.set_callbacks(self.save_callback, self.open_callback, self.load_callback, self.export_callback)
         
         # Default data
-        self.default_period_amt   =   10  # Being used by the timetable editor
-        self.default_breakperiod  =   7   #   "     "   "  "      "       "
         self.default_per_day      =   2   # Being used by the classes editor
         self.default_per_week     =   4   #   "     "   "  "     "       "
         self.default_max_classes  =   3   # Being used by the teachers editor
-        self.default_save_data    =   {"levels": [], "subjectTeacherMapping": {}}
-        self.default_weekdays     =   ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        self.default_save_data    =   {
+            "levels": [],
+            "subjectTeacherMapping": {},
+            "timetableInfo": {
+                "breakPeriod": 7,
+                "periodAmount": 10,
+                "DOTW": [("ID:monday3231", "Monday"), ("ID:tuesday6456", "Tuesday"), ("ID:wednesday0921", "Wednesday"), ("ID:thursday9182", "Thursday"), ("ID:friday8765", "Friday"), None, ("ID:saturday8728", "Saturday"), ("ID:sunday0091", "Sunday")],
+                "levelTimetableData": []
+            },
+        }
         
         self.children_saved_tracker = {}
         
@@ -54,8 +60,8 @@ class Window(QMainWindow):
         
         # Make settings widgets
         self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"), self.saved_state_changed)
-        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
         self.classes_widget = Classes(self, self.save_data.get("classesInfo"), self.saved_state_changed)
+        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
         
         self.timetable_widget = TimeTableEditor(self, self.school, self.save_data.get("timetableInfo"), self.saved_state_changed)
         
@@ -220,16 +226,19 @@ class Window(QMainWindow):
         self.saved_callback()
     
     def export_callback(self, path: str, export_mode: int):
+        saved = self.saved
+        
         self.update_interaction(self.prev_display_index, self.display_index)
         self.update_interaction(self.display_index, 3)
         
         if export_mode == 0:
-            if path.endswith(("png", "jpg", "wpeg", "svg", "pdf", "html", "msisx", "xlsx")):
+            if path.endswith(("png", "jpg", "wpeg", "svg", "pdf", "html", "msix", "xlsx")):
                 title = "Timetable"
                 
                 widgets = list(self.timetable_widget.timetable_widgets.values())
                 
                 widget = self.timetable_widget.exportify_widgets(widgets)
+                
                 widget.resize(QSize(max(w.columnCount() for w in widgets) * 90 + 114, widget.sizeHint().height()))
                 
                 if path.endswith("pdf"):
@@ -335,39 +344,30 @@ class Window(QMainWindow):
                         doc.add_heading(cls_ttbl.cls.name, level=2)
                         
                         # Create a Word table
-                        word_table = doc.add_table(cls_ttbl.rowCount(), cls_ttbl.columnCount())
+                        word_table = doc.add_table(cls_ttbl.rowCount() + 1, cls_ttbl.columnCount() + 1)
                         word_table.style = "Table Grid"
                         
-                        
                         for row in range(cls_ttbl.rowCount()):
-                            word_table.cell(row, 0).text = cls_ttbl.varticalHeaderItem(row).text()
-                            for col in range(cls_ttbl.columnCount()):
-                                word_table.cell(0, col).text = cls_ttbl.horizontalHeaderItem(col).text()
+                            word_table.cell(1, row).text = cls_ttbl.verticalHeaderItem(row).text()
+                        for col in range(cls_ttbl.columnCount()):
+                            word_table.cell(col, 1).text = cls_ttbl.horizontalHeaderItem(col).text()
                         
                         for row in range(1, cls_ttbl.rowCount() + 1):
                             for col in range(1, cls_ttbl.columnCount() + 1):
                                 item: TimeTableItem = cls_ttbl.item(row - 1, col - 1)
-                                word_table.cell(row, col).text = "" if item.break_time or item.free_period else item.text()
-                        
-                        for r, row in enumerate(word_table.rows):
-                            for c, cell in enumerate(row.cells):
-                                item = cls_ttbl.item(r, c)
-                                
-                                self._set_cell_bg(cell, "000000" if not r or not c else ("1F1F1F" if item.break_time else "FFFFFF"))
-
+                                word_table.cell(row, col).text = ("BREAK" if item and item.break_time else "") if not item or item.break_time or item.free_period else item.text()
+                    
                     doc.save(path)
                 elif path.endswith("xlsx"):
                     wb = Workbook()
                     ws = wb.active
                     ws.title = title
                     
-                    bg_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
-                    general_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
-                    break_fill = PatternFill(start_color="1F1F1F", end_color="1F1F1F", fill_type="solid")
-                    
                     for cls_ttbl in widgets:
                         # Add header row
-                        headers = [cls_ttbl.horizontalHeaderItem(col).text() for col in range(cls_ttbl.columnCount())]
+                        ws.append(["" for _ in range(cls_ttbl.columnCount() + 1)])
+                        
+                        headers = ["", ""] + [cls_ttbl.horizontalHeaderItem(col).text() for col in range(cls_ttbl.columnCount())]
                         ws.append(headers)
                         
                         for row in range(cls_ttbl.rowCount()):
@@ -375,14 +375,8 @@ class Window(QMainWindow):
                             for col in range(cls_ttbl.columnCount()):
                                 item = cls_ttbl.item(row, col)
                                 
-                                row_data.append("" if item.break_time or item.free_period else item.text())
+                                row_data.append(("BREAK" if item and item.break_time else "") if not item or item.break_time or item.free_period else item.text())
                             ws.append(row_data)
-                        
-                        for r, row in enumerate(ws.iter_rows()):
-                            for c, cell in enumerate(row):
-                                item = cls_ttbl.item(r, c)
-                                
-                                cell.fill = break_fill if item.break_time else (bg_fill if not r or not c else general_fill)
                     
                     wb.save(path)
                 else:
@@ -397,14 +391,11 @@ class Window(QMainWindow):
                     pickle.dump(self.save_data, file)
         elif export_mode == 1:
             pass
-    
-    def _set_cell_bg(cell, color):
-        """Set background color of a Word cell"""
-        tc = cell._tc
-        tcPr = tc.get_or_add_tcPr()
-        shd = OxmlElement('w:shd')
-        shd.set('w:fill', color)  # hex without #
-        tcPr.append(shd)
+        
+        if saved:
+            self.saved_callback()
+        else:
+            self.unsaved_callback()
     
     def undo(self):
         undo_func = self.focusWidget().__dict__.get("undo")
@@ -519,11 +510,10 @@ class Window(QMainWindow):
         setting_widgets: dict[str, BaseSettingWidget] = {
             "subjectsInfo": self.subjects_widget,
             "teachersInfo": self.teachers_widget,
-            "classesInfo": self.classes_widget,
-            "timetableInfo": self.timetable_widget
+            "classesInfo": self.classes_widget
         }
         
-        return {
+        data = {
             widget_name: {
                 "variables": widget.get(),
                 "constants": getattr(widget, "get_constants", lambda: {})()
@@ -531,6 +521,10 @@ class Window(QMainWindow):
             for widget_name, widget in
             setting_widgets.items()
         }
+        
+        data.update({"timetableInfo": self.timetable_widget.get()})
+        
+        return data
     
     def keyPressEvent(self, a0):
         if a0.key() == 16777220: # type: ignore
@@ -582,16 +576,6 @@ class Window(QMainWindow):
             self.display_index = index
     
     def update_interaction(self, prev_index: int, curr_index: int):
-        match prev_index:
-            case 3:
-                for _, info1 in self.school.project["subjects"].values():
-                    for _, _, info2 in info1.values():
-                        for _, info3 in info2.values():
-                            info3.clear()
-                
-                for _, cls in self.school.classes.items():
-                    self.timetable_widget.timetable_widgets[cls.uniqueID].save_timetable()
-        
         match curr_index:
             case 0:  # Subjects view
                 self.subjects_widget.update_data_interaction(prev_index, curr_index)

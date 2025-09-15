@@ -21,7 +21,7 @@ PotentialOptionType = Union[
     dict[str,
          tuple[str, dict[str,
                          tuple[int, int, dict[str,
-                                              tuple[tuple[str, str], list[tuple[tuple[int, int], tuple[int, int]]]]
+                                              tuple[str, str]
                                               ]
                                ]
                          ]
@@ -206,7 +206,7 @@ class School:
         
         for subjectID, (subjectName, subjectInfo) in subjects.items():
             for classIndex, (perDay, perWeek, classTeacherMapping) in subjectInfo.items():
-                for classID, ((teacherID, teachersName), _) in classTeacherMapping.items():
+                for classID, (teacherID, teachersName) in classTeacherMapping.items():
                     teacher = self.teachers[teacherID] = self.teachers.get(teacherID, Teacher(teacherID, teachersName, []))
                     subj = Subject(subjectID, subjectName, perDay, perWeek, teacher, cls)
                     cls = self.classes[Class.getUniqueID(int(classIndex), classID)]
@@ -267,11 +267,13 @@ class School:
             if not subjectInfo["&classes"]:
                 subjectInfo.pop("&classes")
         
+        timetableInfo = self.project["timetableInfo"]
+        
         subjects = {}
         for _, cls in self.classes.items():
             for subject in cls.subjects:
-                if subject.id not in (cls.timetable.freePeriodID, cls.timetable.breakPeriodID):
-                    subjectLevelClassInfo = [(subject.teacher.id, subject.teacher.name), self.project["subjects"][subject.id][1][str(cls.index)][2][cls.classID][1]]
+                if subject.id not in (FREE_PERIOD_ID, BREAK_PERIOD_ID):
+                    subjectLevelClassInfo = subject.teacher.id, subject.teacher.name
                     subjectLevelInfo = [subject.TOTAL, subject.PERWEEK, {cls.classID: subjectLevelClassInfo}]
                     
                     if subject.id not in subjects:
@@ -281,61 +283,57 @@ class School:
                             subjects[subject.id][1][str(cls.index)] = subjectLevelInfo
                         else:
                             subjects[subject.id][1][str(cls.index)][2][cls.classID] = subjectLevelClassInfo
+            
+            for ltd in timetableInfo["levelTimetableData"]:
+                ltd["timetables"].clear()
+            
+            if cls.index >= len(timetableInfo["levelTimetableData"]):
+                for _ in range(cls.index - len(timetableInfo["levelTimetableData"]) + 1):
+                    timetableInfo["levelTimetableData"].append({
+                        "breakPeriod": timetableInfo["breakPeriod"],
+                        "periodAmount": timetableInfo["periodAmount"],
+                        "DOTW": timetableInfo["DOTW"],
+                        "timetables": {}
+                    })
+            
+            timetable = timetableInfo["levelTimetableData"][cls.index]["timetables"]
+            
+            if cls.classID not in timetable:
+                timetable[cls.classID] = []
+            
+            for day in cls.weekdays:
+                Timetable.spread(cls.timetable.table[day])
+                
+                timetable[cls.classID].append([(subject.uniqueID, subject.total, subject.perWeek, subject.lockedPeriod) for subject in cls.timetable.table[day]])
         
         self.project.update({
             "levels": classLevels, 
             "subjectTeacherMapping": subjectTeacherMapping,
-            "subjects": subjects
+            "subjects": subjects,
+            "timetableInfo": timetableInfo
         })
     
     def setTimetableFromProjectDict(self):
-        for _, cls in self.classes.items():
-            cls.timetable.reset()
-            for dayIndex, (day, _) in enumerate(cls.timetable.table.items()):
-                free1 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
-                break_t = [Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None, cls)]
-                free2 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
+        for clsLvlIndex, lvlData in enumerate(self.project["timetableInfo"]["levelTimetableData"]):
+            for clsID, timetableData in lvlData["timetables"].items():
+                cls = self.classes[Class.getUniqueID(clsLvlIndex, clsID)]
                 
-                cls.timetable.table[day] = list(flatten([free1, break_t, free2]))
-                
-                for s in cls.timetable.table[day]:
-                    s.perWeek = 0
-        
-        for subjectID, (subjectName, subjectInfo) in self.project["subjects"].items():
-            for _, (perDay, perWeek, classTeacherCoordsMapping) in subjectInfo.items():
-                for classID, ((teacherID, _), coords) in classTeacherCoordsMapping.items():
-                    for _, cls in self.classes.items():
-                        teacher = next((teacher for teacher in cls.teachers if teacher.id == teacherID), None)
-                        if cls.classID == classID and teacher is not None:
-                            for (dayIndex, period), (coordTotal, coordPerWeek), remainderAmount in coords:
-                                subjectInsert = Subject(subjectID, subjectName, coordTotal, coordPerWeek, teacher, cls)
-                                
-                                subjectInsert.TOTAL = perDay
-                                subjectInsert.PERWEEK = perWeek
-                                
-                                if remainderAmount:
-                                    cls.timetable.remainderContent.append(Subject(subjectID, subjectName, coordTotal, remainderAmount, teacher, cls))
-                                
-                                daysOfTheWeek = list(cls.timetable.table.keys())
-                                cls.timetable.table[daysOfTheWeek[dayIndex]][period : period + subjectInsert.total] = [subjectInsert for _ in range(subjectInsert.total)]
-                            break
-        
-        for _, cls in self.classes.items():
-            for dayIndex, (day, subjects) in enumerate(cls.timetable.table.copy().items()):
-                newSubjects = []
-                
-                for index, subject in enumerate(subjects):
-                    if not newSubjects or (newSubjects and newSubjects[-1].uniqueID != subject.uniqueID):
-                        if subject.uniqueID == cls.timetable.freePeriodID:
-                            total = 0
-                            for s in subjects[index:]:
-                                if s.uniqueID == cls.timetable.freePeriodID:
-                                    total += 1
-                                    continue
-                                break
+                for dayIndex, subjects in enumerate(timetableData):
+                    cls.timetable.table[cls.weekdays[dayIndex]].clear()
+                    
+                    for uniqueID, total, perWeek, lockedData in subjects:
+                        if uniqueID == FREE_PERIOD_ID.upper():
+                            subject = Subject(FREE_PERIOD_ID, "Free", total, perWeek, None, cls)
+                            subject.lockedPeriod = lockedData
+                        elif uniqueID == BREAK_PERIOD_ID.upper():
+                            subject = Subject(BREAK_PERIOD_ID, "Break", total, perWeek, None, cls)
+                        else:
+                            subject = self.subjects[uniqueID].copy()
                             subject.total = total
-                        newSubjects.append(subject)
-                cls.timetable.table[day] = newSubjects
+                            subject.perWeek = perWeek
+                            subject.lockedPeriod = lockedData
+                        
+                        cls.timetable.table[cls.weekdays[dayIndex]].append(subject)
 
 def _display_school(school: dict[Class, Timetable], drawType: int = 1):
     if drawType == 1:
