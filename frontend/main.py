@@ -389,8 +389,6 @@ class Window(QMainWindow):
             elif path.endswith("pickle"):
                 with open(path, "wb") as file:
                     pickle.dump(self.save_data, file)
-        elif export_mode == 1:
-            pass
         
         if saved:
             self.saved_callback()
@@ -495,7 +493,7 @@ class Window(QMainWindow):
         help_menu.addSeparator()
         help_menu.addAction("Check Updates")
         help_menu.addSeparator()
-        help_menu.addAction("About")
+        help_menu.addAction("About", lambda: QMessageBox.about(self, "What's up", "This app is not complete. So many things are missing and soo many things have been removed for pre-release. I set a deadline to release on the 16th of September. But a better version will be out rather soon"))
         
         return menubar
     

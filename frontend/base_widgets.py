@@ -451,7 +451,7 @@ class CustomTitleBar(QWidget):
         self.right_layout.setSpacing(0)
         
         # Center widget
-        self.center_layout.addWidget(SearchWidget(focus_widget))
+        # self.center_layout.addWidget(SearchWidget(focus_widget))
         
         # Right widget
         # Nothing here

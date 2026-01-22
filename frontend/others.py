@@ -4,22 +4,6 @@ from frontend.theme.theme import *
 EXTENSION_NAME = "ttbl"
 
 
-def gzip_file(input_file_path: str):
-    try:
-        with gzip.open(input_file_path, "rb") as file:
-            json.load(file)
-        
-        return input_file_path, None
-    except Exception as e:
-        output_file_path = input_file_path + "." + (f"converted.{EXTENSION_NAME}" if input_file_path.endswith("." + EXTENSION_NAME) else EXTENSION_NAME)
-    
-    with open(input_file_path, 'rb') as f_in:
-        with gzip.open(output_file_path, 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)
-    
-    return output_file_path, input_file_path
-
-
 class Thread(QThread):
     crashed = pyqtSignal(Exception)
     
@@ -46,7 +30,6 @@ class Thread(QThread):
             QMessageBox.critical(None, e.__class__.__name__, str(e))
             self.crashed.emit(e)
             self.exit(-1)
-
 
 
 class FileManager:
@@ -113,7 +96,8 @@ class FileManager:
         if export_mode == 0:
             file_path, _ = QFileDialog.getSaveFileName(self.parent, "Export File", "", file_filter)
         elif export_mode == 1:
-            file_path = QFileDialog.getExistingDirectory(self.parent, "Batch Export Folder", "")
+            QMessageBox.critical("NotImplementedError", "This feature has not been implemented")
+            # file_path = QFileDialog.getExistingDirectory(self.parent, "Batch Export Folder", "")
         else:
             raise Exception("Invalid Export Mode")
         

@@ -140,7 +140,7 @@ class _TimetableSettings(QWidget):
         show_clashes_checkb = QPushButton("Clashes")
         show_clashes_checkb.clicked.connect(self.clash_viewer.exec)
         
-        left_sub_option_layout.addWidget(dotw_button)
+        # left_sub_option_layout.addWidget(dotw_button)
         left_sub_option_layout.addWidget(show_clashes_checkb)
         
         left_option_layout.addWidget(self.period_amt_edit)
@@ -507,22 +507,6 @@ class ClassTimetable(QTableWidget):
                 data = item.subject.uniqueID, 1, item.subject.perWeek, item.subject.lockedPeriod
                 
                 timetable[col].append(data) 
-        # for col in range(self.columnCount()):
-        #     subjects = []
-        #     for row in range(self.rowCount()):
-        #         item = self.item(row, col)
-        #         if isinstance(item, TimeTableItem) and item.subject:
-        #             if (subjects and subjects[-1].uniqueID != item.subject.uniqueID) or not subjects:
-        #                 subjects.append(item.subject)
-                        
-        #                 if item.subject.id not in (FREE_PERIOD_ID, BREAK_PERIOD_ID):
-        #                     coords = [
-        #                         (col, row),
-        #                         (item.subject.total, item.subject.perWeek),
-        #                         len([1 for label in self.remainder_labels if label.subject.id == item.subject.id])
-        #                     ]
-                            
-        #                     self.editor.school.project["subjects"][item.subject.id][1][str(self.cls.index)][2][self.cls.classID][1].append(coords)
     
     def populate_timetable(self):
         """Load the timetable data into the grid"""
@@ -586,13 +570,17 @@ class ClassTimetable(QTableWidget):
             elif lock_action is not None and action == lock_action:
                 item.subject.lockedPeriod = [self.row(item), 1]  # Lock to current period
                 self.saved_state_changed.emit()
+                
+                QMessageBox.critical("NotFullyImplementedError", "This feature has only been partially implemented")
             elif unlock_action is not None and action == unlock_action:
                 item.subject.lockedPeriod = None
                 self.saved_state_changed.emit()
+                
+                QMessageBox.critical("NotFullyImplementedError", "This feature has only been partially implemented")
             elif action == goto_subject_action:
-                pass
+                QMessageBox.critical("NotImplementedError", "This feature has not been implemented")
             elif action == goto_teacher_action:
-                pass
+                QMessageBox.critical("NotImplementedError", "This feature has not been implemented")
 
 class TimeTableEditor(QWidget):
     def __init__(self, main_window: QMainWindow, school: School, info: dict[str, dict] | None, saved_state_changed: pyqtBoundSignal):
@@ -1071,8 +1059,6 @@ class TimeTableEditor(QWidget):
                             ttbl.cls.periodsPerDay.insert(day_index, period_amt_edit.number())
                             ttbl.cls.breakTimePeriods.insert(day_index, breakperiod_edit.number())
                             ttbl.cls.timetable.weekInfo.insert(day_index, [day, period_amt_edit.number(), breakperiod_edit.number()])
-                            ttbl.cls.timetable.periodsPerDay.insert(day_index, period_amt_edit.number())
-                            ttbl.cls.timetable.breakTimePeriods.insert(day_index, breakperiod_edit.number())
                             
                             table_list = list(ttbl.cls.timetable.table.items())
                             table_list.insert(day_index, (
@@ -1086,7 +1072,7 @@ class TimeTableEditor(QWidget):
                             ttbl.cls.timetable.table.clear()
                             ttbl.cls.timetable.table.update(dict(table_list))
                     
-                    for day in ttbl.cls.timetable.table:
+                    for day in ttbl.cls.timetable.table.copy():
                         if day not in selected_days:
                             index = next(col for col in range(ttbl.columnCount()) if ttbl.horizontalHeaderItem(col).text() == day)
                             ttbl.cls.timetable.table.pop(day)
@@ -1097,8 +1083,6 @@ class TimeTableEditor(QWidget):
                             ttbl.cls.periodsPerDay.pop(index)
                             ttbl.cls.breakTimePeriods.pop(index)
                             ttbl.cls.timetable.weekInfo.pop(day_index)
-                            ttbl.cls.timetable.periodsPerDay.pop(index)
-                            ttbl.cls.timetable.breakTimePeriods.pop(index)
         
         def generate_new_func():
             classes = []
@@ -1152,7 +1136,7 @@ class TimeTableEditor(QWidget):
         layout.addWidget(period_amt_edit)
         layout.addWidget(breakperiod_edit)
         layout.addSpacing(5)
-        layout.addWidget(dotw_button, alignment=Qt.AlignmentFlag.AlignHCenter)
+        # layout.addWidget(dotw_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         layout.addSpacing(20)
         layout.addWidget(generate_new_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         
