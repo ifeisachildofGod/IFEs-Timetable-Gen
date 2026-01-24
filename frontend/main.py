@@ -4,7 +4,6 @@ from frontend.setting_widgets import *
 from frontend.editing_widgets import TimeTableEditor
 
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill
 
 class Window(QMainWindow):
     saved_state_changed = pyqtSignal()
