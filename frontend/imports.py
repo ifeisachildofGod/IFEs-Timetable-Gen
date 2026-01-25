@@ -7,7 +7,7 @@ from docx.shared import RGBColor
 from docx.oxml import OxmlElement
 
 from backend.main import School
-from backend.objects import *
+from backend.extras import *
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,

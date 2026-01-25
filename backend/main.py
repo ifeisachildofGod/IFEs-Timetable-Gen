@@ -1,38 +1,11 @@
 
 import math
-from dataclasses import dataclass
 import random
-from periods import *
+from dataclasses import dataclass
 
+from extras import *
+from datapoints import *
 
-Timetable = dict[str, list[SubjectPeriod | CombinedSubjectPeriod | BreakPeriod | FreePeriod]]
-
-
-@dataclass
-class GeneratingData:
-    randomize: bool
-    #                             ClassID    SubjectID    Day           DayWeight  PeriodProclivity
-    subject_positioning_weights: dict[str, dict[str, dict[str, tuple[float | None, int | None]]]]
-    #                       SubjectID  ClassIDs
-    combined_subjects: dict[list[str], list[str]]
-
-@dataclass
-class Class:
-    id: str
-    
-    section_name: str
-    specifier_name: str
-    
-    #                Period Amount  Break Period
-    dotw_data: dict[str, tuple[int, int]]
-    
-    #           SubjectID
-    subjects: dict[str, SubjectPeriod | CombinedSubjectPeriod]
-    
-    timetable: Timetable | None = None
-    
-    def name(self):
-        return f"{self.section_name} {self.specifier_name}"
 
 @dataclass
 class School:
@@ -76,31 +49,36 @@ class School:
                     random.shuffle(cls_subject_ids) # type: ignore
                 
                 for s_id in cls_subject_ids:
-                    if s_id in completed_ones:
-                        continue
+                    freq_info = cls.subjects[s_id].freq_info
                     
-                    scores = self._plane_period_scores(s_id, cls)
+                    assert freq_info
                     
-                    selected_period = None
-                    
-                    max_score = -math.inf
-                    for day, score in scores.items():
-                        if max(score) > max_score:
-                            max_score = max(score)
-                            
-                            selected_period = day, score.index(max_score)
-                    
-                    assert selected_period, scores
-                    
-                    day, index = selected_period
-                    
-                    assert cls.timetable[day][index].id == FreePeriod.id
-                    
-                    cls.timetable[day][index] = cls.subjects[s_id]
-                    week_amt_data[s_id] -= 1
-                    
-                    if week_amt_data[s_id] <= 0:
-                        completed_ones.append(s_id)
+                    for _ in range(freq_info[0]):
+                        if s_id in completed_ones:
+                            continue
+                        
+                        scores = self._sps(s_id, cls)
+                        
+                        selected_period = None
+                        
+                        max_score = -math.inf
+                        for day, score in scores.items():
+                            if max(score) > max_score:
+                                max_score = max(score)
+                                
+                                selected_period = day, score.index(max_score)
+                        
+                        assert selected_period, scores
+                        
+                        day, index = selected_period
+                        
+                        assert cls.timetable[day][index].id == FreePeriod.id
+                        
+                        cls.timetable[day][index] = cls.subjects[s_id]
+                        week_amt_data[s_id] -= 1
+                        
+                        if week_amt_data[s_id] <= 0:
+                            completed_ones.append(s_id)
 
     def detect_clashes(self):
         clashes = {}
@@ -174,119 +152,194 @@ class School:
         
         return clashes
     
-    def _plane_period_scores(self, s_id: str, cls: Class):
+    def _sps(self, s_id: str, cls: Class):
+        period_scores: dict[str, list[int | float]] = {day: [] for day in cls.dotw_data}
+        
         assert cls.timetable
-        assert cls.subjects[s_id].teacher
-        
-        period_scores: dict[str, list[int | float]] = {}
-        
-        teacher = cls.subjects[s_id].teacher
-        freq_info = cls.subjects[s_id].freq_info
-        
-        assert teacher
-        assert freq_info
         
         for day, periods in cls.timetable.items():
-            period_scores[day] = [0 for _ in range(len(periods))]
-            
             for p_index, period in enumerate(periods):
-                
-                if (
-                    period.id != FreePeriod.id or
-                    period.id == BreakPeriod.id or
-                    [p.id for p in periods].count(s_id) >= freq_info[0] or
-                    abs(p_index - next((p_i for p_i, p in enumerate(periods) if p.id == s_id), p_index + 1)) != 1
-                    ):
-                    period_scores[day][p_index] = -math.inf
-                    continue
-                
-                for s_cls in self.classes.values():
-                    if s_cls.timetable is not None:
-                        s_subject = s_cls.timetable[day][p_index]
-                        
-                        if s_cls.id != cls.id and s_subject.id != FreePeriod.id:
-                            s_teacher = s_subject.teacher
-                            
-                            assert s_teacher
-                            
-                            combined = next((
-                                    True
-                                    for s_list, c_list in
-                                    self.gen_data.combined_subjects.items()
-                                    if (s_id in s_list and s_subject.id in s_list) and (cls.id in c_list and s_cls.id in c_list)
-                                    ),
-                                False
-                                )
-                            
-                            is_clashing = None
-                            
-                            if isinstance(s_teacher, Teacher):
-                                if isinstance(teacher, Teacher):
-                                    is_clashing = teacher.id == s_teacher.id
-                                elif isinstance(teacher, CombinedTeacher):
-                                    is_clashing = s_teacher.id in [t.id for t in teacher.teachers]
-                            elif isinstance(s_teacher, CombinedTeacher):
-                                if isinstance(teacher, Teacher):
-                                    is_clashing = teacher.id in [t.id for t in s_teacher.teachers]
-                                elif isinstance(teacher, CombinedTeacher):
-                                    is_clashing = next((True for t in s_teacher.teachers if t.id in [s_t.id for s_t in teacher.teachers]), False)
-                            
-                            if is_clashing is None:
-                                raise Exception()
-                            
-                            if is_clashing and not combined:
-                                period_scores[day][p_index] = -math.inf
-                                break
-                else:
-                    if p_index or p_index != len(periods) - 1:
-                        orig = period_scores[day][p_index]
-                        mul = freq_info[0] - [p.id for p in periods].count(s_id)
-                        
-                        if p_index:
-                            period_scores[day][p_index] += (periods[p_index - 1].id == s_id) * mul * 10
-                        if p_index != len(periods) - 1:
-                            period_scores[day][p_index] += (periods[p_index + 1].id == s_id) * mul * 10
-                        
-                        period_scores[day][p_index] += sum((p_index - s_p_index) - (s_period.freq_info[0] - periods.count(s_period)) for s_p_index, s_period in enumerate(periods) if not s_period.id in (FreePeriod.id, BreakPeriod.id)) # type: ignore
-                        if period_scores[day][p_index] == orig:
-                            period_scores[day][p_index] -= 20
-                    
-                    period_amt, break_period = cls.dotw_data[day]
-                    
-                    if cls.id in self.gen_data.subject_positioning_weights:
-                        cls_spw = self.gen_data.subject_positioning_weights[cls.id]
-                        if s_id in cls_spw:
-                            day_weight, period_proclivity = cls_spw[s_id][day]
-                            
-                            if day_weight is not None:
-                                period_scores[day][p_index] += day_weight * 10
-                            
-                            if period_proclivity is not None:
-                                period_scores[day][p_index] += (1 - (abs(period_proclivity - p_index) / period_amt)) * 10
-                    
-                    period_scores[day][p_index] += (1 - (p_index / period_amt)) * 10
-                    
-                    consecs = []
-                    max_consec = 0
-                    match_indices = [pi for pi, p in enumerate(periods) if p.id == s_id]
-                    for j, i in enumerate(match_indices):
-                        if j:
-                            if i == match_indices[j - 1] - 1:
-                                consecs.append(i)
-                                continue
-                            
-                            if len(consecs) <= max_consec:
-                                consecs = []
-                            else:
-                                max_consec = len(consecs)
-                        else:
-                            consecs.append(i)
-                    
-                    if consecs:
-                        period_scores[day][p_index] += (1 - (abs(consecs[0] - p_index) / period_amt)) * 2
-                        period_scores[day][p_index] += (1 - (abs(consecs[-1] - p_index) / period_amt)) * 20
+                period_scores[day].append(self._period_score(s_id, cls, day, period, p_index))
         
         return period_scores
+    
+    def _period_score(
+            self,
+            s_id: str,
+            cls: Class,
+            day: str,
+            period: SubjectPeriod | CombinedSubjectPeriod | FreePeriod | BreakPeriod,
+            p_index: int,
+            l_operate: int = False,
+            r_operate: int = False,
+            default_score = -50
+        ):
+        subject = cls.subjects[s_id]
+        
+        assert cls.timetable
+        
+        periods = cls.timetable[day]
+        
+        if not (0 <= p_index <= len(periods) - 1):
+            return -math.inf
+        
+        assert subject.teacher
+        assert subject.freq_info
+        
+        _l_d_freq = [s.freq_info[0] for s in cls.subjects.values()] # type: ignore
+        avg_day_freq = sum(_l_d_freq) // len(_l_d_freq)
+        
+        assert isinstance(avg_day_freq, int)
+        
+        if (
+                period.id != FreePeriod.id or
+                period.id == BreakPeriod.id or
+                [p.id for p in periods].count(s_id) >= subject.freq_info[0] or
+                abs(p_index - next((p_i for p_i, p in enumerate(periods) if p.id == s_id), p_index + 1)) != 1
+                ):
+            return -math.inf
+        
+        score = default_score
+        
+        for s_cls in self.classes.values():
+            if s_cls.timetable is not None:
+                s_subject = s_cls.timetable[day][p_index]
+                
+                if s_cls.id != cls.id and s_subject.id not in (FreePeriod.id, BreakPeriod.id):
+                    s_teacher = s_subject.teacher
+                    
+                    assert s_teacher
+                    
+                    combined = next((
+                            True
+                            for s_list, c_list in
+                            self.gen_data.combined_subjects.items()
+                            if (s_id in s_list and s_subject.id in s_list) and (cls.id in c_list and s_cls.id in c_list)
+                            ),
+                        False
+                        )
+                    
+                    is_clashing = None
+                    
+                    if isinstance(s_teacher, Teacher):
+                        if isinstance(subject.teacher, Teacher):
+                            is_clashing = subject.teacher.id == s_teacher.id
+                        elif isinstance(subject.teacher, CombinedTeacher):
+                            is_clashing = s_teacher.id in [t.id for t in subject.teacher.teachers]
+                    elif isinstance(s_teacher, CombinedTeacher):
+                        if isinstance(subject.teacher, Teacher):
+                            is_clashing = subject.teacher.id in [t.id for t in s_teacher.teachers]
+                        elif isinstance(subject.teacher, CombinedTeacher):
+                            is_clashing = next((True for t in s_teacher.teachers if t.id in [s_t.id for s_t in subject.teacher.teachers]), False)
+                    
+                    if is_clashing is None:
+                        raise Exception()
+                    
+                    if is_clashing and not combined:
+                        return -math.inf
+        else:
+            clump_wieght = (self.gen_data.subject_clumping_weights[cls.id][s_id][day] or 0) if cls.id in self.gen_data.subject_clumping_weights else 1
+            day_weight, period_proclivity = (self.gen_data.subject_positioning_weights[cls.id][s_id][day] if cls.id in self.gen_data.subject_positioning_weights else (None, None))
+            
+            if p_index or p_index != len(periods) - 1:
+                orig = score
+                
+                if l_operate:
+                    if p_index:
+                        l_info = self._period_score(s_id, cls, day, period, p_index - 1, l_operate + 1, False)
+                        
+                        if l_info == -math.inf:
+                            return l_operate
+                        
+                        return l_info
+                    else:
+                        return l_operate
+                elif r_operate:
+                    if p_index != len(periods) - 1:
+                        r_info = self._period_score(s_id, cls, day, period, p_index + 1, False, r_operate + 1)
+                        
+                        if r_info == -math.inf:
+                            return r_operate
+                        
+                        return r_info
+                    else:
+                        return r_operate
+                else:
+                    mul = subject.freq_info[0] - [p.id for p in periods].count(s_id)
+                    
+                    l_depth = self._period_score(s_id, cls, day, period, p_index - 1, 1, False)
+                    r_depth = self._period_score(s_id, cls, day, period, p_index + 1, False, 1)
+                    
+                    if l_depth == -math.inf:
+                        l_depth = 0
+                    if r_depth == -math.inf:
+                        r_depth = 0
+                    
+                    if p_index:
+                        is_prev_subj = periods[p_index - 1].id == s_id
+                        
+                        score += is_prev_subj * mul * 20
+                        l_depth = l_depth or is_prev_subj * 20
+                    if p_index != len(periods) - 1:
+                        is_next_subj = periods[p_index + 1].id == s_id
+                        
+                        score += is_next_subj * mul * 20
+                        r_depth = r_depth or is_next_subj * 20
+                    
+                    score += (((l_depth + r_depth) / subject.freq_info[0]) * 2 - 1) * clump_wieght * 15
+                
+                if score == orig:
+                    score -= 20
+                
+                score += sum((p_index - s_p_index) - (s_period.freq_info[0] - periods.count(s_period)) for s_p_index, s_period in enumerate(periods) if not s_period.id in (FreePeriod.id, BreakPeriod.id)) # type: ignore
+            
+            if l_operate or r_operate:
+                return l_operate + r_operate
+            
+            period_amt, break_period = cls.dotw_data[day]
+            
+            # l_p = [p.id for p_i, p in enumerate(periods) if p.id not in (FreePeriod.id, BreakPeriod.id) and (p_i < break_period - 1 if p_index < break_period else p_i > break_period - 1)]
+            
+            # space_left = len(set(l_p)) - (
+            #     (break_period - 1) // avg_day_freq + (((break_period - 1) % avg_day_freq) != 0)
+            #     if p_index < break_period else
+            #     (period_amt - break_period) // avg_day_freq + (((period_amt - break_period) % avg_day_freq) != 0)
+            #     )
+            
+            # is_in_l_p = s_id in l_p
+            
+            # if is_in_l_p:
+            #     score += clump_wieght * 10
+            # else:
+            #     score += space_left * 10
+            
+            score += (day_weight or 0) * 10
+            score += ((1 - (abs(period_proclivity - p_index) if period_proclivity else 0) / period_amt)) * 10
+            
+            score += (1 - (p_index / period_amt)) * 20
+            
+            consecs = []
+            max_consec = 0
+            match_indices = [pi for pi, p in enumerate(periods) if p.id == s_id]
+            for j, i in enumerate(match_indices):
+                if j:
+                    if i == match_indices[j - 1] - 1:
+                        consecs.append(i)
+                        continue
+                    
+                    if len(consecs) <= max_consec:
+                        consecs = []
+                    else:
+                        max_consec = len(consecs)
+                else:
+                    consecs.append(i)
+            
+            if consecs:
+                score += (1 - (abs(consecs[0] - p_index) / period_amt)) * 2
+                score += (1 - (abs(consecs[-1] - p_index) / period_amt)) * 20
+        
+        return score
+
 
 
 def _display_school(sch: School):
@@ -471,7 +524,7 @@ def school_from_text(text: str):
             else:
                 sc_classes[cls.id].timetable = None
     
-    return School({s.id: s for s in subjects}, {k: v for k, (v, _) in teachers.items()}, sc_classes, sc_teachers_c, GeneratingData(False, {}, {}))
+    return School({s.id: s for s in subjects}, {k: v for k, (v, _) in teachers.items()}, sc_classes, sc_teachers_c, GeneratingData(False, {}, {}, {}))
 
 
 
@@ -484,7 +537,7 @@ if __name__ == "__main__":
     print("Started Generating")
     sch.generate_timetable()
     print("Started Clash detection")
-    sch.detect_clashes()
+    print(sch.detect_clashes())
     print("Ended")
     print()
     
