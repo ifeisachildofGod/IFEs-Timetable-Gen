@@ -62,8 +62,11 @@ class SelectionList(BaseSubWidget):
     def go_to(self, _id):
         for widget in self.container.children():
             if isinstance(widget, (SelectedWidget, UnselectedWidget)) and widget.id == _id:
-                self.scroll_area.verticalScrollBar().setValue(widget.y())
-                widget.setFocus()
+                def func():
+                    self.scroll_area.verticalScrollBar().setValue(widget.y())
+                    widget.setFocus()
+                
+                QTimer.singleShot(200, func)
                 
                 break
     
@@ -108,9 +111,12 @@ class SubjectDropdownCheckBoxes(BaseSubWidget):
                 if not self.class_check_box_tracker["widget"][lvl_id].isVisible():
                     self.class_check_box_tracker["icon"][lvl_id].mouseclicked.emit()
                 
-                self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker["widget"][lvl_id].y())
+                def func():
+                    self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker["widget"][lvl_id].y())
+                    
+                    self.class_check_box_tracker["widget"][lvl_id].setFocus()
                 
-                self.class_check_box_tracker["widget"][lvl_id].setFocus()
+                QTimer.singleShot(200, func)
                 
                 break
             
@@ -392,12 +398,19 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
     def go_to(self, _id):
         for subj_id, subj_data in self.get()["content"].items():
             if subj_id == _id:
-                if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
-                    self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                def func1():
+                    if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
+                        self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                    
+                    def in_func():
+                        self.scroll_area.verticalScrollBar().setValue(self.subject_check_box_tracker[subj_id]["widget"].y())
+                        
+                        self.subject_check_box_tracker[subj_id]["widget"].setFocus()
                 
-                self.scroll_area.verticalScrollBar().setValue(self.subject_check_box_tracker[subj_id]["widget"].y())
+                    QTimer.singleShot(200, in_func)
                 
-                self.subject_check_box_tracker[subj_id]["widget"].setFocus()
+                QTimer.singleShot(200, func1)
+                
                 break
             
             for lvl_id, (randomly_selected, lvl_data) in subj_data.items():
@@ -409,16 +422,24 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
                         f_subj_id, f_lvl_id = _id.split("-")
                         if subj_id != f_subj_id or lvl_id != f_lvl_id:
                             continue
+                    def func2():
+                        if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
+                            self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                        
+                        def in_func():
+                            if not self.class_check_box_tracker[subj_id]["widget"][lvl_id].isVisible():
+                                self.class_check_box_tracker[subj_id]["icon"][lvl_id].mouseclicked.emit()
+                            
+                            def inner_func():
+                                self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker[subj_id]["widget"][lvl_id].y())
+                                
+                                self.class_check_box_tracker[subj_id]["widget"][lvl_id].setFocus()
+                        
+                            QTimer.singleShot(200, inner_func)
+                        
+                        QTimer.singleShot(200, in_func)
                     
-                    if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
-                        self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
-                    
-                    if not self.class_check_box_tracker[subj_id]["widget"][lvl_id].isVisible():
-                        self.class_check_box_tracker[subj_id]["icon"][lvl_id].mouseclicked.emit()
-                    
-                    self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker[subj_id]["widget"][lvl_id].y())
-                    
-                    self.class_check_box_tracker[subj_id]["widget"][lvl_id].setFocus()
+                    QTimer.singleShot(250, func2)
                     
                     break
                 
@@ -432,15 +453,25 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
                             if subj_id != f_subj_id or lvl_id != f_lvl_id or cls_id != f_cls_id:
                                 continue
                         
-                        if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
-                            self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                        def func3():
+                            if not self.subject_check_box_tracker[subj_id]["widget"].isVisible():
+                                self.subject_check_box_tracker[subj_id]["icon"].mouseclicked.emit()
+                            
+                            def in_func():
+                                if not self.class_check_box_tracker[subj_id]["widget"][lvl_id].isVisible():
+                                    self.class_check_box_tracker[subj_id]["icon"][lvl_id].mouseclicked.emit()
+                                
+                                def inner_func():
+                                    self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker[subj_id]["sub_cbs"][lvl_id][cls_id].y())
+                                    
+                                    self.class_check_box_tracker[subj_id]["sub_cbs"][lvl_id][cls_id].setFocus()
                         
-                        if not self.class_check_box_tracker[subj_id]["widget"][lvl_id].isVisible():
-                            self.class_check_box_tracker[subj_id]["icon"][lvl_id].mouseclicked.emit()
+                                QTimer.singleShot(200, inner_func)
+                            
+                            QTimer.singleShot(200, in_func)
+                            
+                        QTimer.singleShot(300, func3)
                         
-                        self.scroll_area.verticalScrollBar().setValue(self.class_check_box_tracker[subj_id]["sub_cbs"][lvl_id][cls_id].y())
-                        
-                        self.class_check_box_tracker[subj_id]["sub_cbs"][lvl_id][cls_id].setFocus()
                         break
                 else:
                     continue
@@ -692,8 +723,11 @@ class SubjectSelection(BaseSubWidget):
     def go_to(self, _id):
         for subject_id, widget in self.subject_widgets.items():
             if subject_id == _id:
-                self.scroll_area.verticalScrollBar().setValue(widget.y())
-                widget.setFocus()
+                def func():
+                    self.scroll_area.verticalScrollBar().setValue(widget.y())
+                    widget.setFocus()
+                
+                QTimer.singleShot(200, func)
                 
                 break
     
@@ -822,10 +856,13 @@ class OptionsMaker(BaseSubWidget):
             self.add_option(option_id, option_name)
     
     def go_to(self, _id: str):
-        for option_id, widget in self.option_widgets:
+        for option_id, widget in self.option_widgets.items():
             if option_id == _id:
-                self.scroll_area.verticalScrollBar().setValue(widget.y())
-                widget.setFocus()
+                def func():
+                    self.scroll_area.verticalScrollBar().setValue(widget.y())
+                    widget.setFocus()
+                
+                QTimer.singleShot(200, func)
                 
                 break
     

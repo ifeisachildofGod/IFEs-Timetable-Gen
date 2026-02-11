@@ -101,8 +101,11 @@ class BaseSettingWidget(QWidget):
     def go_to(self, _id):
         for widget_id, widget in self.widgets.items():
             if widget_id == _id:
-                self.scroll_area.verticalScrollBar().setValue(widget.y())
-                widget.setFocus()
+                def func():
+                    self.scroll_area.verticalScrollBar().setValue(widget.y())
+                    widget.setFocus()
+                
+                QTimer.singleShot(200, func)
                 
                 break
     
@@ -156,9 +159,6 @@ class BaseSettingWidget(QWidget):
         
         self.container_layout.insertWidget(len(self.info) - 1, widget, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignVCenter)
         
-        self.scroll_area.update()
-        self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum()) # type: ignore
-        
         for index, (edit, stretch) in enumerate(text_edits):
             header_layout.addWidget(edit, stretch=stretch)
             edit.show()
@@ -167,6 +167,11 @@ class BaseSettingWidget(QWidget):
                 edit.setFocus()
         
         self.widgets[_id] = widget
+        
+        QTimer.singleShot(
+            200,
+            lambda: self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum()) # type: ignore
+        )
     
     def make_popups(self, _id: str, layout: QHBoxLayout):
         pass

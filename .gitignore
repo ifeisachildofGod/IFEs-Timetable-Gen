@@ -139,3 +139,4 @@ design_editor.py
 project_backup.json
 test_project.json
 *.ttbl
+*.exe
