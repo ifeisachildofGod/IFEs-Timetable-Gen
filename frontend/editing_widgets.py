@@ -1,6 +1,7 @@
 from frontend.imports import *
 
 from frontend.sub_widgets import *
+from middle.frameworks import *
 
 class _ProgressBar(QProgressBar):
     def __init__(self, master: QWidget):
@@ -46,10 +47,8 @@ class _ProgressBar(QProgressBar):
             self.setValue(self.progress)
 
 class _TimetableSettings(QWidget):
-    def __init__(self, editor: 'TimeTableEditor', progress_bar: _ProgressBar, info: dict[str, list | dict[int, str]], saved_state_changed: pyqtBoundSignal):
+    def __init__(self, editor: 'TimeTableEditor', progress_bar: _ProgressBar, saved_state_changed: pyqtBoundSignal):
         super().__init__()
-        
-        self.info = info
         
         self.editor = editor
         self.saved_state_changed = saved_state_changed
@@ -91,8 +90,8 @@ class _TimetableSettings(QWidget):
         def period_amt_number_changed(number: int):
             global update_break_period
             
-            for level_index in self.editor.classes_widget:
-                self.editor.cls_levels_data[level_index]["period-func"](number)
+            for se_id in self.editor.classes_widget:
+                self.editor.cls_levels_data[se_id]["period-func"](number)
             
             self.breakperiod_edit.max_num = number
             if self.breakperiod_edit.max_num < self.breakperiod_edit.number():
@@ -100,51 +99,41 @@ class _TimetableSettings(QWidget):
                 self.breakperiod_edit.setNumber(self.breakperiod_edit.max_num)
                 update_break_period = True
             
-            self.info["periodAmount"] = number
+            for cls in self.school.classes.values():
+                for day in cls.dotw_data:
+                    cls.dotw_data[day] = number, cls.dotw_data[day][1]
         
         def break_period_number_changed(number: int):
             if update_break_period:
-                for level_index in self.editor.classes_widget:
-                    self.editor.cls_levels_data[level_index]["break-func"](number)
+                for se_id in self.editor.classes_widget:
+                    self.editor.cls_levels_data[se_id]["break-func"](number)
             
-            self.info["breakPeriod"] = number
+            for cls in self.school.classes.values():
+                for day in cls.dotw_data:
+                    cls.dotw_data[day] = cls.dotw_data[day][0], number
         
-        def weekdays_func():
-            self.days_of_the_week_selector.exec()
-            
-            self.info["DOTW"] = self.days_of_the_week_selector.get()
-            
-            for level_index in self.editor.classes_widget:
-                self.editor.cls_levels_data[level_index]["weekdays-func"](self.days_of_the_week_selector.get_selected())
+        # self.period_amt_edit = NumberLineEdit(self.info["periodAmount"], 1, 20)
+        # self.period_amt_edit.setPlaceholderText("Period amount")
+        # self.period_amt_edit.textChanged.connect(period_amt_number_changed)
         
-        self.period_amt_edit = NumberLineEdit(self.info["periodAmount"], 1, 20)
-        self.period_amt_edit.setPlaceholderText("Period amount")
-        self.period_amt_edit.textChanged.connect(period_amt_number_changed)
-        
-        self.breakperiod_edit = NumberLineEdit(self.info["breakPeriod"], 1, self.period_amt_edit.number())  # Temporary
-        self.breakperiod_edit.setPlaceholderText("Break period")
-        self.breakperiod_edit.textChanged.connect(break_period_number_changed)
+        # self.breakperiod_edit = NumberLineEdit(self.info["breakPeriod"], 1, self.period_amt_edit.number())  # Temporary
+        # self.breakperiod_edit.setPlaceholderText("Break period")
+        # self.breakperiod_edit.textChanged.connect(break_period_number_changed)
         
         left_sub_option_widget = QWidget()
         
         left_sub_option_layout = QHBoxLayout()
         left_sub_option_widget.setLayout(left_sub_option_layout)
         
-        self.days_of_the_week_selector = SelectionList("Days of the week", self.info["DOTW"], self.saved_state_changed, constant_indexing=True)
-        
         self.clash_viewer = ClashesViewer(self.editor.school)
-        
-        dotw_button = QPushButton("Days of the Week")
-        dotw_button.clicked.connect(weekdays_func)
         
         show_clashes_checkb = QPushButton("Clashes")
         show_clashes_checkb.clicked.connect(self.clash_viewer.exec)
         
-        # left_sub_option_layout.addWidget(dotw_button)
         left_sub_option_layout.addWidget(show_clashes_checkb)
         
-        left_option_layout.addWidget(self.period_amt_edit)
-        left_option_layout.addWidget(self.breakperiod_edit)
+        # left_option_layout.addWidget(self.period_amt_edit)
+        # left_option_layout.addWidget(self.breakperiod_edit)
         left_option_layout.addWidget(left_sub_option_widget)
         
         right_option_widget = QWidget()
@@ -179,7 +168,7 @@ class _TimetableSettings(QWidget):
         for ttbl in self.editor.timetable_widgets.values():
             ttbl.clear_remainder()
         
-        self.editor.school.generateNewSchoolTimetables()
+        self.editor.school.generate_timetable()
     
     def _continue_with_irreversable_action(self):
         return QMessageBox.StandardButton.Yes == QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
@@ -222,25 +211,24 @@ class _TimetableSettings(QWidget):
             QMessageBox.warning(self, "Generating", "Timetable is already being generated")
 
 class ClassTimetable(QTableWidget):
-    def __init__(self, info: dict[str, list[dict[str, dict[str, list[list[tuple[str, int, int, tuple | None]]]]]]], cls: Class, editor: 'TimeTableEditor', remainder_layout: QVBoxLayout, saved_state_changed: pyqtBoundSignal):
+    def __init__(self, cls: ClassFW, editor: 'TimeTableEditor', remainder_layout: QVBoxLayout, saved_state_changed: pyqtBoundSignal):
         super().__init__()
-        
-        self.info = info
         
         self.cls = cls
         self.editor = editor
-        self.timetable = cls.timetable
         self.saved_state_changed = saved_state_changed
         
         self.remainder_layout = remainder_layout
         self.remainder_labels: list[DraggableSubjectLabel] = []
         
-        self.periods = max(self.timetable.periodsPerDay)
+        self.periodsPerDay = [p for p, _ in self.cls.dotw_data.values()]
+        self.breakTimePeriods = [b for _, b in self.cls.dotw_data.values()]
+        self.periods = max(self.periodsPerDay)
         
         # Configure table
-        self.setRowCount(max(self.timetable.periodsPerDay))
-        self.setColumnCount(len(self.timetable.weekInfo))
-        self.setHorizontalHeaderLabels([day[0] for day in self.timetable.weekInfo])
+        self.setRowCount(self.periods)
+        self.setColumnCount(len(self.cls.dotw_data))
+        self.setHorizontalHeaderLabels([day[0] for day in self.cls.dotw_data])
         self.setVerticalHeaderLabels([f"Period {i+1}" for i in range(self.rowCount())])
         
         # Set size policies
@@ -264,14 +252,11 @@ class ClassTimetable(QTableWidget):
         # Load initial data
         self.populate_timetable()
         
-        for col in range(len(self.timetable.table)):
-            self.timetable.correct(col)
-        
         # Variables
         self.current_source = None
     
     def get_max_subject_amount(self):
-        periods, break_periods, _ = self.editor.school.project["levels"][self.cls.index][1]
+        periods, break_periods, _ = self.editor.school.project["levels"][self.cls.section_id][1]
         
         max_subject_amt = 0
         
@@ -281,12 +266,7 @@ class ClassTimetable(QTableWidget):
         return max_subject_amt
     
     def get_total_subject_amount(self):
-        total_subject_amt = 0
-        
-        for subjects in self.cls.timetable.table.values():
-            total_subject_amt += sum(s.total for s in subjects) - 1  # 1 is subtracted to acount for the break period
-        
-        return total_subject_amt
+        return sum(len(subjects) for subjects in self.cls.timetable.values())
     
     def update_break_time_color(self):
         for row in range(self.rowCount()):
@@ -315,7 +295,7 @@ class ClassTimetable(QTableWidget):
         self.setItem(source_row, source_col, new_source)
         
         # Middle timetable replacement
-        self.timetable.swap(source_row, source_col, target_row, target_col)
+        self._swap(source_row, source_col, target_row, target_col)
         
         # Force refresh
         self.blockSignals(False)
@@ -330,7 +310,7 @@ class ClassTimetable(QTableWidget):
         layout.setSpacing(5)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        new_ttbl_widget = ClassTimetable(self.info, self.cls, self.editor, self.remainder_layout, self.saved_state_changed)
+        new_ttbl_widget = ClassTimetable(self.cls, self.editor, self.remainder_layout, self.saved_state_changed)
         
         for row in range(new_ttbl_widget.rowCount()):
             for col in range(new_ttbl_widget.columnCount()):
@@ -338,7 +318,7 @@ class ClassTimetable(QTableWidget):
                 if item.break_time:
                     item.set_color("black")
         
-        layout.addWidget(QLabel(self.cls.name))
+        layout.addWidget(QLabel(self.cls.name()))
         layout.addWidget(new_ttbl_widget)
         
         return widget
@@ -387,14 +367,14 @@ class ClassTimetable(QTableWidget):
             
             ignore = True
             if self.editor.remainder_source_ref is None:
-                ignore = source_cls.cls.uniqueID != self.cls.uniqueID or (
+                ignore = source_cls.cls.id() != self.cls.id() or (
                     self.drag_source_col != col and (
-                        row == self.cls.breakTimePeriods[col] - 1 or
-                        self.cls.breakTimePeriods[self.drag_source_col] == self.drag_source_row + 1
+                        row == self.breakTimePeriods[col] - 1 or
+                        self.breakTimePeriods[self.drag_source_col] == self.drag_source_row + 1
                         )
                     )
             else:
-                ignore = row == self.cls.breakTimePeriods[col] - 1
+                ignore = row == self.breakTimePeriods[col] - 1
             
             if ignore:
                 event.ignore()
@@ -408,7 +388,7 @@ class ClassTimetable(QTableWidget):
                 target_col = self.columnAt(int(event.position().x()))
                 target_item = self.item(target_row, target_col)
                 
-                source_class = self.editor.timetable_widgets[self.cls.uniqueID].cls
+                source_class = self.editor.timetable_widgets[self.cls.id()].cls
                 
                 # Handle swapping
                 if target_item is not None and isinstance(target_item, TimeTableItem):
@@ -444,7 +424,7 @@ class ClassTimetable(QTableWidget):
                     # Set new items
                     self.add_remainder(new_source, self.remainder_layout.indexOf(self.editor.remainder_source_ref))
                     
-                    self.timetable.replace(Subject(FREE_PERIOD_ID, "Free", 1, 0, None, self.cls), row, col)
+                    self._replace(FreePeriodFW(), row, col)
                 
                 # Remove remainder widget
                 self.remove_remainder(self.editor.remainder_source_ref)
@@ -453,10 +433,7 @@ class ClassTimetable(QTableWidget):
                 
                 self.blockSignals(False)
                 
-                replacement_subject = self.editor.remainder_source_ref.subject.copy()
-                replacement_subject.total = 1
-                
-                self.timetable.replace(replacement_subject, row, col)
+                self._replace(self.editor.remainder_source_ref.subject, row, col)
                 
                 self.saved_state_changed.emit()
                 
@@ -471,16 +448,16 @@ class ClassTimetable(QTableWidget):
         if index is not None:
             self.remainder_layout.insertWidget(index, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             self.remainder_labels.insert(index - 1, remainder)
-            self.timetable.remainderContent.insert(index - 1, remainder.subject)
+            self.timetable_remains.insert(index - 1, remainder.subject)
         else:
             self.remainder_layout.insertWidget(self.remainder_layout.count() - 1, remainder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
             self.remainder_labels.append(remainder)
-            self.timetable.remainderContent.append(remainder.subject)
+            self.timetable_remains.append(remainder.subject)
     
     def remove_remainder(self, remainder: DraggableSubjectLabel):
         self.remainder_labels.remove(remainder)
         self.remainder_layout.removeWidget(remainder)
-        self.timetable.remainderContent.remove(remainder.subject)
+        self.timetable_remains.remove(remainder.subject)
         
         remainder.deleteLater()
     
@@ -493,32 +470,34 @@ class ClassTimetable(QTableWidget):
             self.remainder_labels.remove(widg)
             widg.deleteLater()
         
-        self.timetable.remainderContent.clear()
+        self.timetable_remains.clear()
     
-    def save_timetable(self):
-        """Save current grid state back to timetable"""
-        timetable = self.info["levelTimetableData"][self.cls.index]["timetables"][self.cls.classID] = []
+    def _replace(self, subject: SubjectPeriodFW, row: int, column: int):
+        self.cls.timetable[list(self.cls.dotw_data)[column]][row] = subject
+    
+    def _swap(self, subject: SubjectPeriodFW, row1: int, column1: int, row2: int, column2: int):
+        d1 = list(self.cls.dotw_data)[column1]
+        d2 = list(self.cls.dotw_data)[column2]
         
-        for col in range(self.columnCount()):
-            timetable.append([])
-            for row in range(self.rowCount()):
-                item: TimeTableItem = self.item(row, col)
-                
-                data = item.subject.uniqueID, 1, item.subject.perWeek, item.subject.lockedPeriod
-                
-                timetable[col].append(data) 
+        subject1 = self.cls.timetable[d1][row1]
+        subject2 = self.cls.timetable[d2][row2]
+        
+        self.cls.timetable[d1].pop(row1)
+        self.cls.timetable[d1].insert(row1, subject2)
+        
+        self.cls.timetable[d2].pop(row2)
+        self.cls.timetable[d2].insert(row2, subject1)
     
     def populate_timetable(self):
         """Load the timetable data into the grid"""
-        for col, (day, _, _) in enumerate(self.timetable.weekInfo):
-            total_s_names = list(flatten([[subj for _ in range(subj.total)] for subj in self.timetable.table[day]]))
-            subjects = total_s_names + [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, self.cls) for _ in range(max(self.timetable.periodsPerDay) - len(total_s_names))]
+        for col, (day, _) in enumerate(self.cls.dotw_data.items()):
+            subjects = self.cls.timetable[day] + [FreePeriodFW() for _ in range(max(self.periodsPerDay) - len(self.cls.timetable[day]))]
             
             for row, subject in enumerate(subjects):
                 item = TimeTableItem(subject)
                 self.setItem(row, col, item)
         
-        rem_subjects = [subj for subj in self.timetable.remainderContent if subj.id != FREE_PERIOD_ID]
+        rem_subjects = [subj for subj in self.timetable_remains if subj.id != FREE_PERIOD_ID]
         
         self.clear_remainder()
         
@@ -548,23 +527,20 @@ class ClassTimetable(QTableWidget):
             action = menu.exec(self.viewport().mapToGlobal(pos))
             
             if action == delete_action:
-                free_period_subject = Subject(FREE_PERIOD_ID, "Free", 1, 0, None, self.cls)
+                free_period_subject = FreePeriodFW()
                 
                 row = self.row(item)
                 col = self.column(item)
                 
                 # Move to remainders if deleted
-                subject = item.subject.copy()
-                subject.perWeek = 1
-                
-                subject_label = DraggableSubjectLabel(subject)
+                subject_label = DraggableSubjectLabel(item.subject)
                 subject_label.clicked.connect(self.editor.make_ds_func(subject_label))
                 
                 self.add_remainder(subject_label)
                 
                 self.setItem(row, col, TimeTableItem(free_period_subject))
                 
-                self.timetable.replace(free_period_subject, row, col)
+                self._replace(free_period_subject, row, col)
                 
                 self.saved_state_changed.emit()
             elif lock_action is not None and action == lock_action:
@@ -583,10 +559,9 @@ class ClassTimetable(QTableWidget):
                 QMessageBox.critical("NotImplementedError", "This feature has not been implemented")
 
 class TimeTableEditor(QWidget):
-    def __init__(self, main_window: QMainWindow, school: School, info: dict[str, dict] | None, saved_state_changed: pyqtBoundSignal):
+    def __init__(self, main_window: QMainWindow, school: SchoolFrameWork, saved_state_changed: pyqtBoundSignal):
         super().__init__()
         
-        self.info = info
         self.saved_state_changed = saved_state_changed
         
         self.school = school
@@ -633,10 +608,10 @@ class TimeTableEditor(QWidget):
         
         for cls in self.school.classes.values():
             widget = self._make_timetable_for_each_class(cls)
-            self.classes_widget[cls.index][1].addWidget(widget)
+            self.classes_widget[cls.section_id][1].addWidget(widget)
         
         # Create settings for timetables
-        self.settings_widget = _TimetableSettings(self, self.progress_bar, self.info, self.saved_state_changed)
+        self.settings_widget = _TimetableSettings(self, self.progress_bar, self.saved_state_changed)
         
         self.main_layout.addWidget(self.settings_widget)
         self.main_layout.addWidget(progress_bar_widget)
@@ -682,24 +657,21 @@ class TimeTableEditor(QWidget):
         
         return main_widget
     
-    def get(self):
-        return self.info
-    
-    def set_editor_from_school(self, school: School):
+    def set_editor_from_school(self, school: SchoolFrameWork):
         self.school = school
         
-        for level_index, (widget, layout, options_widget_data) in self.classes_widget.copy().items():
-            if next((False for _, cls in self.school.classes.items() if cls.index == level_index), True):
-                self.classes_widget.pop(level_index)
+        for se_id, (widget, layout, options_widget_data) in self.classes_widget.copy().items():
+            if next((False for cls in self.school.classes.values() if cls.section_id == se_id), True):
+                self.classes_widget.pop(se_id)
                 
-                for cls_id in self.timetable_parent_widget.copy():
-                    if level_index == self.timetable_widgets[cls_id].cls.index:
-                        self.timetable_widgets.pop(cls_id)
-                        self.timetable_parent_widget.pop(cls_id)
+                for sp_id in self.timetable_parent_widget.copy():
+                    if se_id == self.timetable_widgets[sp_id].cls.section_id:
+                        self.timetable_widgets.pop(sp_id)
+                        self.timetable_parent_widget.pop(sp_id)
             else:
                 for option_id, widget in options_widget_data.copy().items():
-                    if next((False for _, cls in self.school.classes.items() if cls.classID == option_id), True):
-                        class_id = Class.getUniqueID(level_index, option_id)
+                    if next((False for cls in self.school.classes.values() if cls.specifier_id == option_id), True):
+                        class_id = ClassFW.get_id(se_id, option_id)
                         
                         self.timetable_widgets.pop(class_id)
                         self.timetable_parent_widget.pop(class_id)
@@ -710,82 +682,81 @@ class TimeTableEditor(QWidget):
             
             self.timetables_layout.removeWidget(widget)
         
-        totals = {}
         classes = {}
         for cls in self.school.classes.values():
-            totals[cls.uniqueID] = {}
-            
-            classes[cls.uniqueID] = (
-                self.timetable_parent_widget[cls.uniqueID]
-                if cls.uniqueID in self.timetable_parent_widget else
+            classes[cls.id()] = (
+                self.timetable_parent_widget[cls.id()]
+                if cls.id() in self.timetable_parent_widget else
                 self._make_timetable_for_each_class(cls)
             )
             
-            temp_timetable_table = self.timetable_widgets[cls.uniqueID].timetable.table
-            temp_timetable_remainder_content = self.timetable_widgets[cls.uniqueID].timetable.remainderContent
+            temp_timetable_table = self.timetable_widgets[cls.id()].cls.timetable
+            temp_timetable_remainder_content = self.timetable_widgets[cls.id()].cls.timetable_remains
             
-            self.timetable_widgets[cls.uniqueID].cls = cls
-            
-            self.timetable_widgets[cls.uniqueID].timetable = cls.timetable
-            self.timetable_widgets[cls.uniqueID].timetable.table = temp_timetable_table
-            
-            self.timetable_widgets[cls.uniqueID].clear_remainder()
+            self.timetable_widgets[cls.id()].cls = cls
+            self.timetable_widgets[cls.id()].clear_remainder()
             
             for s in temp_timetable_remainder_content:
-                self.timetable_widgets[cls.uniqueID].add_remainder(DraggableSubjectLabel(s))
+                self.timetable_widgets[cls.id()].add_remainder(DraggableSubjectLabel(s))
         
         for class_id, widget in classes.items():
             ttbl = self.timetable_widgets[class_id]
             
-            ttbl.cls = self.school.classes[class_id]
-            ttbl.timetable = self.school.classes[class_id].timetable
+            for col, (day, subjects) in enumerate(ttbl.cls.timetable.items()):
+                for row, subj in enumerate(subjects):
+                    ttbl._replace(subj, row, col)
             
-            for subj in ttbl.cls.subjects:
-                totals[class_id][subj.uniqueID] = 0
+            ttbl.clear_remainder()
             
-            for col in range(ttbl.columnCount()):
-                for row in range(ttbl.rowCount()):
-                    ttbl_item: TimeTableItem = ttbl.item(row, col)
+            for subjects in enumerate(ttbl.cls.timetable_remains):
+                ttbl.add_remainder(DraggableSubjectLabel(subj))
+            
+            # for subj in ttbl.cls.subjects:
+            #     totals[class_id][subj.id()] = 0
+            
+            # for col in range(ttbl.columnCount()):
+            #     for row in range(ttbl.rowCount()):
+            #         ttbl_item: TimeTableItem = ttbl.item(row, col)
                     
-                    is_present = ttbl_item.subject.uniqueID in totals[class_id]
+            #         is_present = ttbl_item.subject.id() in totals[class_id]
                     
-                    is_not_break_or_free = ttbl_item.subject.id not in (FREE_PERIOD_ID, BREAK_PERIOD_ID)
-                    is_removed = is_not_break_or_free and next((False for s in ttbl.cls.subjects if s.uniqueID == ttbl_item.subject.uniqueID), True)
-                    is_per_week_exceeded = is_not_break_or_free and (not is_present or totals[class_id][ttbl_item.subject.uniqueID] > school.subjects[ttbl_item.subject.uniqueID].PERWEEK)
+            #         is_not_break_or_free = ttbl_item.subject.id not in (FREE_PERIOD_ID, BREAK_PERIOD_ID)
+            #         is_removed = is_not_break_or_free and next((False for s in ttbl.cls.subjects if s.id() == ttbl_item.subject.id()), True)
+            #         is_per_week_exceeded = is_not_break_or_free and (not is_present or totals[class_id][ttbl_item.subject.id()] > school.subjects[ttbl_item.subject.id()].PERWEEK)
                     
-                    if is_present:
-                        totals[class_id][ttbl_item.subject.uniqueID] += 1
+            #         if is_present:
+            #             totals[class_id][ttbl_item.subject.id()] += 1
                     
-                    if is_removed or is_per_week_exceeded:
-                        subj = Subject(FREE_PERIOD_ID, "Free", 1, 1, None, ttbl)
-                        ttbl.timetable.replace(subj, row, col)
+            #         if is_removed or is_per_week_exceeded:
+            #             subj = FreePeriodFW()
+            #             ttbl._replace(subj, row, col)
                         
-                        totals[class_id].pop(ttbl_item.subject.uniqueID, None)
+            #             totals[class_id].pop(ttbl_item.subject.id(), None)
                     
-                    if is_not_break_or_free and not is_per_week_exceeded and totals[class_id][ttbl_item.subject.uniqueID] == school.subjects[ttbl_item.subject.uniqueID].PERWEEK:
-                        totals[class_id].pop(ttbl_item.subject.uniqueID)
+            #         if is_not_break_or_free and not is_per_week_exceeded and totals[class_id][ttbl_item.subject.id()] == school.subjects[ttbl_item.subject.id()].PERWEEK:
+            #             totals[class_id].pop(ttbl_item.subject.id())
             
-            for d_labels in ttbl.remainder_labels.copy():
-                is_present = d_labels.subject.uniqueID in totals[class_id]
+            # for d_labels in ttbl.remainder_labels.copy():
+            #     is_present = d_labels.subject.id() in totals[class_id]
                 
-                if is_present:
-                    totals[class_id][d_labels.subject.uniqueID] += 1
+            #     if is_present:
+            #         totals[class_id][d_labels.subject.id()] += 1
                 
-                is_removed = next((False for s in ttbl.cls.subjects if s.uniqueID == d_labels.subject.uniqueID), True)
-                is_per_week_exceeded = not is_present or totals[class_id][d_labels.subject.uniqueID] > school.subjects[d_labels.subject.uniqueID].PERWEEK
+            #     is_removed = next((False for s in ttbl.cls.subjects if s.id() == d_labels.subject.id()), True)
+            #     is_per_week_exceeded = not is_present or totals[class_id][d_labels.subject.id()] > school.subjects[d_labels.subject.id()].PERWEEK
                 
-                if is_removed or is_per_week_exceeded:
-                    ttbl.remove_remainder(d_labels)
-                    totals[class_id].pop(ttbl_item.subject.uniqueID, None)
+            #     if is_removed or is_per_week_exceeded:
+            #         ttbl.remove_remainder(d_labels)
+            #         totals[class_id].pop(ttbl_item.subject.id(), None)
             
-            for s_id, s_amt in totals[class_id].items():
-                for _ in range(school.subjects[s_id].PERWEEK - s_amt):
-                    ttbl.add_remainder(DraggableSubjectLabel(self.school.subjects[s_id]))
+            # for s_id, s_amt in totals[class_id].items():
+            #     for _ in range(school.subjects[s_id].PERWEEK - s_amt):
+            #         ttbl.add_remainder(DraggableSubjectLabel(self.school.subjects[s_id]))
             
-            totals.pop(class_id)
+            # totals.pop(class_id)
             
             ttbl.populate_timetable()
-            self.classes_widget[ttbl.cls.index][1].addWidget(widget)
+            self.classes_widget[ttbl.cls.section_id][1].addWidget(widget)
     
     def make_ds_func(self, label: DraggableSubjectLabel):
         def func(event):
@@ -806,141 +777,7 @@ class TimeTableEditor(QWidget):
         return func
     
     def update_data_interaction(self, _: int, curr_index: int):
-        if curr_index == 3:
-            subjects_info = self.main_window.subjects_widget.get()
-            teachers_info = self.main_window.teachers_widget.get()
-            classes_info = self.main_window.classes_widget.get()
-            
-            subjectTeacherMapping = {}
-            for subject_id, subject_info in subjects_info.items():
-                teacher_subject_info = {"&timings": {}}
-                
-                for class_id, _ in subject_info["classes"].items():
-                    class_index = next(index for index, _id in enumerate(classes_info.keys()) if _id == class_id)
-                    subject_in_class_info = classes_info[class_id]["subjects"][subject_id][1]
-                    
-                    for teacher_id, teacher_info_entry in teachers_info.items():
-                        if subject_id in teacher_info_entry["classes"]["content"] and class_id in teacher_info_entry["classes"]["content"][subject_id]:
-                            teacher_name = teacher_info_entry["text"][0]
-                            
-                            if teacher_info_entry["classes"]["content"][subject_id][class_id][0] is not None:
-                                selected_class_options = []
-                                stm_subjects_data = self.school.project["subjectTeacherMapping"].get(subject_id)
-                                cls_index = next((str(class_index) for class_index, cls_id in enumerate(classes_info) if cls_id == class_id), None)
-                                
-                                if None not in (stm_subjects_data, cls_index):
-                                    selected_class_options = stm_subjects_data[1].get(teacher_id, (_, {}))[1].get(cls_index, (_, []))[1]
-                            elif sum(list(teacher_info_entry["classes"]["content"][subject_id][class_id][1].values())):
-                                selected_class_options = []
-                                
-                                for option_id, option_state in teacher_info_entry["classes"]["content"][subject_id][class_id][1].items():
-                                    if option_state:
-                                        selected_class_options.append(option_id)
-                            else:
-                                continue
-                            
-                            max_random_classes_amt = teacher_info_entry["classes"]["content"][subject_id][class_id][0]
-                            
-                            if teacher_id not in teacher_subject_info:
-                                teacher_subject_info[teacher_id] = [teacher_name, {str(class_index): [max_random_classes_amt, selected_class_options]}]
-                            else:
-                                teacher_subject_info[teacher_id][1][str(class_index)] = [max_random_classes_amt, selected_class_options]
-                    
-                    teacher_subject_info["&timings"][str(class_index)] = [int(subject_in_class_info["per_day"]), int(subject_in_class_info["per_week"])]
-                    
-                    valid_options = [option_id for option_id, option_state in subject_info["classes"][class_id].items() if option_state]
-                    if len(valid_options) != len(subject_info["classes"][class_id]):
-                        if "&classes" not in teacher_subject_info:
-                            teacher_subject_info["&classes"] = {str(class_index): valid_options}
-                        else:
-                            teacher_subject_info["&classes"][str(class_index)] = valid_options
-            
-                subjectTeacherMapping[subject_id] = [subject_info["text"][0], teacher_subject_info]
-            
-            class_levels = []
-            for class_index, (class_id, class_info) in enumerate(classes_info.items()):
-                level_info = {option_id: option_text for option_id, option_text in class_info["options"].items()}
-                
-                class_levels.append([class_info["text"][0], self.school.project["levels"][class_index][1], level_info])
-            
-            project_update = {
-                "levels": class_levels,
-                "subjectTeacherMapping": subjectTeacherMapping
-            }
-            
-            subjects = {}
-            for subject_id, (subject_name, subject_info) in subjectTeacherMapping.items():
-                subject_level_info = {}
-                
-                t_temp = subject_info.pop("&timings")
-                c_temp = subject_info.pop("&classes", None)
-                
-                classes_taught = {}
-                
-                for _, cls_option_mapping in subject_info.values():
-                    for clslvlIndex, (_, classIDs) in cls_option_mapping.items():
-                        if clslvlIndex not in classes_taught:
-                            classes_taught[clslvlIndex] = []
-                        classes_taught[clslvlIndex].extend(classIDs)
-                
-                subject_info["&timings"] = t_temp
-                if c_temp is not None:
-                    subject_info["&classes"] = c_temp
-                
-                classes_taught.update(subject_info.get("&classes", {}))
-                
-                random_select_teacher_ids = []
-                
-                for class_index, class_ids in classes_taught.items():
-                    class_teacher_mapping = {}
-                    
-                    class_level_id = list(classes_info)[int(class_index)]
-                    
-                    for class_id in class_ids:
-                        for teacher_id, teacher_data in teachers_info.items():
-                            potential_teacher_info_on_subject = teacher_data["classes"]["content"].get(subject_id, {}).get(class_level_id, [-50, {}])
-                            
-                            if potential_teacher_info_on_subject[0] == -50:
-                                continue
-                            
-                            data = [teacher_id, "".join(teacher_data["text"])]
-                            
-                            if potential_teacher_info_on_subject[0] is not None:
-                                random_select_teacher_ids.append([potential_teacher_info_on_subject[0], class_index, data, []])
-                                continue
-                            
-                            if potential_teacher_info_on_subject[1].get(class_id):
-                                class_teacher_mapping[class_id] = data
-                                break
-                    
-                    per_day, per_week = subject_info["&timings"][class_index]
-                    subject_level_info[class_index] = (per_day, per_week, class_teacher_mapping)
-                    
-                    for _, _, _, available_c_ids in random_select_teacher_ids:
-                        available_c_ids.clear()
-                        available_c_ids.extend([class_id for c_id, c_id_state in subject_info["classes"][class_level_id].items() if c_id_state and c_id not in class_teacher_mapping])
-                
-                for str_class_index, random_sub_class_teacher_data in School.placeRandomTeachers(random_select_teacher_ids).items():
-                    subject_level_info[str_class_index][2].update(random_sub_class_teacher_data)
-                
-                subjects[subject_id] = [subject_name, subject_level_info]
-            
-            project_update["subjects"] = subjects
-            
-            main_window_school: School = self.main_window.school
-            
-            self.main_window.save_data = self.school.project
-            self.main_window.save_data.update(project_update)
-            main_window_school.setProjectData(self.main_window.save_data)
-            main_window_school.setSchoolInfoFromProjectDict()
-            self.school = main_window_school
-            
-            self.set_editor_from_school(self.school)
-            self._leave_updated = False
-        else:
-            if not self._leave_updated:
-                for ttbl in self.timetable_widgets.values():
-                    ttbl.save_timetable()
+        pass
     
     # def paintEvent(self, a0):
     #     super().paintEvent(a0)
@@ -965,9 +802,9 @@ class TimeTableEditor(QWidget):
     
     def _set_school_timetable(self):
         for _, cls in self.school.classes.items():
-            self.timetable_widgets[cls.uniqueID].populate_timetable()
+            self.timetable_widgets[cls.id()].populate_timetable()
     
-    def _make_timetable_settings(self, lvl_index: int):
+    def _make_timetable_settings(self, se_id: str):
         widget_menu = MenuFrame()
         layout = widget_menu.layout()
         
@@ -975,38 +812,35 @@ class TimeTableEditor(QWidget):
         
         def _generating_finished():
             for ttbl in self.timetable_widgets.values():
-                if ttbl.cls.index == lvl_index:
+                if ttbl.cls.section_id == se_id:
                     ttbl.populate_timetable()
             
-            self.class_generator_threads.pop(lvl_index)
+            self.class_generator_threads.pop(se_id)
             
         def period_amt_changed(curr_period_amt: int):
             global break_updateable
             
             for ttbl in self.timetable_widgets.values():
-                if ttbl.cls.index == lvl_index:
-                    for col, (day, prev_period_amt, _) in enumerate(ttbl.cls.timetable.weekInfo):
-                        if ttbl.cls.timetable.weekInfo[col][2] > curr_period_amt:
-                            ttbl.timetable_exchange(ttbl.item(ttbl.cls.timetable.weekInfo[col][2] - 1, col), ttbl.item(curr_period_amt - 1, col))
+                if ttbl.cls.section_id == se_id:
+                    for day in self.school.classes[ttbl.cls.id()].dotw_data:
+                        self.school.classes[ttbl.cls.id()].dotw_data[day] = curr_period_amt, self.school.classes[ttbl.cls.id()].dotw_data[day][1]
+                    
+                    for col, (day, (prev_period_amt, _)) in enumerate(ttbl.cls.dotw_data.items()):
+                        if ttbl.cls.dotw_data[col][2] > curr_period_amt:
+                            ttbl.timetable_exchange(ttbl.item(ttbl.cls.dotw_data[col][2] - 1, col), ttbl.item(curr_period_amt - 1, col))
                         
-                        Timetable.spread(ttbl.cls.timetable.table[day])
                         if prev_period_amt > curr_period_amt:
-                            for s in ttbl.cls.timetable.table[day][curr_period_amt:]:
+                            for s in ttbl.cls.timetable[day][curr_period_amt:]:
                                 if s.id not in (BREAK_PERIOD_ID, FREE_PERIOD_ID):
                                     ttbl.add_remainder(DraggableSubjectLabel(s))
                             
-                            ttbl.cls.timetable.table[day][curr_period_amt:] = []
+                            ttbl.cls.timetable[day][curr_period_amt:] = []
                         elif prev_period_amt < curr_period_amt:
-                            rem_free_period = Subject(FREE_PERIOD_ID, "Free", curr_period_amt - prev_period_amt, 0, None, ttbl.cls)
-                            
-                            ttbl.cls.timetable.table[day].append(rem_free_period)
-                        Timetable.flatten(ttbl.cls.timetable.table[day])
+                            for _ in range(curr_period_amt - prev_period_amt):
+                                ttbl.cls.timetable[day].append(FreePeriodFW())
                         
-                        ttbl.cls.timetable.weekInfo[col][1] = curr_period_amt
-                        ttbl.cls.periodsPerDay[col] = curr_period_amt
-                        ttbl.cls.timetable.periodsPerDay[col] = curr_period_amt
-                        
-                        ttbl.timetable.correct(col)
+                        ttbl.cls.dotw_data[day] = curr_period_amt, ttbl.cls.dotw_data[day][1]
+                        ttbl.periodsPerDay[col] = curr_period_amt
                     
                     ttbl.setRowCount(curr_period_amt)
                     ttbl.setVerticalHeaderLabels([f"Period {i + 1}" for i in range(ttbl.rowCount())])
@@ -1015,7 +849,7 @@ class TimeTableEditor(QWidget):
                     for col in range(ttbl.columnCount()):
                         for row in range(ttbl.rowCount()):
                             if ttbl.item(row, col) is None:
-                                ttbl.setItem(row, col, TimeTableItem(Subject(FREE_PERIOD_ID, "Free", 1, 0, None, ttbl.cls)))
+                                ttbl.setItem(row, col, TimeTableItem(FreePeriodFW()))
             
             breakperiod_edit.max_num = curr_period_amt
             if breakperiod_edit.number() > curr_period_amt:
@@ -1023,112 +857,61 @@ class TimeTableEditor(QWidget):
                 breakperiod_edit.setNumber(curr_period_amt)
                 break_updateable = True
             
-            self.info["levelTimetableData"][lvl_index]["periodAmount"] = curr_period_amt
             self.saved_state_changed.emit()
         
         def break_period_changed(curr_break_period: int):
             if break_updateable:
                 for ttbl in self.timetable_widgets.values():
-                    if ttbl.cls.index == lvl_index:
-                        for col, (_, _, prev_break_period) in enumerate(ttbl.cls.timetable.weekInfo):
+                    for day in self.school.classes[ttbl.cls.id()].dotw_data:
+                        self.school.classes[ttbl.cls.id()].dotw_data[day] = self.school.classes[ttbl.cls.id()].dotw_data[day][0], curr_break_period
+                    
+                    if ttbl.cls.section_id == se_id:
+                        for col, (_, _, prev_break_period) in enumerate(ttbl.cls.dotw_data):
                             ttbl.timetable_exchange(ttbl.item(prev_break_period - 1, col), ttbl.item(curr_break_period - 1, col))
                 
-                self.info["levelTimetableData"][lvl_index]["breakPeriod"] = curr_break_period
                 self.saved_state_changed.emit()
-        
-        def weekdays_func():
-            self.cls_levels_data[lvl_index]["dotw"].exec()
-            
-            selected_days = self.cls_levels_data[lvl_index]["dotw"].get_selected()
-            
-            for ttbl in self.timetable_widgets.values():
-                if ttbl.cls.index == lvl_index:
-                    for day_index, day in enumerate(selected_days):
-                        if day not in ttbl.cls.timetable.table.copy():
-                            ttbl.insertColumn(day_index)
-                            ttbl.setHorizontalHeaderItem(day_index, QTableWidgetItem(day))
-                            for row in range(period_amt_edit.number()):
-                                if row != breakperiod_edit.number() - 1:
-                                    subject = Subject(FREE_PERIOD_ID, "Free", 1, 0, None, ttbl.cls)
-                                else:
-                                    subject = Subject(BREAK_PERIOD_ID, "Break", 1, 0, None, ttbl.cls)
-                                
-                                ttbl.setItem(row, day_index, TimeTableItem(subject))
-                            
-                            ttbl.cls.weekdays.insert(day_index, day)
-                            ttbl.cls.periodsPerDay.insert(day_index, period_amt_edit.number())
-                            ttbl.cls.breakTimePeriods.insert(day_index, breakperiod_edit.number())
-                            ttbl.cls.timetable.weekInfo.insert(day_index, [day, period_amt_edit.number(), breakperiod_edit.number()])
-                            
-                            table_list = list(ttbl.cls.timetable.table.items())
-                            table_list.insert(day_index, (
-                                day,
-                                [
-                                    Subject(FREE_PERIOD_ID, "Free", ttbl.cls.breakTimePeriods[day_index] - 1, 0, None, ttbl.cls),
-                                    Subject(BREAK_PERIOD_ID, "Break", 1, 0, None, ttbl.cls),
-                                    Subject(FREE_PERIOD_ID, "Free", ttbl.cls.periodsPerDay[day_index] - ttbl.cls.breakTimePeriods[day_index], 0, None, ttbl.cls)
-                                ]
-                            ))
-                            ttbl.cls.timetable.table.clear()
-                            ttbl.cls.timetable.table.update(dict(table_list))
-                    
-                    for day in ttbl.cls.timetable.table.copy():
-                        if day not in selected_days:
-                            index = next(col for col in range(ttbl.columnCount()) if ttbl.horizontalHeaderItem(col).text() == day)
-                            ttbl.cls.timetable.table.pop(day)
-                            
-                            ttbl.removeColumn(index)
-                            
-                            ttbl.cls.weekdays.pop(index)
-                            ttbl.cls.periodsPerDay.pop(index)
-                            ttbl.cls.breakTimePeriods.pop(index)
-                            ttbl.cls.timetable.weekInfo.pop(day_index)
         
         def generate_new_func():
             classes = []
             
             for ttbl in self.timetable_widgets.values():
-                if ttbl.cls.index == lvl_index:
+                if ttbl.cls.section_id == se_id:
                     classes.append(ttbl.cls)
             
             def generate_new_level():
-                for cls in classes:
-                    self.school.generateTimetable(cls)
+                self.school.generate_timetable(classes)
             
-            if lvl_index not in self.class_generator_threads:
+            if se_id not in self.class_generator_threads:
                 response = QMessageBox.warning(self, "Action Irreversible", "This action cannot be reversed\n"
                                                                             "All information will be overwritten",
                                                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
                 
                 if response != QMessageBox.StandardButton.Yes:
                     return
-                self.progress_bar.set_max(lambda: sum(ttbl.cls.timetable.periodsPerDay) - len(ttbl.cls.timetable.periodsPerDay))
-                self.progress_bar.set_var_func(lambda: sum([sum([s.total for s in subjects]) - 1 for _, subjects in ttbl.cls.timetable.table.items()]))
+                self.progress_bar.set_max(lambda: sum(ttbl.periodsPerDay) - len(ttbl.periodsPerDay))
+                self.progress_bar.set_var_func(lambda: sum(len(subjects) for subjects in ttbl.cls.timetable.values()))
                 self.progress_bar.start(100)
                 
-                self.class_generator_threads[lvl_index] = Thread(self.main_window, generate_new_level)
-                self.class_generator_threads[lvl_index].finished.connect(_generating_finished)
-                self.class_generator_threads[lvl_index].start()
+                self.class_generator_threads[se_id] = Thread(self.main_window, generate_new_level)
+                self.class_generator_threads[se_id].finished.connect(_generating_finished)
+                self.class_generator_threads[se_id].start()
             
             self.saved_state_changed.emit()
         
-        self.cls_levels_data[lvl_index] = {
+        self.cls_levels_data[se_id] = {
             "break-func": break_period_changed,
-            "period-func": period_amt_changed,
-            "weekdays-func": weekdays_func,
-            "dotw": SelectionList("Day of the week", self.info["levelTimetableData"][lvl_index]["DOTW"], self.saved_state_changed, constant_indexing=True)
+            "period-func": period_amt_changed
         }
         
-        period_amt_edit = NumberLineEdit(self.info["levelTimetableData"][lvl_index]["periodAmount"], 1, 20)
+        [cls.dotw_data[day] for cls in self.school.classes.values() if cls.section_id == se_id]
+        
+        period_amt_edit = NumberLineEdit(max(p for p, _ in self.school.general_dotw_data.values()), 1, 20)
         period_amt_edit.setPlaceholderText("Periods Amt")
         period_amt_edit.textChanged.connect(period_amt_changed)
         
-        breakperiod_edit = NumberLineEdit(self.info["levelTimetableData"][lvl_index]["breakPeriod"], period_amt_edit.min_num, period_amt_edit.number())
+        breakperiod_edit = NumberLineEdit(max(b for _, b in self.school.general_dotw_data.values()), period_amt_edit.min_num, period_amt_edit.number())
         breakperiod_edit.setPlaceholderText("Break period")
         breakperiod_edit.textChanged.connect(break_period_changed)
-        
-        dotw_button = QPushButton("Weekdays")
-        dotw_button.clicked.connect(weekdays_func)
         
         generate_new_button = QPushButton("Generate New")
         generate_new_button.clicked.connect(generate_new_func)
@@ -1136,13 +919,13 @@ class TimeTableEditor(QWidget):
         layout.addWidget(period_amt_edit)
         layout.addWidget(breakperiod_edit)
         layout.addSpacing(5)
-        # layout.addWidget(dotw_button, alignment=Qt.AlignmentFlag.AlignHCenter)
+        
         layout.addSpacing(20)
         layout.addWidget(generate_new_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         
         return widget_menu
     
-    def _make_timetable_for_each_class(self, cls: Class):
+    def _make_timetable_for_each_class(self, cls: ClassFW):
         widget = QWidget()
         layout = QVBoxLayout()
         
@@ -1151,7 +934,7 @@ class TimeTableEditor(QWidget):
         
         settings_width = 200
         
-        class_header = QLabel(cls.className)
+        class_header = QLabel(cls.name())
         class_header.setProperty("class", "Title")
         
         # Create timetable
@@ -1177,9 +960,9 @@ class TimeTableEditor(QWidget):
         
         remainder_widget_layout = QVBoxLayout(remainder_widget)
         
-        timetable = ClassTimetable(self.info, cls, self, remainder_widget_layout, self.saved_state_changed)
-        self.timetable_widgets[cls.uniqueID] = timetable
-        self.timetable_parent_widget[cls.uniqueID] = widget
+        timetable = ClassTimetable(cls, self, remainder_widget_layout, self.saved_state_changed)
+        self.timetable_widgets[cls.id()] = timetable
+        self.timetable_parent_widget[cls.id()] = widget
         
         remainder_title = QLabel("Remaining Subjects")
         remainder_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1197,11 +980,11 @@ class TimeTableEditor(QWidget):
         layout.addWidget(class_header)
         layout.addWidget(class_widget)
         
-        if cls.index not in self.classes_widget:
+        if cls.section_id not in self.classes_widget:
             level_widget = QWidget()
             level_layout = QVBoxLayout()
             
-            self.classes_widget[cls.index] = level_widget, level_layout, {}
+            self.classes_widget[cls.section_id] = level_widget, level_layout, {}
             
             level_widget.setProperty("class", "TimetableWidget")
             level_widget.setLayout(level_layout)
@@ -1215,7 +998,7 @@ class TimeTableEditor(QWidget):
             toogle_button = QPushButton("☰")
             toogle_button.setProperty("class", "Timetable_DP_OptionText")
             
-            settings_menu_widget = self._make_timetable_settings(cls.index)
+            settings_menu_widget = self._make_timetable_settings(cls.section_id)
             
             def toogle_menu():
                 settings_menu_widget.set_pos(toogle_button.mapToGlobal(QPoint(-150, toogle_button.pos().y() + toogle_button.height())))
@@ -1223,33 +1006,33 @@ class TimeTableEditor(QWidget):
             
             toogle_button.clicked.connect(toogle_menu)
             
-            section_layout.addWidget(QLabel(f"<span style='font-size: 60px'>{cls.namingConvention[cls.index]}</span>"))
+            section_layout.addWidget(QLabel(f"<span style='font-size: 60px'>{cls.section_name}</span>"))
             section_layout.addWidget(toogle_button, alignment=Qt.AlignmentFlag.AlignRight)
             
             level_layout.addWidget(section_header)
             
             self.timetables_layout.addWidget(level_widget)
         
-        self.classes_widget[cls.index][2][cls.classID] = widget
+        self.classes_widget[cls.section_id][2][cls.specifier_id] = widget
         
         return widget
     
-    def _make_generate_individual_taimetable_func(self, cls: Class):
+    def _make_generate_individual_taimetable_func(self, cls: ClassFW):
         def generate_individual_taimetable():
             response = QMessageBox.warning(
                 self,
                 "Action Irreversible",
                     "This action cannot be reversed\n"
                     "All information will be overwritten\n"
-                    f"Are you sure you want to generate new timetable for {cls.name}",
+                    f"Are you sure you want to generate new timetable for {cls.name()}",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
                                 
             if response != QMessageBox.StandardButton.Yes:
                 return
             
-            self.school.generateTimetable(cls)
-            self.timetable_widgets[cls.uniqueID].populate_timetable()
+            self.school.generate_timetable(cls)
+            self.timetable_widgets[cls.id()].populate_timetable()
             
             self.saved_state_changed.emit()
         

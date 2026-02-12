@@ -36,10 +36,11 @@ class BaseSubWidget(QDialog):
 
 
 class BaseSettingWidget(QWidget):
-    def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[tuple[str, int]], saved_state_changed: pyqtBoundSignal, data: dict | None = None):
+    def __init__(self, main_window: QMainWindow, school: SchoolFrameWork, name: str, input_placeholders: list[tuple[str, int]], saved_state_changed: pyqtBoundSignal, data: dict | None = None):
         super().__init__()
         self.main_window = main_window
         
+        self.school = school
         self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
         
         self.display_data_max = 8
@@ -138,7 +139,7 @@ class BaseSettingWidget(QWidget):
         _id = hex(id(widget)).lower().replace("0x", "") if _id is None else _id
         
         if data is None:
-            self.info[_id] = self.get_new_data()
+            self.info[_id] = self.get_new_data(_id)
         else:
             self.info[_id] = data
         
@@ -173,10 +174,13 @@ class BaseSettingWidget(QWidget):
             lambda: self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum()) # type: ignore
         )
     
+    def popup_data_update(self, _id: str, var_name: str, popup: BaseSubWidget):
+        pass
+    
     def make_popups(self, _id: str, layout: QHBoxLayout):
         pass
     
-    def get_new_data(self) -> dict[str, Any] | None:
+    def get_new_data(self, _id: str) -> dict[str, Any] | None:
         pass
     
     def update_data_interaction(self, prev_index: int, curr_index: int):
@@ -186,7 +190,8 @@ class BaseSettingWidget(QWidget):
         pass
     
     def popup_closed(self, _id: str, var_name: str, popup: BaseSubWidget, init: bool = False):
-        pass
+        if not init:
+            self.popup_data_update(_id, var_name, popup)
     
     def add_display_data_info(self, _id: str, var_name: str, text: str, desination_id: str):
         def display_data_func(ev):
@@ -228,6 +233,9 @@ class BaseSettingWidget(QWidget):
             self.display_data_widgets[_id][var_name].layout().removeWidget(widget)
             widget.deleteLater()
     
+    def text_changed(self, _id: str, index: int, text: str):
+        pass
+    
     def _update_display_data_info(self, init: bool = False):
         for _id, popup_data in self.popups_data.copy().items():
             for var_name, (popup_class, title, args, kwargs) in popup_data.items():
@@ -255,6 +263,7 @@ class BaseSettingWidget(QWidget):
     def _make_text_changed_func(self, _id, index):
         def text_changed_func(text: str):
             self.info[_id]["text"][index] = text
+            self.text_changed(_id, index, text)
             self.saved_state_changed.emit()
         
         return text_changed_func
@@ -487,12 +496,12 @@ class MainTitleBar(CustomTitleBar):
 
 
 class TimeTableItem(QTableWidgetItem):
-    def __init__(self, subject: SubjectType):
+    def __init__(self, subject: SubjectPeriodFW):
         super().__init__()
         self.subject = subject
         
-        self.free_period = subject.id == FREE_PERIOD_ID
-        self.break_time = subject.id == BREAK_PERIOD_ID
+        self.free_period = isinstance(subject, FreePeriodFW)
+        self.break_time = isinstance(subject, BreakPeriodFW)
         
         self.setFlags(self.flags() & Qt.ItemFlag.ItemIsEnabled)
         
@@ -515,13 +524,13 @@ class TimeTableItem(QTableWidgetItem):
             self.setText(self.subject.name)
             self.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             
-            if isinstance(self.subject, Subject):
-                self.setToolTip(f"Name: {self.subject.name}\nID: {self.subject.uniqueID}\nTeacher: {self.subject.teacher.name}{"\nSubject Locked" if locked else ""}")
+            if isinstance(self.subject, SubjectPeriodFW):
+                self.setToolTip(f"ID: {self.subject.id()}\nName: {self.subject.name}\nTeacher: {self.subject.teacher.name}{"\nSubject Locked" if locked else ""}")
             else:
                 name = "/".join([s.name for s in self.subject.subjects]) if self.subject.name is None else self.subject.name
-                sub_subject_names = "\n".join([f"\tName: {s.name}\n\tID: {s.uniqueID}\n" for s in self.subject.subjects])
+                sub_subject_names = "\n".join([f"\nID: {s.id}\n\tName: {s.name}\n" for s in self.subject.subjects])
                 
-                self.setToolTip(f"Name: {name}\nID: {self.subject.uniqueID}\nSubjects: {sub_subject_names}{"\nSubject Locked" if locked else ""}")
+                self.setToolTip(f"ID: {self.subject.id}\nName: {name}\nSubjects: {sub_subject_names}{"\nSubject Locked" if locked else ""}")
 
     def set_color(self, color: str | None = None):
         color = QColor(THEME_MANAGER.parse_stylesheet("{fg1}") if color is None else color)
@@ -530,19 +539,19 @@ class TimeTableItem(QTableWidgetItem):
 class DraggableSubjectLabel(QLabel):
     clicked = pyqtSignal(QMouseEvent)
     
-    def __init__(self, subject: SubjectType):
+    def __init__(self, subject: SubjectPeriodFW):
         super().__init__(subject.name)
         self.subject = subject
         
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setProperty("class", 'RemSubjectItem')
-        if isinstance(self.subject, Subject):
-            self.setToolTip(f"Name: {self.subject.name}\nID: {self.subject.uniqueID}\nTeacher: {self.subject.teacher.name}")
+        if isinstance(self.subject, SubjectPeriodFW):
+            self.setToolTip(f"ID: {self.subject.id}\nName: {self.subject.name}\nTeacher: {self.subject.teacher.name}")
         else:
             name = "/".join([s.name for s in self.subject.subjects]) if self.subject.name is None else self.subject.name
-            sub_subject_names = "\n".join([f"\tName: {s.name}\n\tID: {s.uniqueID}\n" for s in self.subject.subjects])
+            sub_subject_names = "\n".join([f"\tID: {s.id}\n\tName: {s.name}\n" for s in self.subject.subjects])
             
-            self.setToolTip(f"Name: {name}\nID: {self.subject.uniqueID}\nSubjects: {sub_subject_names}")
+            self.setToolTip(f"ID: {self.subject.id}\nName: {name}\nSubjects: {sub_subject_names}")
         
         self.setFixedSize(150, 40)
     

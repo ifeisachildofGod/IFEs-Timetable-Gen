@@ -25,14 +25,13 @@ class Window(QMainWindow):
         self.default_per_week     =   4   #   "     "   "  "     "       "
         self.default_max_classes  =   3   # Being used by the teachers editor
         self.default_save_data    =   {
-            "levels": [],
-            "subjectTeacherMapping": {},
-            "timetableInfo": {
-                "breakPeriod": 7,
-                "periodAmount": 10,
-                "DOTW": [("ID:monday3231", "Monday"), ("ID:tuesday6456", "Tuesday"), ("ID:wednesday0921", "Wednesday"), ("ID:thursday9182", "Thursday"), ("ID:friday8765", "Friday"), None, ("ID:saturday8728", "Saturday"), ("ID:sunday0091", "Sunday")],
-                "levelTimetableData": []
-            },
+            "framework": SchoolFrameWork({}, {}, {}, {
+                    "Monday": (10, 7),
+                    "Tuesday": (10, 7),
+                    "Wednesday": (10, 7),
+                    "Thurday": (10, 7),
+                    "Friday": (9, 7),
+                }, {}, GeneratingData(False, {}, {}, {}))
         }
         
         self.children_saved_tracker = {}
@@ -45,9 +44,7 @@ class Window(QMainWindow):
         self.saved_state_changed.connect(self.unsaved_callback)
         
         # Initialize school data
-        self.school = School(self.save_data)
-        self.school.setSchoolInfoFromProjectDict()
-        self.school.setTimetableFromProjectDict()
+        self.school = self.save_data["framework"]
         
         # Misc
         self.display_index = 0
@@ -59,11 +56,11 @@ class Window(QMainWindow):
         menu_bar = self.create_menu_bar()
         
         # Make settings widgets
-        self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"), self.saved_state_changed)
-        self.classes_widget = Classes(self, self.save_data.get("classesInfo"), self.saved_state_changed)
-        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
+        self.subjects_widget = Subjects(self, self.school, self.save_data.get("subjectsInfo"), self.saved_state_changed)
+        self.classes_widget = Classes(self, self.school, self.save_data.get("classesInfo"), self.saved_state_changed)
+        self.teachers_widget = Teachers(self, self.school, self.save_data.get("teachersInfo"), self.saved_state_changed)
         
-        self.timetable_widget = TimeTableEditor(self, self.school, self.save_data.get("timetableInfo"), self.saved_state_changed)
+        self.timetable_widget = TimeTableEditor(self, self.school, self.saved_state_changed)
         
         # Create viewing container
         main_container = QWidget()
@@ -519,8 +516,6 @@ class Window(QMainWindow):
             for widget_name, widget in
             setting_widgets.items()
         }
-        
-        data.update({"timetableInfo": self.timetable_widget.get()})
         
         return data
     

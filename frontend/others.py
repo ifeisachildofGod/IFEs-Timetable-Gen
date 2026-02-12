@@ -3,6 +3,27 @@ from frontend.theme.theme import *
 
 EXTENSION_NAME = "ttbl"
 
+def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):
+    placedClassLevels = {}
+    
+    for maxClasses, strClassIndex, t_data, available_options in randomTeachers:
+        classAmt = 0
+        placedSubClasses = {}
+        
+        if random.choice([True, False]):
+            random.shuffle(available_options)
+        
+        for option in available_options:
+            if classAmt >= maxClasses:
+                break
+            
+            placedSubClasses[option] = [t_data, []]
+            classAmt += 1
+        
+        placedClassLevels[strClassIndex] = placedSubClasses
+    
+    return placedClassLevels
+    
 
 class Thread(QThread):
     crashed = pyqtSignal(Exception)
@@ -109,9 +130,8 @@ class FileManager:
                 QMessageBox.critical(self.parent, type(e).__name__, str(e))
 
 
-
 class ClashesViewer(QDialog):
-    def __init__(self, school: School):
+    def __init__(self, school: SchoolFrameWork):
         super().__init__()
         self.setWindowTitle("Clash Viewer")
         
@@ -152,7 +172,7 @@ class ClashesViewer(QDialog):
         return widget, layout
     
     def display_clashes(self):
-        for teacher_id, day_mapping in self.school.getClashes().items():
+        for teacher_id, day_mapping in self.school.detect_clashes().items():
             _, display_layout = self._make_new_widget(QHBoxLayout, self.main_layout)
             
             display_layout.addWidget(QLabel(self.school.teachers[teacher_id].name))
@@ -187,145 +207,4 @@ class ClashesViewer(QDialog):
         self.reset()
         return super().exec()
 
-
-
-# class ThreshDial(QWidget):
-#     def __init__(self, parent=None, minimum:int=None, maximum:int=None, readonly=True, gradient_start_color=None, gradient_middle_color=None, gradient_end_color=None):
-#         super().__init__(parent)
-#         self.setMinimum(0 if minimum is None else minimum)
-#         self.setMaximum(100 if maximum is None else maximum)
-#         self.setNotchesVisible(True)
-#         self.setWrapping(False)
-        
-#         if readonly:
-#             self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-#             self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        
-#         self.setStyleSheet("""
-#             QDial {
-#                 background-color: """ + THEME_MANAGER.get_current_palette()["highlight"] + """;
-#             }
-#             QDial::groove {
-#                 background: transparent;
-#             }
-#             QDial::handle {
-#                 background-color: #00c896;
-#                 border: 2px solid #00ffcc;
-#                 width: 16px;
-#                 height: 16px;
-#                 border-radius: 8px;
-#             }
-#         """)
-        
-#         self.thresh_value = 0
-        
-#         self.gradient_start_color = gradient_start_color
-#         self.gradient_middle_color = gradient_middle_color
-#         self.gradient_end_color = gradient_end_color
-    
-#     def set_thresh_value(self, value: float | int):
-#         self.thresh_value = value
-    
-    
-#     def paintEvent(self, a0):
-#         super().paintEvent(a0)
-        
-#         painter = QPainter(self)
-#         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-#         # Draw outer gradient ring *around* the dial
-#         center = self.rect().center().toPointF()
-#         radius = min(self.width(), self.height()) // 2 - 5
-#         gradient = QConicalGradient(center, -90)
-#         gradient.setColorAt(0.0, QColor("#15ff00") if self.gradient_start_color is None else QColor(self.gradient_start_color))
-#         gradient.setColorAt(0.5, QColor("#c8c500") if self.gradient_middle_color is None else QColor(self.gradient_middle_color))
-#         gradient.setColorAt(1.0, QColor("#ff0000") if self.gradient_end_color is None else QColor(self.gradient_end_color))
-        
-#         pen = painter.pen()
-#         pen.setWidth(5)
-#         pen.setBrush(gradient)
-#         painter.setPen(pen)
-        
-#         painter.setBrush(Qt.BrushStyle.NoBrush)
-#         painter.drawArc(
-#             int(center.x() - radius),
-#             int(center.y() - radius),
-#             int(radius * 2),
-#             int(radius * 2),
-#             0 * 16,
-#             360 * 16
-#         )
-        
-#         thresh_indicator_radius = 2
-        
-#         pen = painter.pen()
-#         pen.setWidth(5)
-#         pen.setBrush(QColor(THEME_MANAGER.get_current_palette()["prefect"]))
-#         painter.setPen(pen)
-        
-#         angle_offset = 30
-#         max_turn = (360 - (angle_offset * 2))
-#         angle = -(self.thresh_value - self.minimum()) * max_turn / (self.maximum() - self.minimum())
-#         angle += 270 - angle_offset
-#         angle = angle % 360
-        
-#         thresh_radius = radius - thresh_indicator_radius - 5
-#         painter.drawLine()    
-#         painter.drawEllipse(
-#             int(center.x() + thresh_radius * math.cos(math.radians(angle))),
-#             int(center.y() - thresh_radius * math.sin(math.radians(angle))),
-#             int(thresh_indicator_radius * 2),
-#             int(thresh_indicator_radius * 2)
-#         )
-    
-#     # def paintEvent(self, a0):
-#     #     super().paintEvent(a0)
-        
-#     #     painter = QPainter(self)
-#     #     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-#     #     # Draw outer gradient ring *around* the dial
-#     #     center = self.rect().center().toPointF()
-#     #     radius = min(self.width(), self.height()) // 2 - 5
-#     #     gradient = QConicalGradient(center, -90)
-#     #     gradient.setColorAt(0.0, QColor("#15ff00") if self.gradient_start_color is None else QColor(self.gradient_start_color))
-#     #     gradient.setColorAt(0.5, QColor("#c8c500") if self.gradient_middle_color is None else QColor(self.gradient_middle_color))
-#     #     gradient.setColorAt(1.0, QColor("#ff0000") if self.gradient_end_color is None else QColor(self.gradient_end_color))
-        
-#     #     pen = painter.pen()
-#     #     pen.setWidth(5)
-#     #     pen.setBrush(gradient)
-#     #     painter.setPen(pen)
-        
-#     #     painter.setBrush(Qt.BrushStyle.NoBrush)
-#     #     painter.drawArc(
-#     #         int(center.x() - radius),
-#     #         int(center.y() - radius),
-#     #         int(radius * 2),
-#     #         int(radius * 2),
-#     #         0 * 16,
-#     #         360 * 16
-#     #     )
-        
-#     #     thresh_indicator_radius = 2
-        
-#     #     pen = painter.pen()
-#     #     pen.setWidth(5)
-#     #     pen.setBrush(QColor(THEME_MANAGER.get_current_palette()["prefect"]))
-#     #     painter.setPen(pen)
-        
-#     #     angle_offset = 30
-#     #     max_turn = (360 - (angle_offset * 2))
-#     #     angle = -(self.thresh_value - self.minimum()) * max_turn / (self.maximum() - self.minimum())
-#     #     angle += 270 - angle_offset
-#     #     angle = angle % 360
-        
-#     #     thresh_radius = radius - thresh_indicator_radius - 5
-        
-#     #     painter.drawEllipse(
-#     #         int(center.x() + thresh_radius * math.cos(math.radians(angle))),
-#     #         int(center.y() - thresh_radius * math.sin(math.radians(angle))),
-#     #         int(thresh_indicator_radius * 2),
-#     #         int(thresh_indicator_radius * 2)
-#     #     )
 
