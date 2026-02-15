@@ -2,6 +2,9 @@
 import math
 import random
 from dataclasses import dataclass
+from matplotlib.cbook import flatten
+
+# Always run init before doing anything
 
 @dataclass
 class GeneratingData:
@@ -85,11 +88,19 @@ class ClassFW:
     timetable: TimetableFW | None = None
     timetable_remains: list[SubjectPeriodFW] | None = None
     
+    def init(self):
+        if self.timetable is None:
+            self.timetable = {d: [FreePeriodFW() if i + 1 != b else BreakPeriodFW() for i in range(p)] for d, (p, b) in self.dotw_data.items()}
+        
+        if self.timetable_remains is None:
+            self.timetable_remains = flatten([[s for _ in range(s.freq_info[1])] for s in self.subjects])
+    
     def name(self):
         return f"{self.section_name} {self.specifier_name}"
     
-    def id(self, se_id: str | None = None, sp_id: str | None = None):
-        return self.get_id(self.section_id, self.specifier_id)
+    def id(self):
+        return str(self.specifier_id) + str(int(self.section_id) + 1)
+        # return self.get_id(self.section_id, self.specifier_id)
     
     @staticmethod
     def get_id(se_id: str, sp_id: str):
@@ -100,11 +111,11 @@ class SchoolFrameWork:
     subjects: dict[str, SubjectPeriodFW | CombinedSubjectPeriodFW]
     teachers: dict[str, TeacherFW]
     classes: dict[str, ClassFW]
-    general_dotw_data: dict[str, tuple[int, int]]
+    
     #         Teacher ID  Classes
     teachers_c: dict[str, list[ClassFW]]
     gen_data: GeneratingData
-
+    
     def generate_timetable(self, cls_ids: list[str] | None = None):
         cls_ids = cls_ids or list(self.classes)
         
@@ -431,6 +442,167 @@ class SchoolFrameWork:
         
         return score
 
+    @staticmethod
+    def school_from_text(text: str, id_mappings: dict[str, list[str]] | None = None):
+        id_mappings = id_mappings or {"subjects": None, "teachers": None, "classes": None}
+        
+        text = "\n".join(["".join(list(line)[:line.find("#")] if "#" in line else list(line)) for line in text.splitlines()])
+            
+        subjects_string, teachers_string, classes_string, timetable_string, dotw_string = text.split("---")
+
+        subjects_string = subjects_string.strip()
+        teachers_string = teachers_string.strip()
+        classes_string = classes_string.strip()
+        timetable_string = timetable_string.strip()
+        dotw_string = dotw_string.strip()
+
+        subjects = []
+        for s_index, s_string in enumerate(subjects_string.splitlines()):
+            s_string = s_string.strip()
+            
+            if s_string:
+                s_id = id_mappings["subjects"][len(subjects)] if id_mappings["subjects"] else str(len(subjects))
+                
+                subjects.append(
+                    CombinedSubjectPeriodFW(s_id, [subjects[int(s.strip()) - 1] for s in s_string.strip().split("/")])
+                    if "/" in s_string else
+                    SubjectPeriodFW(s_id, s_string)
+                )
+        
+        teachers = {}
+        for t_string in teachers_string.splitlines():
+            t_string = t_string.strip()
+            
+            if t_string:
+                name, value =  t_string.split(":")
+                
+                t_id = id_mappings["teachers"][len(teachers)] if id_mappings["teachers"] else str(len(teachers))
+                
+                teachers[t_id] = (
+                        CombinedTeacherFW(t_id, [list([t for t, _ in teachers.values()])[int(s.strip()) - 1] for s in name.strip().split("/")])
+                        if "/" in name else
+                        TeacherFW(t_id, name.strip())
+                    ), tuple(int(v) - 1 for v in value.strip().split())
+        
+        dotw_data = []
+        for dw_string in dotw_string.split("_"):
+            s_dotw_data = {}
+            
+            for s_dw_string in dw_string.splitlines():
+                s_dw_string = s_dw_string.strip()
+                
+                if s_dw_string:
+                    day, values = s_dw_string.split(":")
+                    day, values = day.strip(), values.strip()
+                    
+                    p_amt, b_p = values.split()
+                    
+                    s_dotw_data[day] = int(p_amt), int(b_p)
+            
+            dotw_data.append(s_dotw_data)
+        
+        _cls_id_trackers = {}
+        sc_classes = {}
+        sc_teachers_c = {}
+        for c_index, c_string in enumerate(classes_string.splitlines()):
+            c_string = c_string.strip()
+            
+            name, value =  c_string.split(":")
+            se_name, sp_name = name.strip().split()
+            
+            subject_mapping = {}
+            
+            for v in value.strip().split():
+                s_list = v.split("/")
+                
+                if len(s_list) == 3:
+                    t_index, per_day, per_week = s_list
+                    s_index = "1"
+                elif len(s_list) == 4:
+                    t_index, s_index, per_day, per_week = s_list
+                else:
+                    raise Exception()
+                
+                l_teachers = list(teachers.values())
+                
+                t_index = int(t_index.strip()) - 1
+                s_index = int(s_index.strip()) - 1
+                per_day = int(per_day)
+                per_week = int(per_week)
+                
+                if not (0 <= t_index <= len(l_teachers) - 1):
+                    raise IndexError(f"Invalid teacher index: {t_index + 1}")
+                
+                teacher, subject_indices = l_teachers[t_index]
+                
+                if not (0 <= s_index <= len(subject_indices) - 1):
+                    raise IndexError(f"Invalid teacher-subject index: {s_index + 1}")
+                
+                if not (0 <= subject_indices[s_index] <= len(subjects) - 1):
+                    raise IndexError(f"Invalid subject index: {subject_indices[s_index] + 1}")
+                
+                r_subject = subjects[subject_indices[s_index]]
+                
+                if isinstance(r_subject, SubjectPeriodFW) and isinstance(teacher, TeacherFW):
+                    subject = SubjectPeriodFW(r_subject.id, r_subject.name, teacher, (per_day, per_week))
+                elif isinstance(r_subject, CombinedSubjectPeriodFW) and isinstance(teacher, CombinedTeacherFW):
+                    subject = CombinedSubjectPeriodFW(r_subject.id, r_subject.subjects, teacher, (per_day, per_week))
+                else:
+                    raise Exception()
+                
+                subject_mapping[subject.id] = subject
+            
+            se_key = se_name
+            sp_key = (sp_name, )
+            
+            if se_key not in _cls_id_trackers:
+                _cls_id_trackers[se_key] = id_mappings["classes"][c_index][0] if id_mappings["classes"] else id(se_name)
+            if sp_key not in _cls_id_trackers:
+                _cls_id_trackers[sp_key] = id_mappings["classes"][c_index][1] if id_mappings["classes"] else id(sp_name)
+            
+            cls = ClassFW(_cls_id_trackers[se_key], _cls_id_trackers[sp_key], se_name, sp_name, dotw_data[c_index], subject_mapping)
+            sc_classes[cls.id()] = cls
+            
+            for subj in subject_mapping.values():
+                if subj.teacher.id not in sc_teachers_c:
+                    sc_teachers_c[subj.teacher.id] = []
+                
+                if cls in sc_teachers_c[subj.teacher.id]:
+                    continue
+                
+                sc_teachers_c[subj.teacher.id].append(cls)
+        
+        if timetable_string:
+            for cls_i, ttbl_string in enumerate(timetable_string.split("_")):
+                cls = list(sc_classes.values())[cls_i]
+                
+                ttbl_string = ttbl_string.strip()
+                
+                if ttbl_string:
+                    sc_classes[cls.id].timetable = {}
+                    
+                    for s_ttbl_i, s_ttbl_string in enumerate(ttbl_string.strip().split(";")):
+                        s_ttbl_string = s_ttbl_string.strip()
+                        
+                        if s_ttbl_string:
+                            sc_classes[cls.id].timetable[list(dotw_data[cls_i])[s_ttbl_i]] = [
+                                (
+                                    FreePeriodFW()
+                                    if int(s.strip()) == 0 else
+                                    (
+                                        BreakPeriodFW()
+                                        if int(s.strip()) == -1 else
+                                        list(cls.subjects.values())[int(s.strip()) - 1]
+                                    )
+                                )
+                                for s in
+                                s_ttbl_string.split()
+                            ]
+                else:
+                    sc_classes[cls.id].timetable = None
+        
+        return SchoolFrameWork({s.id: s for s in subjects}, {k: v for k, (v, _) in teachers.items()}, sc_classes, sc_teachers_c, GeneratingData(False, {}, {}, {}))
+
 
 
 def _display_school(sch: SchoolFrameWork):
@@ -441,6 +613,11 @@ def _display_school(sch: SchoolFrameWork):
         for day, periods in cls.timetable.items():
             print(day, end=": ")
             print(*[(p.name if not isinstance(p, CombinedSubjectPeriodFW) else "/".join([s.name for s in p.subjects])) for p in periods], sep=", ")
+        
+        if cls.timetable_remains:
+            print()
+            print("Remainders:", ", ".join([s.name for s in cls.timetable_remains]))
+            print()
         print()
 
 # Not yet ready
@@ -468,169 +645,11 @@ def _display_school(sch: SchoolFrameWork):
     
 #     return text
 
-def school_from_text(text: str):
-    text = "\n".join(["".join(list(line)[:line.find("#")] if "#" in line else list(line)) for line in text.splitlines()])
-        
-    subjects_string, teachers_string, classes_string, timetable_string, dotw_string = text.split("---")
-
-    subjects_string = subjects_string.strip()
-    teachers_string = teachers_string.strip()
-    classes_string = classes_string.strip()
-    timetable_string = timetable_string.strip()
-    dotw_string = dotw_string.strip()
-
-    subjects = []
-    for s_string in subjects_string.splitlines():
-        s_string = s_string.strip()
-        
-        if s_string:
-            s_id = str(len(subjects))
-            
-            subjects.append(
-                CombinedSubjectPeriodFW(s_id, [subjects[int(s.strip()) - 1] for s in s_string.strip().split("/")])
-                if "/" in s_string else
-                SubjectPeriodFW(s_id, s_string)
-            )
-    
-    teachers = {}
-    for t_string in teachers_string.splitlines():
-        t_string = t_string.strip()
-        
-        if t_string:
-            name, value =  t_string.split(":")
-            
-            t_id = str(len(teachers))
-            
-            teachers[t_id] = (
-                    CombinedTeacherFW(t_id, [list([t for t, _ in teachers.values()])[int(s.strip()) - 1] for s in name.strip().split("/")])
-                    if "/" in name else
-                    TeacherFW(t_id, name.strip())
-                ), tuple(int(v) - 1 for v in value.strip().split())
-    
-    dotw_data = []
-    for dw_string in dotw_string.split("_"):
-        s_dotw_data = {}
-        
-        for s_dw_string in dw_string.splitlines():
-            s_dw_string = s_dw_string.strip()
-            
-            if s_dw_string:
-                day, values = s_dw_string.split(":")
-                day, values = day.strip(), values.strip()
-                
-                p_amt, b_p = values.split()
-                
-                s_dotw_data[day] = int(p_amt), int(b_p)
-        
-        dotw_data.append(s_dotw_data)
-    
-    _cls_id_trackers = {}
-    sc_classes = {}
-    sc_teachers_c = {}
-    for c_index, c_string in enumerate(classes_string.splitlines()):
-        c_string = c_string.strip()
-        
-        name, value =  c_string.split(":")
-        se_name, sp_name = name.strip().split()
-        
-        subject_mapping = {}
-        
-        for v in value.strip().split():
-            s_list = v.split("/")
-            
-            if len(s_list) == 3:
-                t_index, per_day, per_week = s_list
-                s_index = "1"
-            elif len(s_list) == 4:
-                t_index, s_index, per_day, per_week = s_list
-            else:
-                raise Exception()
-            
-            l_teachers = list(teachers.values())
-            
-            t_index = int(t_index.strip()) - 1
-            s_index = int(s_index.strip()) - 1
-            per_day = int(per_day)
-            per_week = int(per_week)
-            
-            if not (0 <= t_index <= len(l_teachers) - 1):
-                raise IndexError(f"Invalid teacher index: {t_index + 1}")
-            
-            teacher, subject_indices = l_teachers[t_index]
-            
-            if not (0 <= s_index <= len(subject_indices) - 1):
-                raise IndexError(f"Invalid teacher-subject index: {s_index + 1}")
-            
-            if not (0 <= subject_indices[s_index] <= len(subjects) - 1):
-                raise IndexError(f"Invalid subject index: {subject_indices[s_index] + 1}")
-            
-            r_subject = subjects[subject_indices[s_index]]
-            
-            if isinstance(r_subject, SubjectPeriodFW) and isinstance(teacher, TeacherFW):
-                subject = SubjectPeriodFW(r_subject.id, r_subject.name, teacher, (per_day, per_week))
-            elif isinstance(r_subject, CombinedSubjectPeriodFW) and isinstance(teacher, CombinedTeacherFW):
-                subject = CombinedSubjectPeriodFW(r_subject.id, r_subject.subjects, teacher, (per_day, per_week))
-            else:
-                raise Exception()
-            
-            subject_mapping[subject.id] = subject
-        
-        se_key = se_name
-        sp_key = (sp_name, )
-        
-        if se_key not in _cls_id_trackers:
-            _cls_id_trackers[se_key] = id(se_name)
-        if sp_key not in _cls_id_trackers:
-            _cls_id_trackers[sp_key] = id(sp_name)
-        
-        cls = ClassFW(_cls_id_trackers[se_key], _cls_id_trackers[sp_key], se_name, sp_name, dotw_data[c_index], subject_mapping)
-        sc_classes[cls.id()] = cls
-        
-        for subj in subject_mapping.values():
-            if subj.teacher.id not in sc_teachers_c:
-                sc_teachers_c[subj.teacher.id] = []
-            
-            if cls in sc_teachers_c[subj.teacher.id]:
-                continue
-            
-            sc_teachers_c[subj.teacher.id].append(cls)
-    
-    if timetable_string:
-        for cls_i, ttbl_string in enumerate(timetable_string.split("_")):
-            cls = list(sc_classes.values())[cls_i]
-            
-            ttbl_string = ttbl_string.strip()
-            
-            if ttbl_string:
-                sc_classes[cls.id].timetable = {}
-                
-                for s_ttbl_i, s_ttbl_string in enumerate(ttbl_string.strip().split(";")):
-                    s_ttbl_string = s_ttbl_string.strip()
-                    
-                    if s_ttbl_string:
-                        sc_classes[cls.id].timetable[list(dotw_data[cls_i])[s_ttbl_i]] = [
-                            (
-                                FreePeriodFW()
-                                if int(s.strip()) == 0 else
-                                (
-                                    BreakPeriodFW()
-                                    if int(s.strip()) == -1 else
-                                    list(cls.subjects.values())[int(s.strip()) - 1]
-                                )
-                            )
-                            for s in
-                            s_ttbl_string.split()
-                        ]
-            else:
-                sc_classes[cls.id].timetable = None
-    
-    return SchoolFrameWork({s.id: s for s in subjects}, {s.uid: s for s in t_assigned_subjects}, {k: v for k, v in teachers.items()}, sc_classes, sc_teachers_c, GeneratingData(False, {}, {}, {}))
-
 if __name__ == "__main__":
-    with open("backend/test_proj.txt") as file:
+    with open("middle/test-frmwk.txt") as file:
         data = file.read()
     
-    sch = school_from_text(data)
+    sch = SchoolFrameWork.school_from_text(data)
     
     print("Started Generating")
     sch.generate_timetable()

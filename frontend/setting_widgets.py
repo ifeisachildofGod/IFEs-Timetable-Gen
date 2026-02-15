@@ -2,11 +2,11 @@ from frontend.imports import *
 from frontend.sub_widgets import *
 
 class Subjects(BaseSettingWidget):
-    def __init__(self, main_window: QMainWindow, school: SchoolFrameWork, save_data: dict | None, saved_state_changed):
+    def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):
         self.teachers = [None]
         self.classes_data = {"content": {}, "id_mapping": {"main": {}, "sub": {}}}
         
-        super().__init__(main_window, school, "Subjects", [("Enter the subject name", 10)], saved_state_changed, save_data)
+        super().__init__(main_window, "Subjects", [("Enter the subject name", 10)], saved_state_changed, save_data)
     
     def update_data_interaction(self, prev_index, curr_index):
         general_condition = prev_index != 3 and not (curr_index == 3 and prev_index != 0)
@@ -70,10 +70,8 @@ class Subjects(BaseSettingWidget):
                     if s_t_id is not None:
                         if s_t_id not in teacher_info:
                             removals.append(s_t_index)
-                            subject_info_entry["teachers"].pop()
                         else:
-                            teacher_name = " ".join(teacher_info[s_t_id]["text"])
-                            subject_info_entry["teachers"][s_t_index] = (s_t_id, teacher_name)
+                            subject_info_entry["teachers"][s_t_index] = s_t_id, " ".join(teacher_info[s_t_id]["text"])
                 
                 for index in sorted(removals, reverse=True):
                     subject_info_entry["teachers"].pop(index)
@@ -84,23 +82,12 @@ class Subjects(BaseSettingWidget):
         if class_update_condition or teacher_update_condition:
             self._update_display_data_info()
     
-    def get_new_data(self, _id):
-        self.school.subjects[_id] = SubjectPeriodFW(_id, "")
-        
+    def get_new_data(self):
         return {
             "text": [],
             "classes": {},
             "teachers": deepcopy(self.teachers)
         }
-    
-    def text_changed(self, _id, index, text):
-        super().text_changed(_id, index, text)
-        
-        self.school.subjects[_id].name = text
-        
-        for cls in self.school.classes.values():
-            if _id in cls.subjects:
-                cls.subjects[_id].name = text
     
     def get_constants(self):
         return {
@@ -109,8 +96,8 @@ class Subjects(BaseSettingWidget):
         }
     
     def make_popups(self, _id, layout):
-        self._make_popup(_id, "classes", "Classes", layout, SubjectDropdownCheckBoxes, general_data=self.classes_data)
-        self._make_popup(_id, "teachers", "Teachers", layout, SelectionList, alignment=Qt.AlignmentFlag.AlignLeft)
+        self._make_popup(_id, "Classes", layout, SubjectDropdownCheckBoxes, "classes", general_data=self.classes_data)
+        self._make_popup(_id, "Teachers", layout, SelectionList, "teachers", alignment=Qt.AlignmentFlag.AlignLeft)
     
     def update_classes(self):
         class_info = self.main_window.classes_widget.get() # type: ignore
@@ -137,7 +124,7 @@ class Subjects(BaseSettingWidget):
                         options_data.pop(option_id)
     
     def popup_closed(self, _id, var_name, popup, init = False):
-        super().popup_closed()
+        super().popup_closed(_id, var_name, popup, init)
         
         if isinstance(popup, SelectionList):
             self.clear_display_data_info(_id, var_name)
@@ -153,25 +140,20 @@ class Subjects(BaseSettingWidget):
             
             for lvl_id, lvl_data in popup_data.items():
                 for cls_id, cls_state in lvl_data.items():
-                    uid = ClassFW.get_id(lvl_id, cls_id)
                     if cls_state:
-                        self.school.classes[uid].subjects[s_id] = SubjectPeriodFW(_id, self.info[_id]["text"])
-                        
                         self.add_display_data_info(
                             _id,
                             var_name,
                             f"{popup.general_data["id_mapping"]["main"][lvl_id]} {popup.general_data["id_mapping"]["sub"][lvl_id][cls_id]}",
                             f"{lvl_id}--{cls_id}"
                         )
-                    elif s_id in self.school.classes[uid].subjects:
-                        self.school.classes[uid].subjects.pop(s_id)
 
 class Teachers(BaseSettingWidget):
-    def __init__(self, main_window: QMainWindow, school: SchoolFrameWork, save_data: dict | None, saved_state_changed):
+    def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):
         self.subjects = [None]
         self.all_subject_classes_info = {}
         
-        super().__init__(main_window, school, "Teachers", [("Full name", 10)], saved_state_changed, save_data)
+        super().__init__(main_window, "Teachers", [("Full name", 10)], saved_state_changed, save_data)
     
     def update_data_interaction(self, prev_index, curr_index):
         class_update_condition = prev_index in (0, 2)
@@ -231,21 +213,15 @@ class Teachers(BaseSettingWidget):
                     if t_s_id not in subject_info:
                         removals.append(t_s_index)
                     else:
-                        subject_name = " ".join(subject_info[t_s_id]["text"])
-                        teacher_info_entry["subjects"][t_s_index] = (t_s_id, subject_name)
+                        teacher_info_entry["subjects"][t_s_index] = t_s_id, " ".join(subject_info[t_s_id]["text"])
             
             for index in sorted(removals, reverse=True):
                 teacher_info_entry["subjects"].pop(index)
             
             if class_update_condition:
                 self._update_classes(teacher_id)
-        
-        if class_update_condition:
-            self._update_display_data_info()
     
-    def get_new_data(self, _id):
-        self.school.teachers[_id] = TeacherFW(_id, "")
-        
+    def get_new_data(self):
         return {
             "text": [],
             "classes": {"content": {}, "id_mapping": {}},
@@ -262,11 +238,11 @@ class Teachers(BaseSettingWidget):
         self._update_classes_deactivated_general(_id)
     
     def make_popups(self, _id, layout):
-        self._make_popup(_id, "classes", "Classes", layout, TeacherDropdownCheckBoxes, teacher_id=_id, general_data=self.all_subject_classes_info, default_max_classes=self.main_window.default_max_classes, main_window=self.main_window) # type: ignore
-        self._make_popup(_id, "subjects", "Subjects", layout, SelectionList, alignment=Qt.AlignmentFlag.AlignLeft)
+        self._make_popup(_id, "Classes", layout, TeacherDropdownCheckBoxes, "classes", teacher_id=_id, general_data=self.all_subject_classes_info, default_max_classes=self.main_window.default_max_classes) # type: ignore
+        self._make_popup(_id, "Subjects", layout, SelectionList, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
     
-    def popup_closed(self, _id, var_name, popup, init = False):
-        super().popup_closed(_id, var_name, popup)
+    def popup_closed(self, _id, popup, var_name, init = False):
+        super().popup_closed(_id, var_name, popup, init)
         
         if isinstance(popup, SelectionList):
             if not init:
@@ -296,26 +272,14 @@ class Teachers(BaseSettingWidget):
                             lvl_id
                         )
                     else:
-                        for s in self.school.classes[cls_id].subjects.values():
-                            s.teacher = None
-                        
                         for cls_id, cls_state in cls_data.items():
                             if cls_state:
-                                self.school.classes[cls_id].subjects[s_id].teacher = self.school.teachers[_id]
-                                
                                 self.add_display_data_info(
                                     _id,
                                     var_name,
                                     f"{' '.join(subject_info[s_id]["text"])} in {' '.join(class_info[lvl_id]['text'])} {class_info[lvl_id]['options'][cls_id]}",
                                     f"{lvl_id}-{cls_id}"
                                 )
-                            else:
-                                self.school.classes[cls_id].subjects[s_id].teacher = None
-    
-    def text_changed(self, _id, index, text):
-        super().text_changed(_id, index, text)
-        
-        self.school.teachers[_id].name = text
     
     def _update_classes_deactivated_general(self, _id):
         selected_subjects_data = {t_s_id: t_s_index for t_s_index, (t_s_id, _) in enumerate(SelectionList.fix_none_selection_content_problem(self.info[_id]["subjects"])) if t_s_index < self.info[_id]["subjects"].index(None)}
@@ -423,8 +387,8 @@ class Teachers(BaseSettingWidget):
                         subject_class_data[class_id][1].pop(option_id)
 
 class Classes(BaseSettingWidget):
-    def __init__(self, main_window: QMainWindow, school: SchoolFrameWork, save_data: dict | None, saved_state_changed):
-        super().__init__(main_window, school, "Classes", [("Enter the class section name", 10)], saved_state_changed, save_data)
+    def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):
+        super().__init__(main_window, "Classes", [("Enter the class section name", 10)], saved_state_changed, save_data)
     
     def update_data_interaction(self, prev_index, curr_index):
         if prev_index in (2, 3):
@@ -432,57 +396,52 @@ class Classes(BaseSettingWidget):
         
         subject_info = self.main_window.subjects_widget.get() # type: ignore
         
-        for class_index, (class_id, class_info_entry) in enumerate(self.info.items()):
+        for class_id, class_info_entry in self.info.items():
             for subject_id, subject_info_entry in subject_info.items():
                 if class_id in subject_info_entry["classes"]:
                     default = [
-                        "",
+                        None,
                         {
                             "per_day": self.main_window.default_per_day, # type: ignore
-                            "per_week": self.main_window.default_per_week, # type: ignore
+                            "per_week": self.main_window.default_per_week # pyright: ignore[reportAttributeAccessIssue]
                         }
                     ]
                     
                     class_info_entry["subjects"][subject_id] = class_info_entry["subjects"].get(subject_id, default)
-                    class_info_entry["subjects"][subject_id][0] = "".join(subject_info_entry["text"])
-                    class_info_entry["subjects"][subject_id][1]["options"] = {
-                        option_id: class_info_entry["options"][option_id]
-                        for option_id, option_state in
-                        subject_info_entry["classes"][class_id].items()
-                        if option_state
-                    }
-                
+                    class_info_entry["subjects"][subject_id][0] = subject_info_entry["text"][0]
                 elif subject_id in class_info_entry["subjects"]:
                     class_info_entry["subjects"].pop(subject_id)
             
             for subject_id in class_info_entry["subjects"].copy():
                 if subject_id not in subject_info:
                     class_info_entry["subjects"].pop(subject_id)
-        
-        self._update_display_data_info()
     
-    def get_new_data(self, _id):
+    def get_new_data(self):
         return {
             "text": [],
             "options": {},
             "subjects": {}
         }
     
-    def text_changed(self, _id, index, text):
-        super().text_changed(_id, index, text)
-        
-        for cls in self.school.classes.values():
-            if cls.section_id == _id:
-                cls.section_name = text
-    
     def make_popups(self, _id, layout):
         index = len(self.get()) - 1
         
-        self._make_popup(_id, "options", "Option Selector", layout, OptionsMaker, button_name="Options") # type: ignore
-        self._make_popup(_id, "subjects", "Subjects", layout, SubjectSelection, alignment=Qt.AlignmentFlag.AlignLeft, week_total=sum(self.school.general_dotw_data[_id][index][1][1]))
+        if index >= len(self.main_window.school.project["levels"]):
+            self.main_window.school.project["levels"].append([
+                "",
+                [
+                    [self.main_window.default_period_amt for _ in range(len(self.main_window.default_weekdays))],
+                    [self.main_window.default_breakperiod for _ in range(len(self.main_window.default_weekdays))],
+                    self.main_window.default_weekdays
+                    ],
+                {}
+            ])
+        
+        self._make_popup(_id, "Option Selector", layout, OptionsMaker, "options", button_name="Options") # type: ignore
+        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, week_total=sum(self.main_window.school.project["levels"][index][1][1]))
     
     def popup_closed(self, _id, var_name, popup, init = False):
-        super().popup_closed()
+        super().popup_closed(_id, var_name, popup, init)
         
         if isinstance(popup, OptionsMaker):
             options_data = popup.get()
@@ -493,31 +452,17 @@ class Classes(BaseSettingWidget):
             removed = False
             
             for subject_id, (_, subjects_display_data) in self.info[_id]["subjects"].copy().items():
-                for option_id in subjects_display_data["options"].copy():
+                for option_id in self.info[_id]["options"].copy():
                     if option_id not in options_data:
-                        subjects_display_data["options"].pop(option_id)
+                        self.info[_id]["options"].pop(option_id)
                 
-                if not subjects_display_data["options"]:
+                if not self.info[_id]["options"]:
                     removed = True
                     self.info[_id]["subjects"].pop(subject_id)
             
             self.clear_display_data_info(_id, var_name)
             
             for option_id, option_name in options_data.items():
-                uid = ClassFW.get_id(_id, option_id)
-                
-                self.school.classes[uid] = self.school.classes.get(
-                    uid,
-                    ClassFW(
-                        _id,
-                        option_id,
-                        self.info[_id]["text"],
-                        option_name,
-                        self.school.general_dotw_data.copy(),
-                        []
-                    )
-                )
-                
                 self.add_display_data_info(_id, var_name, option_name, option_id)
             
             if removed:
@@ -528,9 +473,7 @@ class Classes(BaseSettingWidget):
         elif isinstance(popup, SubjectSelection):
             self.clear_display_data_info(_id, var_name)
             
-            for subject_id, (subject_name, freq_data) in popup.get().items():
-                for cls_id in self.info[_id]:
-                    self.school.classes[ClassFW.get_id(_id, cls_id)].subjects[subject_id].freq_info = freq_data["per_day"], freq_data["per_week"]
-                
+            for subject_id, (subject_name, _) in popup.get().items():
                 self.add_display_data_info(_id, var_name, subject_name, subject_id)
+
 

@@ -46,7 +46,13 @@
                     perDay,
                     perWeek,
                     {
-                        classID: (teacherID, teacherName),
+                        classID: [
+                            (teacherID, teacherName),
+                            (
+                                ((dayIndex, period), (timetableTotal, timetablePerWeek), remainderAmount),
+                                ...
+                            )
+                        ],
                         ...
                     }
                 ),
@@ -118,30 +124,12 @@
     }
 
     "timetableInfo": {
-        "breakPeriod": breakPeriod,
-        "periodAmount": periodAmount,
-        "DOTW": [(MondaysID, Monday), (TuesdaysID, Tuesday), ..., None, ..., (SaturdaysID, Saturday), (SundaysID, Sunday)],
-
-        "levelTimetableData": [
-            {
-                "breakPeriod": breakPeriod,
-                "periodAmount": periodAmount,
-                "DOTW": {
-                    "content": [Monday, Tuesday, ..., None, ..., Saturday, Sunday],
-                    "id_mapping": {
-                        dayIndex: dayID,
-                        ...
-                    }
-                },
-                "timetables": {
-                    classID: [
-                        (uniqueSubjectID, total, perWeek, lockedData)*,
-                        ...
-                    ],
-                    ...
-                }
-            },
-            ...
-        ]
+        "DOTW": {
+            "content": [Monday, Tuesday, ..., None, ..., Saturday, Sunday],
+            "id_mapping": {
+                dayIndex: dayID,
+                ...
+            }
+        }
     }
 }

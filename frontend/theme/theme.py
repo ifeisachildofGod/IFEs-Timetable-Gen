@@ -151,6 +151,9 @@ class ThemeManager:
 
     def get(self):
         return self.general_themes[self.file_path_mappings[self.current_theme]]
+    
+    def pallete_get(self, name: str):
+        return self.get_current_palette()[name]
 
 THEME_MANAGER = ThemeManager()
 THEME_MANAGER.load_theme_from_file("frontend/theme/theme.json", STYLESHEET)

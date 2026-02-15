@@ -6,7 +6,8 @@ from docx import Document
 from docx.shared import RGBColor
 from docx.oxml import OxmlElement
 
-from middle.frameworks import *
+from middle.main import School
+from middle.objects import *
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,

@@ -1,29 +1,47 @@
+from PyQt6.QtWidgets import QLayout
 from frontend.imports import *
 from frontend.theme.theme import *
 
 EXTENSION_NAME = "ttbl"
 
-def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):
-    placedClassLevels = {}
+def create_widget(parent_layout: QLayout | None, layout_type: type[QHBoxLayout] | type[QVBoxLayout] | type[QGridLayout]):
+    widget = QWidget()
+    layout = layout_type()
+    widget.setLayout(layout)
     
-    for maxClasses, strClassIndex, t_data, available_options in randomTeachers:
-        classAmt = 0
-        placedSubClasses = {}
-        
-        if random.choice([True, False]):
-            random.shuffle(available_options)
-        
-        for option in available_options:
-            if classAmt >= maxClasses:
-                break
-            
-            placedSubClasses[option] = [t_data, []]
-            classAmt += 1
-        
-        placedClassLevels[strClassIndex] = placedSubClasses
+    if parent_layout is not None:
+        parent_layout.addWidget(widget)
     
-    return placedClassLevels
+    return widget, layout
+
+def create_scrollable_widget(parent_layout: QLayout | None, layout_type: type[QHBoxLayout] | type[QVBoxLayout]):
+    scroll_widget = QScrollArea()
+    scroll_widget.setWidgetResizable(True)
     
+    widget = QWidget()
+    scroll_widget.setWidget(widget)
+    layout = layout_type(widget)
+    
+    if parent_layout is not None:
+        parent_layout.addWidget(scroll_widget)
+    
+    return scroll_widget, layout
+
+def clear_layout(layout: QLayout):
+    while layout.count():
+        item = layout.takeAt(0)
+
+        widget = item.widget()
+        layout_item = item.layout()
+
+        if widget is not None:
+            widget.setParent(None)
+            widget.deleteLater()
+
+        elif layout_item is not None:
+            clear_layout(layout_item)
+
+
 
 class Thread(QThread):
     crashed = pyqtSignal(Exception)
@@ -51,6 +69,7 @@ class Thread(QThread):
             QMessageBox.critical(None, e.__class__.__name__, str(e))
             self.crashed.emit(e)
             self.exit(-1)
+
 
 
 class FileManager:
@@ -117,8 +136,7 @@ class FileManager:
         if export_mode == 0:
             file_path, _ = QFileDialog.getSaveFileName(self.parent, "Export File", "", file_filter)
         elif export_mode == 1:
-            QMessageBox.critical("NotImplementedError", "This feature has not been implemented")
-            # file_path = QFileDialog.getExistingDirectory(self.parent, "Batch Export Folder", "")
+            file_path = QFileDialog.getExistingDirectory(self.parent, "Batch Export Folder", "")
         else:
             raise Exception("Invalid Export Mode")
         
@@ -130,8 +148,9 @@ class FileManager:
                 QMessageBox.critical(self.parent, type(e).__name__, str(e))
 
 
+
 class ClashesViewer(QDialog):
-    def __init__(self, school: SchoolFrameWork):
+    def __init__(self, school: School):
         super().__init__()
         self.setWindowTitle("Clash Viewer")
         
@@ -172,7 +191,7 @@ class ClashesViewer(QDialog):
         return widget, layout
     
     def display_clashes(self):
-        for teacher_id, day_mapping in self.school.detect_clashes().items():
+        for teacher_id, day_mapping in self.school.getClashes().items():
             _, display_layout = self._make_new_widget(QHBoxLayout, self.main_layout)
             
             display_layout.addWidget(QLabel(self.school.teachers[teacher_id].name))
