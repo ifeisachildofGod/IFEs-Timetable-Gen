@@ -143,7 +143,7 @@ class School:
             self.framework.generate_timetable([cls.uniqueID])
             self.setTimetableFromFramework([cls.uniqueID])
         except Exception as e:
-            print(e)
+            traceback.print_exc()
     
     def generateNewSchoolTimetables(self):
         # for cls in self.classes.values():
@@ -218,17 +218,11 @@ class School:
                 
                 text += f"{day}: {cls.periodsPerDay[day_index]} {cls.breakTimePeriods[day_index]}\n"
         
-        with open("middle/test-frmwk.txt") as file:
-            data = file.read()
-            
-            return SchoolFrameWork.school_from_text(data, id_mappings)
-        # return SchoolFrameWork.school_from_text(text, id_mappings)
+        return SchoolFrameWork.school_from_text(text, id_mappings)
     
     def setTimetableFromFramework(self, cls_ids: list[str] | None = None):
         cls_ids = cls_ids or list(self.classes)
-        from middle.frameworks import _display_school
-        print("Started Set")
-        _display_school(self.framework)
+        
         for cls_id in cls_ids:
             cls = self.classes[cls_id]
             
@@ -261,7 +255,6 @@ class School:
                             new_s.uniqueID = s.id
                         
                         cls.timetable.table[day].append(new_s)
-        print("Ended Set")
     
     def setSchoolInfoFromProjectDict(self):
         self.subjects = {}

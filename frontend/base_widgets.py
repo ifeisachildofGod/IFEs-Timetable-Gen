@@ -189,7 +189,7 @@ class BaseSettingWidget(QWidget):
             popup = popup_class(title=title, info=self.info[_id][var_name], saved_state_changed=self.saved_state_changed, *args, **kwargs)
             popup.go_to(desination_id)
             
-            show_popup_func = self._make_popup_func(_id, var_name, title, popup_class, *args, **kwargs)
+            show_popup_func = self._make_popup_func(_id, title, popup_class, var_name, *args, **kwargs)
             
             show_popup_func(popup)
         
@@ -202,25 +202,21 @@ class BaseSettingWidget(QWidget):
             self.sub_display_data_widgets[_id][var_name].append(new_sub_widget)
             self.display_data_widgets[_id][var_name].layout().addWidget(new_sub_widget)
         
-        label = QLabel(self.font_metrics.elidedText(text, Qt.TextElideMode.ElideRight, 90))
+        label = QLabel(self.font_metrics.elidedText(text, Qt.TextElideMode.ElideRight, 80))
         label.setFont(self.font())
         label.setToolTip(text)
-        label.setStyleSheet(f"QLabel {{background-color: blue; border-radius: 8px; font-size: 15px}}")
-        label.setFixedSize(100, 35)
+        label.setStyleSheet(f"QLabel {{background-color: {THEME_MANAGER.pallete_get("fg3")}; border-radius: 8px; font-size: 15px}}")
+        label.setFixedSize(110, 35)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.mousePressEvent = display_data_func
         
         self.sub_display_data_widgets[_id][var_name][-1].layout().addWidget(label)
     
     def clear_display_data_info(self, _id: str, var_name: str):
-        for widget in self.sub_display_data_widgets[_id][var_name].copy():
-            for label in widget.findChildren(QLabel):
-                widget.layout().removeWidget(label)
-                label.deleteLater()
-            
-            self.sub_display_data_widgets[_id][var_name].remove(widget)
-            self.display_data_widgets[_id][var_name].layout().removeWidget(widget)
-            widget.deleteLater()
+        clear_layout(self.display_data_widgets[_id][var_name].layout())
+        
+        self.sub_display_data_widgets[_id][var_name].clear()
+        self.display_data_widgets[_id][var_name].layout().addWidget(QLabel(f"<span style='font-weight: 900; font-family: Sans Serif;'>{var_name.title()}</span>"))
     
     def _update_display_data_info(self, init: bool = False):
         for _id, popup_data in self.popups_data.copy().items():
@@ -292,8 +288,8 @@ class BaseSettingWidget(QWidget):
             self.popups_data[_id] = {}
         self.popups_data[_id][var_name] = popup_class, title, args, kwargs
         
-        def show_popup():
-            popup = popup_class(title=title, info=self.info[_id].get(var_name, {}), saved_state_changed=self.saved_state_changed, *args, **kwargs)
+        def show_popup(popup=None):
+            popup = popup or popup_class(title=title, info=self.info[_id].get(var_name, {}), saved_state_changed=self.saved_state_changed, *args, **kwargs)
             
             popup.exec()
             self.info[_id][var_name] = popup.get()
@@ -721,6 +717,8 @@ class NumberLineEdit(QWidget):
         self.min_num = min_validatorAmt
         self.max_num = max_validatorAmt
         
+        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
+        
         self.edit = QLineEdit()
         self.edit.textChanged.connect(self._updateNumber)
         self.edit.setValidator(QIntValidator())
@@ -765,6 +763,8 @@ class NumberLineEdit(QWidget):
         self.edit.setPlaceholderText(text)
     
     def _updateNumber(self, text: str):
+        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
+        
         if not text.isnumeric() or self.max_num < int(text) < self.min_num:
             self.edit.setText(self._number)
         else:
@@ -772,6 +772,8 @@ class NumberLineEdit(QWidget):
             self.textChanged.emit(int(self._number))
     
     def _incDecNumber(self, direction: int):
+        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
+        
         number = self.number() + direction
         
         if self.min_num <= number <= self.max_num:

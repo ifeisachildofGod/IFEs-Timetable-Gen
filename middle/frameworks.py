@@ -115,8 +115,12 @@ class SchoolFrameWork:
     #         Teacher ID  Classes
     teachers_c: dict[str, list[ClassFW]]
     gen_data: GeneratingData
+    _log_data: dict[str, dict[str, list[str]]] | None = None
     
     def generate_timetable(self, cls_ids: list[str] | None = None):
+        if not self._log_data:
+            self._log_data = {}
+        
         cls_ids = cls_ids or list(self.classes)
         
         for cls_id in cls_ids:
@@ -168,7 +172,7 @@ class SchoolFrameWork:
                                 
                                 selected_period = day, score.index(max_score)
                         
-                        assert selected_period, scores
+                        assert selected_period, (scores, self._log_data[cls_id][s_id])
                         
                         day, index = selected_period
                         
@@ -276,6 +280,12 @@ class SchoolFrameWork:
             r_operate: int = False,
             default_score = -50
         ):
+        
+        if cls.id() not in self._log_data:
+            self._log_data[cls.id()] = {}
+        if s_id not in self._log_data[cls.id()]:
+            self._log_data[cls.id()][s_id] = []
+        
         subject = cls.subjects[s_id]
         
         assert cls.timetable
@@ -283,6 +293,7 @@ class SchoolFrameWork:
         periods = cls.timetable[day]
         
         if not (0 <= p_index <= len(periods) - 1):
+            self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Period out of timetable range"))
             return -math.inf
         
         assert subject.teacher
@@ -299,6 +310,15 @@ class SchoolFrameWork:
                 [p.id for p in periods].count(s_id) >= subject.freq_info[0] or
                 abs(p_index - next((p_i for p_i, p in enumerate(periods) if p.id == s_id), p_index + 1)) != 1
                 ):
+            if period.id != FreePeriodFW.id:
+                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Period is not free"))
+            if period.id != FreePeriodFW.id:
+                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Break period"))
+            if [p.id for p in periods].count(s_id) >= subject.freq_info[0]:
+                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Per day max reached"))
+            if abs(p_index - next((p_i for p_i, p in enumerate(periods) if p.id == s_id), p_index + 1)) != 1:
+                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Island"))
+            
             return -math.inf
         
         score = default_score
@@ -307,7 +327,7 @@ class SchoolFrameWork:
             if s_cls.timetable is not None:
                 s_subject = s_cls.timetable[day][p_index]
                 
-                if s_cls.id != cls.id and s_subject.id not in (FreePeriodFW.id, BreakPeriodFW.id):
+                if s_cls.id() != cls.id() and s_subject.id not in (FreePeriodFW.id, BreakPeriodFW.id):
                     s_teacher = s_subject.teacher
                     
                     assert s_teacher
@@ -338,6 +358,8 @@ class SchoolFrameWork:
                         raise Exception()
                     
                     if is_clashing and not combined:
+                        self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Alignment Error"))
+                        
                         return -math.inf
         else:
             clump_wieght = (self.gen_data.subject_clumping_weights[cls.id()][s_id][day] or 0) if cls.id in self.gen_data.subject_clumping_weights else 1

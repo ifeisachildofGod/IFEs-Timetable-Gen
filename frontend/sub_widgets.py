@@ -787,13 +787,15 @@ class SubjectSelection(BaseSubWidget):
     
     def make_per_week_text_changed_func(self, subject_id: str, per_day_edit: 'NumberLineEdit', per_week_edit: 'NumberLineEdit'):
         def text_changed_func():
+            diff = per_week_edit.number() - self.info[subject_id][1]["per_week"]
+            
             self.info[subject_id][1]["per_week"] = per_week_edit.number()
             
             if self.info[subject_id][1]["per_week"] < per_day_edit.max_num and self.info[subject_id][1]["per_week"] < self.info[subject_id][1]["per_day"]:
                 per_day_edit.setNumber(self.info[subject_id][1]["per_week"])
             
             per_day_edit.max_num = self.info[subject_id][1]["per_week"]
-            self._update_max_per_week(per_week_edit.number() - self.info[subject_id][1]["per_week"])
+            self._update_max_per_week(diff)
             
             self.saved_state_changed.emit()
         
