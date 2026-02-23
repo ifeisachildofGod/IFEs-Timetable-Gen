@@ -56,11 +56,11 @@ class NumberLineEdit(QWidget):
     
     def __init__(self, number: int, min_validatorAmt: int = 0, max_validatorAmt: int = 10):
         super().__init__()
+        self._min_num = min_validatorAmt
+        self._max_num = max_validatorAmt
         
-        self.min_num = min_validatorAmt
-        self.max_num = max_validatorAmt
-        
-        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
+        self.min_num = self._min_num
+        self.max_num = self._max_num
         
         self.edit = QLineEdit()
         self.edit.textChanged.connect(self._updateNumber)
@@ -95,6 +95,26 @@ class NumberLineEdit(QWidget):
         self.setFixedHeight(50)
         self.edit.setFixedHeight(30)
     
+    @property
+    def min_num(self):
+        return self._min_num
+    
+    @min_num.setter
+    def min_num(self, value: int):
+        self._min_num = value
+        
+        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
+    
+    @property
+    def max_num(self):
+        return self._max_num
+    
+    @max_num.setter
+    def max_num(self, value: int):
+        self._max_num = value
+        
+        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
+    
     def number(self):
         return int(self._number)
     
@@ -106,8 +126,6 @@ class NumberLineEdit(QWidget):
         self.edit.setPlaceholderText(text)
     
     def _updateNumber(self, text: str):
-        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
-        
         if not text.isnumeric() or self.max_num < int(text) < self.min_num:
             self.edit.setText(self._number)
         else:
@@ -115,8 +133,6 @@ class NumberLineEdit(QWidget):
             self.textChanged.emit(int(self._number))
     
     def _incDecNumber(self, direction: int):
-        assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
-        
         number = self.number() + direction
         
         if self.min_num <= number <= self.max_num:

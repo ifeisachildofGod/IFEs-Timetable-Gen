@@ -146,55 +146,18 @@ class SubjectDropdownCheckBoxes(BaseSubWidget):
         all_clicked_checkboxes: list[QCheckBox] = []
         
         for class_id, class_options in updated_data["content"].items():
-            main_widget = QWidget()
-            main_widget.setProperty("class", "Bordered")
-            main_widget.setProperty("class", "DropdownCheckboxes")
-            
-            widget_wrapper_layout = QVBoxLayout()
-            widget_wrapper_layout.setSpacing(0)
-            main_widget.setLayout(widget_wrapper_layout)
-            
-            open_dp_func = self.make_open_dp_func(class_id, class_check_box_tracker)
-            
-            def make_open_dp_func(odp_param_func):
-                def odp_func(a0: QMouseEvent | None):
-                    if a0.button() == Qt.MouseButton.LeftButton: # type: ignore
-                        odp_param_func()
-                
-                return odp_func
-            
-            header = QWidget()
-            header.setProperty("class", "DPC_Header")
-            header.setFixedHeight(50)
-            header.mousePressEvent = make_open_dp_func(open_dp_func)
-            
-            
-            header_layout = QHBoxLayout(header)
-            header_layout.setContentsMargins(12, 0, 12, 0)
-            
-            dp_icon = ArrowWidget(270)
-            dp_icon.setProperty("class", "Arrow")
-            dp_icon.mouseclicked.connect(open_dp_func)
-            dp_icon.setContentsMargins(0, 0, 10, 0)
-            
-            title = QLabel(id_mapping["main"][class_id])
-            
             check_box = QCheckBox()
             check_box.clicked.connect(self.make_main_checkbox_func(class_id, class_check_box_tracker))
             all_clicked = False not in list(class_options.values()) and class_options
             
-            header_layout.addWidget(dp_icon)
-            header_layout.addWidget(title)
-            header_layout.addStretch()
-            header_layout.addWidget(check_box)
-            
-            class_check_box_tracker["icon"][class_id] = dp_icon
             class_check_box_tracker["sub_cbs"][class_id] = {}
             class_check_box_tracker["main_cb"][class_id] = check_box
             class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, all_clicked, data, updated_data, class_check_box_tracker)
             
-            widget_wrapper_layout.addWidget(header)
-            widget_wrapper_layout.addWidget(class_check_box_tracker["widget"][class_id]) # type: ignore
+            main_widget = _WidgetDropdown(id_mapping["main"][class_id], class_check_box_tracker["widget"][class_id])
+            main_widget.header_layout.addWidget(check_box)
+            
+            class_check_box_tracker["icon"][class_id] = main_widget.toogle_icon
             
             all_clicked_checkboxes.extend(to_be_clicked)
             
@@ -341,46 +304,11 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
             self.subject_check_box_tracker[subject_id] = {}
             self.class_check_box_tracker[subject_id] = {"main_cb": {}, "sub_cbs": {}, "icon": {}, "max_random": {}, "widget": {}}
             
-            main_widget = QWidget()
-            sub_main_layout = QVBoxLayout()
-            
-            main_widget.setProperty("class", "Bordered")
-            main_widget.setProperty("class", "DropdownCheckboxes")
-            main_widget.setLayout(sub_main_layout)
-            
-            open_dp_func = self.make_open_subject_func(self.subject_check_box_tracker[subject_id])
-            
-            def make_open_subject(odp_param_func):
-                def odp_func(a0: QMouseEvent | None):
-                    if a0.button() == Qt.MouseButton.LeftButton: # type: ignore
-                        odp_param_func()
-                
-                return odp_func
-            
-            header = QWidget()
-            header.setProperty("class", "DPC_Header")
-            header.setFixedHeight(50)
-            header.mousePressEvent = make_open_subject(open_dp_func)
-            
-            header_layout = QHBoxLayout(header)
-            header_layout.setContentsMargins(12, 0, 12, 0)
-            
-            dp_icon = ArrowWidget(270)
-            dp_icon.setProperty("class", "Arrow")
-            dp_icon.mouseclicked.connect(open_dp_func)
-            dp_icon.setContentsMargins(0, 0, 10, 0)
-            
-            title = QLabel(self.info["id_mapping"][subject_id])
-
-            header_layout.addWidget(dp_icon)
-            header_layout.addWidget(title)
-            header_layout.addStretch()
-            
-            self.subject_check_box_tracker[subject_id]["icon"] = dp_icon
             self.subject_check_box_tracker[subject_id]["widget"] = self.make_subject_widget(info, self.general_data[subject_id], self.class_check_box_tracker[subject_id])
             
-            sub_main_layout.addWidget(header)
-            sub_main_layout.addWidget(self.subject_check_box_tracker[subject_id]["widget"])
+            main_widget = _WidgetDropdown(self.info["id_mapping"][subject_id], self.subject_check_box_tracker[subject_id]["widget"])
+            
+            self.subject_check_box_tracker[subject_id]["icon"] = main_widget.toogle_icon
             
             self.container_layout.addWidget(main_widget, alignment=Qt.AlignmentFlag.AlignTop)
         
@@ -484,39 +412,6 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
         random_on_checkboxes: list[QCheckBox] = []
         
         for class_id, (random_on, class_options) in updated_data["content"].items():
-            main_widget = QWidget()
-            
-            main_widget.setProperty("class", "Bordered")
-            main_widget.setProperty("class", "DropdownCheckboxes")
-            
-            widget_wrapper_layout = QVBoxLayout()
-            widget_wrapper_layout.setSpacing(0)
-            main_widget.setLayout(widget_wrapper_layout)
-            
-            open_dp_func = self.make_odp_func(data, class_id, class_check_box_tracker)
-            
-            def make_open_dp_func(odp_param_func):
-                def odp_func(a0: QMouseEvent | None):
-                    if a0.button() == Qt.MouseButton.LeftButton: # type: ignore
-                        odp_param_func()
-                
-                return odp_func
-            
-            header = QWidget()
-            header.setProperty("class", "DPC_Header")
-            header.setFixedHeight(50)
-            header.mousePressEvent = make_open_dp_func(open_dp_func)
-            
-            header_layout = QHBoxLayout(header)
-            header_layout.setContentsMargins(12, 0, 12, 0)
-            
-            dp_icon = ArrowWidget(270)
-            dp_icon.setProperty("class", "Arrow")
-            dp_icon.mouseclicked.connect(open_dp_func)
-            dp_icon.setContentsMargins(0, 0, 10, 0)
-            
-            title = QLabel(id_mapping["main"][class_id])
-            
             max_random_text_input = NumberLineEdit(random_on if random_on is not None else -1, len(class_options))
             max_random_text_input.edit.setToolTip("Max Classes")
             max_random_text_input.setVisible(False)
@@ -528,20 +423,16 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
             if random_on:
                 random_on_checkboxes.append(check_box)
             
-            header_layout.addWidget(dp_icon)
-            header_layout.addWidget(title)
-            header_layout.addStretch()
-            header_layout.addWidget(max_random_text_input)
-            header_layout.addWidget(check_box)
-            
-            class_check_box_tracker["icon"][class_id] = dp_icon
             class_check_box_tracker["sub_cbs"][class_id] = {}
             class_check_box_tracker["main_cb"][class_id] = check_box
             class_check_box_tracker["max_random"][class_id] = max_random_text_input
             class_check_box_tracker["widget"][class_id], to_be_clicked = self.make_dp_widget(class_id, class_options, random_on, data, general_data, updated_data, class_check_box_tracker)
             
-            widget_wrapper_layout.addWidget(header)
-            widget_wrapper_layout.addWidget(class_check_box_tracker["widget"][class_id]) # type: ignore
+            main_widget = _WidgetDropdown(id_mapping["main"][class_id], class_check_box_tracker["widget"][class_id])
+            main_widget.header_layout.addWidget(max_random_text_input)
+            main_widget.header_layout.addWidget(check_box)
+            
+            class_check_box_tracker["icon"][class_id] = main_widget.toogle_icon
             
             random_on_checkboxes.extend(to_be_clicked)
             
@@ -1118,6 +1009,56 @@ class OptionSelector(BaseSubWidget):
 
 
 
+class _WidgetDropdown(QWidget):
+    def __init__(self, title: str, widget: QWidget, parent=None):
+        super().__init__(parent)
+        
+        self.widget = widget
+        
+        layout = QVBoxLayout()
+        layout.setSpacing(0)
+        self.setLayout(layout)
+        
+        self.container = QWidget()
+        self.main_layout = QVBoxLayout()
+        self.main_layout.setSpacing(0)
+        self.container.setLayout(self.main_layout)
+        
+        self.container.setProperty("class", "Bordered")
+        self.container.setProperty("class", "DropdownCheckboxes")
+        
+        header = QWidget()
+        header.setProperty("class", "DPC_Header")
+        header.setFixedHeight(50)
+        header.mousePressEvent = self.tdp_event_func
+        
+        self.header_layout = QHBoxLayout(header)
+        self.header_layout.setContentsMargins(12, 0, 12, 0)
+        
+        self.toogle_icon = ArrowWidget(270)
+        self.toogle_icon.setProperty("class", "Arrow")
+        self.toogle_icon.mouseclicked.connect(self.toogle_widget)
+        self.toogle_icon.setContentsMargins(0, 0, 10, 0)
+        
+        title_label = QLabel(title)
+        
+        self.header_layout.addWidget(self.toogle_icon)
+        self.header_layout.addWidget(title_label)
+        self.header_layout.addStretch()
+        # self.header_layout.addWidget(check_box)
+        
+        self.main_layout.addWidget(header)
+        self.main_layout.addWidget(self.widget) # type: ignore
+        
+        layout.addWidget(self.container)
+    
+    def tdp_event_func(self, a0: QMouseEvent | None):
+        if a0.button() == Qt.MouseButton.LeftButton: # type: ignore
+            self.toogle_widget()
+    
+    def toogle_widget(self):
+        self.toogle_icon.setAngle(0 if self.toogle_icon.angle != 0 else 270)
+        self.widget.setVisible(not self.widget.isVisible())
 
 class _OW_Entry(QWidget):
     deleted = pyqtSignal()
@@ -1126,7 +1067,7 @@ class _OW_Entry(QWidget):
     
     def __init__(self, initial_text: str | None = None):
         super().__init__()
-        self.setProperty("class", "_OW_Entry")
+        self.setProperty("class", "OptionTag")
         
         self.text = initial_text if initial_text is not None else ""
         self.is_editing = False

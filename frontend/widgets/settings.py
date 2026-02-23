@@ -6,21 +6,14 @@ class Subjects(BaseSettingWidget):
         self.teachers = [None]
         self.classes_data = {"content": {}, "id_mapping": {"main": {}, "sub": {}}}
         
-        self.saved_changed = True
-        
-        def change_save_change():
-            self.saved_changed = True
-        
         super().__init__(main_window, "Subjects", [("Enter the subject name", 10)], saved_state_changed, save_data)
-        
-        self.saved_state_changed.connect(change_save_change)
     
     def update_data_interaction(self, prev_index, curr_index):
         general_condition = prev_index != 3 and not (curr_index == 3 and prev_index != 0)
-        if not general_condition or not self.saved_changed:
+        if not general_condition or not self._saved_changed:
             return
         
-        self.saved_changed = False
+        self._saved_changed = False
         
         teacher_update_condition = (prev_index == 1 and curr_index == 0) or (curr_index == 2 and prev_index == 1)
         class_update_condition = (prev_index == 2 and curr_index == 0) or (curr_index == 1 and prev_index == 2)
@@ -162,21 +155,14 @@ class Teachers(BaseSettingWidget):
         self.subjects = [None]
         self.all_subject_classes_info = {}
         
-        self.saved_changed = True
-        
-        def change_save_change():
-            self.saved_changed = True
-        
         super().__init__(main_window, "Teachers", [("Full name", 10)], saved_state_changed, save_data)
-        
-        self.saved_state_changed.connect(change_save_change)
     
     def update_data_interaction(self, prev_index, curr_index):
         class_update_condition = prev_index in (0, 2)
-        if (not ((prev_index == 0 and curr_index in (1, 2)) or (curr_index == 3 and prev_index != 1) or (class_update_condition and curr_index == 1)) or prev_index == 3) or not self.saved_changed:
+        if (not ((prev_index == 0 and curr_index in (1, 2)) or (curr_index == 3 and prev_index != 1) or (class_update_condition and curr_index == 1)) or prev_index == 3) or not self._saved_changed:
             return
         
-        self.saved_changed = False
+        self._saved_changed = False
         
         subject_info = self.main_window.subjects_widget.get() # type: ignore
         
@@ -238,7 +224,7 @@ class Teachers(BaseSettingWidget):
             
             if class_update_condition:
                 self._update_classes(teacher_id)
-
+        
         self._update_display_data_info()
     
     def get_new_data(self):
@@ -261,7 +247,7 @@ class Teachers(BaseSettingWidget):
         self._make_popup(_id, "Classes", layout, TeacherDropdownCheckBoxes, "classes", teacher_id=_id, general_data=self.all_subject_classes_info, default_max_classes=self.main_window.default_max_classes) # type: ignore
         self._make_popup(_id, "Subjects", layout, SelectionList, "subjects", alignment=Qt.AlignmentFlag.AlignLeft)
     
-    def popup_closed(self, _id, popup, var_name, init = False):
+    def popup_closed(self, _id, var_name, popup, init = False):
         super().popup_closed(_id, var_name, popup, init)
         
         if isinstance(popup, SelectionList):
@@ -283,12 +269,12 @@ class Teachers(BaseSettingWidget):
             popup_data = popup.get()
             
             for s_id, s_data in popup_data["content"].items():
-                for lvl_id, (random, cls_data) in s_data.items():
-                    if random is not None:
+                for lvl_id, (random_amt, cls_data) in s_data.items():
+                    if random_amt is not None:
                         self.add_display_data_info(
                             _id,
                             var_name,
-                            f"{random} selected in {''.join(class_info[lvl_id]['text'])}",
+                            f"{random_amt} selected in {''.join(class_info[lvl_id]['text'])}",
                             lvl_id
                         )
                     else:
@@ -408,20 +394,13 @@ class Teachers(BaseSettingWidget):
 
 class Classes(BaseSettingWidget):
     def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):
-        self.saved_changed = True
-        
-        def change_save_change():
-            self.saved_changed = True
-        
         super().__init__(main_window, "Classes", [("Enter the class section name", 10)], saved_state_changed, save_data)
-        
-        self.saved_state_changed.connect(change_save_change)
     
     def update_data_interaction(self, prev_index, curr_index):
-        if prev_index in (2, 3) or not self.saved_changed:
+        if prev_index in (2, 3) or not self._saved_changed:
             return
         
-        self.saved_changed = False
+        self._saved_changed = False
         
         subject_info = self.main_window.subjects_widget.get() # type: ignore
         
@@ -483,7 +462,7 @@ class Classes(BaseSettingWidget):
             
             removed = False
             
-            for subject_id, (_, subjects_display_data) in self.info[_id]["subjects"].copy().items():
+            for subject_id in self.info[_id]["subjects"].copy():
                 for option_id in self.info[_id]["options"].copy():
                     if option_id not in options_data:
                         self.info[_id]["options"].pop(option_id)

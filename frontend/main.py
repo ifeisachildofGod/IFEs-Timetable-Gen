@@ -54,8 +54,8 @@ class Window(QMainWindow):
         
         # Make settings widgets
         self.subjects_widget = Subjects(self, self.save_data.get("subjectsInfo"), self.saved_state_changed)
-        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
         self.classes_widget = Classes(self, self.save_data.get("classesInfo"), self.saved_state_changed)
+        self.teachers_widget = Teachers(self, self.save_data.get("teachersInfo"), self.saved_state_changed)
         
         self.timetable_widget = TimeTableEditor(self, self.school, self.save_data.get("timetableInfo"), self.saved_state_changed)
         

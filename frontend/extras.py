@@ -70,8 +70,6 @@ class Thread(QThread):
             self.crashed.emit(e)
             self.exit(-1)
 
-
-
 class FileManager:
     def __init__(self, parent: QWidget, path: Optional[str], file_filter="Text Files (*.txt);;All Files (*)"):
         self.path = path

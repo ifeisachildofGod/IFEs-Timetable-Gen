@@ -10,6 +10,7 @@ BaseWidgetInfoType = Union[
     dict[str, list[str] | dict[int, str]]
 ]
 
+
 class BaseSubWidget(QDialog):
     def __init__(self, title: str, info: BaseWidgetInfoType, saved_state_changed: pyqtBoundSignal):
         super().__init__()
@@ -34,7 +35,7 @@ class BaseSubWidget(QDialog):
 
 class BaseSettingWidget(QWidget):
     def __init__(self, main_window: QMainWindow, name: str, input_placeholders: list[tuple[str, int]], saved_state_changed: pyqtBoundSignal, data: dict | None = None):
-        super().__init__()
+        super().__init__()        
         self.main_window = main_window
         
         self.objectNameChanged.connect(lambda: self.add_button.setText(f"Add {self.objectName().title()}"))
@@ -88,6 +89,9 @@ class BaseSettingWidget(QWidget):
         self._update_display_data_info(True)
         
         self.scroll_area.verticalScrollBar().setValue(0) # type: ignore
+        
+        self._saved_changed = True
+        self.saved_state_changed.connect(self._change_save_change)
     
     def go_to(self, _id):
         for widget_id, widget in self.widgets.items():
@@ -173,7 +177,7 @@ class BaseSettingWidget(QWidget):
     def entry_deleted(self, _id):
         pass
     
-    def popup_closed(self, _id: str, popup: BaseSubWidget, var_name: str, init: bool = False):
+    def popup_closed(self, _id: str, var_name: str, popup: BaseSubWidget, init: bool = False):
         pass
     
     def add_display_data_info(self, _id: str, var_name: str, text: str, desination_id: str):
@@ -186,6 +190,9 @@ class BaseSettingWidget(QWidget):
             show_popup_func = self._make_popup_func(_id, title, popup_class, var_name, *args, **kwargs)
             
             show_popup_func(popup)
+        
+        if not self.sub_display_data_widgets[_id][var_name]:
+            self.display_data_widgets[_id][var_name].layout().addWidget(QLabel(f"<span style='font-weight: 900; font-family: Sans Serif;'>{var_name.title()}</span>"))
         
         if not self.sub_display_data_widgets[_id][var_name] or len(self.sub_display_data_widgets[_id][var_name][-1].findChildren(QLabel)) >= self.display_data_max:
             new_sub_widget = QWidget()
@@ -210,7 +217,9 @@ class BaseSettingWidget(QWidget):
         clear_layout(self.display_data_widgets[_id][var_name].layout())
         
         self.sub_display_data_widgets[_id][var_name].clear()
-        self.display_data_widgets[_id][var_name].layout().addWidget(QLabel(f"<span style='font-weight: 900; font-family: Sans Serif;'>{var_name.title()}</span>"))
+    
+    def _change_save_change(self):
+        self._saved_changed = True
     
     def _update_display_data_info(self, init: bool = False):
         for _id, popup_data in self.popups_data.copy().items():
@@ -248,7 +257,9 @@ class BaseSettingWidget(QWidget):
             self.container_layout.removeWidget(widget)
             widget.deleteLater()
             self.entry_deleted(_id)
+            
             self.info.pop(_id)
+            self.popups_data.pop(_id)
             
             self.saved_state_changed.emit()
         
@@ -288,7 +299,7 @@ class BaseSettingWidget(QWidget):
             popup.exec()
             self.info[_id][var_name] = popup.get()
             
-            self.popup_closed(_id, popup, var_name)
+            self.popup_closed(_id, var_name, popup)
         
         return show_popup
 
