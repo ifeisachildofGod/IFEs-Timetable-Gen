@@ -1,5 +1,7 @@
 from frontend.imports import *
 from frontend.base_widgets import *
+from frontend.extra_utility_widgets import *
+
 
 class SelectionList(BaseSubWidget):
     def __init__(self, title: str, info: list, saved_state_changed: pyqtBoundSignal):
@@ -23,12 +25,12 @@ class SelectionList(BaseSubWidget):
         
         # Add selected items
         for item_id, item_name in selected_items:
-            widget = SelectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
+            widget = _SL_SelectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
             self.container_layout.addWidget(widget)
         
         # Add unselected items
         for item_id, item_name in unselected_items:
-            widget = UnselectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
+            widget = _SL_UnSelectedWidget(item_id, item_name, self.container_layout, self.saved_state_changed)
             self.container_layout.addWidget(widget)
         
         self.container_layout.addStretch()
@@ -37,20 +39,20 @@ class SelectionList(BaseSubWidget):
         content = []
         
         for widget in self.container.children():
-            if isinstance(widget, SelectedWidget):
+            if isinstance(widget, _SL_SelectedWidget):
                 content.append((widget.id, widget.text))
         
         content.append(None)
         
         for widget in self.container.children():
-            if isinstance(widget, UnselectedWidget):
+            if isinstance(widget, _SL_UnSelectedWidget):
                 content.append((widget.id, widget.text))
         
         return content
     
     def go_to(self, _id):
         for widget in self.container.children():
-            if isinstance(widget, (SelectedWidget, UnselectedWidget)) and widget.id == _id:
+            if isinstance(widget, (_SL_SelectedWidget, _SL_UnSelectedWidget)) and widget.id == _id:
                 def func():
                     self.scroll_area.verticalScrollBar().setValue(widget.y())
                     widget.setFocus()
@@ -169,7 +171,7 @@ class SubjectDropdownCheckBoxes(BaseSubWidget):
             header_layout = QHBoxLayout(header)
             header_layout.setContentsMargins(12, 0, 12, 0)
             
-            dp_icon = CustomLabel("▼", 270)
+            dp_icon = ArrowWidget(270)
             dp_icon.setProperty("class", "Arrow")
             dp_icon.mouseclicked.connect(open_dp_func)
             dp_icon.setContentsMargins(0, 0, 10, 0)
@@ -362,7 +364,7 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
             header_layout = QHBoxLayout(header)
             header_layout.setContentsMargins(12, 0, 12, 0)
             
-            dp_icon = CustomLabel("▼", 270)
+            dp_icon = ArrowWidget(270)
             dp_icon.setProperty("class", "Arrow")
             dp_icon.mouseclicked.connect(open_dp_func)
             dp_icon.setContentsMargins(0, 0, 10, 0)
@@ -507,7 +509,7 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
             header_layout = QHBoxLayout(header)
             header_layout.setContentsMargins(12, 0, 12, 0)
             
-            dp_icon = CustomLabel("▼", 270)
+            dp_icon = ArrowWidget(270)
             dp_icon.setProperty("class", "Arrow")
             dp_icon.mouseclicked.connect(open_dp_func)
             dp_icon.setContentsMargins(0, 0, 10, 0)
@@ -814,7 +816,7 @@ class SubjectSelection(BaseSubWidget):
 class OptionsMaker(BaseSubWidget):
     def __init__(self, title: str, info: dict[str, str], saved_state_changed: pyqtBoundSignal):
         super().__init__(title, info, saved_state_changed)
-        self.option_widgets: dict[str, OptionTag] = {}
+        self.option_widgets: dict[str, _OW_Entry] = {}
         self.current_row = 0
         self.current_col = 0
         self.max_cols = 4  # Maximum number of columns before wrapping
@@ -836,7 +838,7 @@ class OptionsMaker(BaseSubWidget):
         self.main_layout.addWidget(self.scroll_area)
         self.main_layout.addWidget(self.add_button, alignment=Qt.AlignmentFlag.AlignRight)
         
-        temp_option = OptionTag("IFE")
+        temp_option = _OW_Entry("IFE")
         self.setFixedSize((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.container_layout.spacing()) * self.max_cols, 300)
         
         del temp_option
@@ -857,7 +859,7 @@ class OptionsMaker(BaseSubWidget):
                 break
     
     def add_option(self, _id: str | None = None, text: str | None = None):
-        option = OptionTag(text)
+        option = _OW_Entry(text)
         
         _id = str(hex(id(option)).lower().replace("0x", "")) if _id is None else _id
         
@@ -927,7 +929,7 @@ class OptionSelector(BaseSubWidget):
         self.main_options_rows_layout_list: list[QHBoxLayout] = []
         self.sub_options_rows_layout_list: list[QHBoxLayout] = []
         
-        self.main_options_tracker: list[list[OptionTag]] = []
+        self.main_options_tracker: list[list[_OW_Entry]] = []
         self.sub_options_tracker: list[list[QLabel]] = []
         
         self.container_layout.setSpacing(10)
@@ -978,7 +980,7 @@ class OptionSelector(BaseSubWidget):
         
         self.main_layout.addWidget(self.container)
         
-        temp_option = OptionTag("Ife")
+        temp_option = _OW_Entry("Ife")
         self.setFixedWidth((temp_option.width() + (temp_option.main_layout.spacing() * 4) + self.main_options_layout.spacing()) * self.sub_max_cols)
     
     def _make_add_option_func_in_remove_opt(self, name: str, option: QLabel):
@@ -1016,7 +1018,7 @@ class OptionSelector(BaseSubWidget):
         
         return add_option
     
-    def _make_remove_option_func_in_add_opt(self, name: str, option: OptionTag):
+    def _make_remove_option_func_in_add_opt(self, name: str, option: "_OW_Entry"):
         def remove_option():
             opt_index = None
             
@@ -1048,7 +1050,7 @@ class OptionSelector(BaseSubWidget):
         return remove_option
     
     def _add_new_option(self, name: str, index: int):
-        option = OptionTag(name)
+        option = _OW_Entry(name)
         
         option.deleted.disconnect()
         option.deleted.connect(self._make_remove_option_func_in_add_opt(name, option))
@@ -1112,4 +1114,199 @@ class OptionSelector(BaseSubWidget):
     def close(self):
         self.closed.emit()
         return super().close()
+
+
+
+
+class _OW_Entry(QWidget):
+    deleted = pyqtSignal()
+    started_editing_signal = pyqtSignal()
+    finished_editing_signal = pyqtSignal()
+    
+    def __init__(self, initial_text: str | None = None):
+        super().__init__()
+        self.setProperty("class", "_OW_Entry")
+        
+        self.text = initial_text if initial_text is not None else ""
+        self.is_editing = False
+        
+        self.main_layout = QHBoxLayout(self)
+        self.main_layout.setContentsMargins(4, 2, 4, 2)
+        self.main_layout.setSpacing(4)
+        
+        # Input mode widgets
+        self.input = QLineEdit()
+        self.input.setProperty("class", "OptionEdit")
+        self.input.setText(self.text)
+        self.input.setPlaceholderText("Enter option")
+        self.input.setFixedWidth(80)  # Fix input width
+        self.input.returnPressed.connect(self.input.clearFocus)
+        self.input.editingFinished.connect(self.finish_editing)
+        
+        self.close_btn = QPushButton("×")
+        self.close_btn.setProperty("class", "Close")
+        self.close_btn.clicked.connect(self.remove)
+        self.close_btn.setFixedSize(20, 20)
+        
+        self.deleted.connect(self.deleteLater)
+        self.started_editing_signal.connect(self.start_editing)
+        self.finished_editing_signal.connect(self._finished_editing)
+        
+        # Label mode widget
+        self.label = QLabel(self.text)
+        self.label.setMinimumWidth(80)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.mousePressEvent = lambda _: self.started_editing_signal.emit()
+        
+        # Initialize both widgets but hide input initially
+        self.main_layout.addWidget(self.label)
+        self.main_layout.addWidget(self.input)
+        self.main_layout.addWidget(self.close_btn)
+        self.input.hide()
+        
+        self.setFixedHeight(30)
+        self.setFixedWidth(130)
+    
+    def _finished_editing(self):
+        if self.is_editing:
+            self.text = self.input.text().strip()
+            self.is_editing = False
+            self.setup_display_mode()
+            self.label.setText(self.text)
+            self.label.show()
+    
+    def setup_display_mode(self):
+        self.label.show()
+        self.input.hide()
+        self.close_btn.show()
+    
+    def setup_edit_mode(self):
+        self.label.hide()
+        self.input.show()
+        self.close_btn.show()
+    
+    def start_editing(self):
+        if not self.is_editing:
+            self.input.setText(self.text)
+            self.setup_edit_mode()
+            self.input.setFocus()
+            
+            self.is_editing = True
+    
+    def finish_editing(self):
+        self.finished_editing_signal.emit()
+    
+    def remove(self):
+        self.deleted.emit()
+    
+    def get_text(self):
+        return self.text
+
+class _SL_SelectedWidget(QWidget):
+    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal):
+        super().__init__()
+        layout = QHBoxLayout()
+        layout.setSpacing(8)
+        layout.setContentsMargins(10, 0, 0, 0)
+        
+        self.setLayout(layout)
+        
+        container = QWidget()
+        container_layout = QHBoxLayout()
+        
+        container.setProperty("class", "SelectedSelectionListEntry")
+        container.setLayout(container_layout)
+        
+        layout.addWidget(container)
+        
+        self.id = _id
+        self.text = text
+        self.host_container_layout = host_container_layout
+        
+        metrics = QFontMetrics(self.font())
+        label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
+        label.setFont(self.font())
+        label.setToolTip(self.text)
+        
+        delete_button = QPushButton("×")
+        delete_button.setProperty("class", 'Close')
+        delete_button.setFixedSize(24, 24)
+        delete_button.clicked.connect(self.delete_self)
+        
+        container_layout.addWidget(label)
+        container_layout.addStretch()
+        container_layout.addWidget(delete_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        
+        self.saved_state_changed_signal = saved_state_changed_signal
+    
+    def delete_self(self):
+        self.host_container_layout.removeWidget(self)
+        
+        widget = _SL_UnSelectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal)
+        
+        # Find the last unselected widget or append at the end
+        insert_index = self.host_container_layout.count() - 1
+        for i in range(self.host_container_layout.count() - 1, -1, -1):
+            if isinstance(self.host_container_layout.itemAt(i).widget(), _SL_UnSelectedWidget):
+                insert_index = i
+                break
+        
+        self.host_container_layout.insertWidget(insert_index, widget)
+        
+        self.deleteLater()
+        
+        self.saved_state_changed_signal.emit()
+
+class _SL_UnSelectedWidget(QWidget):
+    def __init__(self, _id: str, text: str, host_container_layout: QVBoxLayout, saved_state_changed_signal: pyqtBoundSignal):
+        super().__init__()
+        layout = QHBoxLayout()
+        layout.setSpacing(8)
+        layout.setContentsMargins(10, 0, 0, 0)
+        
+        self.setLayout(layout)
+        
+        container = QWidget()
+        container_layout = QHBoxLayout()
+        
+        container.setProperty("class", "UnselectedSelectionListEntry")
+        container.setLayout(container_layout)
+        
+        layout.addWidget(container)
+        
+        self.id = _id
+        self.text = text
+        self.host_container_layout = host_container_layout
+        
+        metrics = QFontMetrics(self.font())
+        label = QLabel(metrics.elidedText(self.text, Qt.TextElideMode.ElideRight, 200))
+        label.setFont(self.font())
+        label.setToolTip(text)
+        
+        add_button = QPushButton("×")
+        add_button.setProperty("class", 'Close')
+        add_button.setFixedSize(24, 24)
+        add_button.clicked.connect(self.add_self)
+        
+        container_layout.addWidget(label)
+        container_layout.addStretch()
+        container_layout.addWidget(add_button, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        
+        self.saved_state_changed_signal = saved_state_changed_signal
+    
+    def add_self(self):
+        self.host_container_layout.removeWidget(self)
+        
+        widget = _SL_SelectedWidget(self.id, self.text, self.host_container_layout, self.saved_state_changed_signal)
+        
+        insert_index = 0
+        for i in range(self.host_container_layout.count()):
+            if isinstance(self.host_container_layout.itemAt(i).widget(), _SL_SelectedWidget):
+                insert_index = i + 1
+        
+        self.host_container_layout.insertWidget(insert_index, widget)
+        
+        self.deleteLater()
+        
+        self.saved_state_changed_signal.emit()
 

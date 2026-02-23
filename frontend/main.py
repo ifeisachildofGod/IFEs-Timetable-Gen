@@ -82,7 +82,7 @@ class Window(QMainWindow):
         main_sidebar_widget.setLayout(main_sidebar_layout)
         main_sidebar_widget.setProperty("class", "Sidebar")
         
-        # self.toggle_sidebar_button = CustomLabel("▼", 90)
+        # self.toggle_sidebar_button = ArrowWidget(90)
         # self.toggle_sidebar_button.setProperty("class", "SidebarToggleButton")
         # self.toggle_sidebar_button.mouseclicked.connect(self.toggle_sidebar)
         # self.toggle_sidebar_button.setFixedSize(20, 150)
@@ -297,7 +297,7 @@ class Window(QMainWindow):
                         for row in range(cls_ttbl.rowCount()):
                             ttbl_text += f'<div class="cell header">{cls_ttbl.verticalHeaderItem(row).text()}</div>'
                             for col in range(cls_ttbl.columnCount()):
-                                item: TimeTableItem = cls_ttbl.item(row, col)
+                                item = cls_ttbl.item(row, col)
                                 
                                 ttbl_text += (
                                     f'<div class="cell break"></div>'
@@ -355,7 +355,7 @@ class Window(QMainWindow):
                         
                         for row in range(1, cls_ttbl.rowCount() + 1):
                             for col in range(1, cls_ttbl.columnCount() + 1):
-                                item: TimeTableItem = cls_ttbl.item(row - 1, col - 1)
+                                item = cls_ttbl.item(row - 1, col - 1)
                                 word_table.cell(row, col).text = "" if item.break_time or item.free_period else item.text()
                         
                         for r, row in enumerate(word_table.rows):
