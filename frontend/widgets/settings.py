@@ -1,5 +1,5 @@
 from frontend.imports import *
-from frontend.entry_popup_widgets import *
+from frontend.widgets.settings_entry_popups import *
 
 class Subjects(BaseSettingWidget):
     def __init__(self, main_window: QMainWindow, save_data: dict | None, saved_state_changed):

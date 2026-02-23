@@ -1,6 +1,7 @@
 from frontend.imports import *
-from frontend.base_widgets import *
-from frontend.extra_utility_widgets import *
+
+from frontend.widgets.base import *
+from frontend.widgets.utility import *
 
 
 class SelectionList(BaseSubWidget):

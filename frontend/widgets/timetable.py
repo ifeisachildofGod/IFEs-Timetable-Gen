@@ -1,6 +1,7 @@
 from frontend.imports import *
-from frontend.extra_utility_widgets import *
-from frontend.entry_popup_widgets import *
+
+from frontend.widgets.utility import *
+from frontend.widgets.settings_entry_popups import *
 
 class _TimetableClashesViewer(QDialog):
     def __init__(self, school: School):

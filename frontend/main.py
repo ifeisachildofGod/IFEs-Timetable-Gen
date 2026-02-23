@@ -1,7 +1,7 @@
 from frontend.imports import *
 
-from frontend.setting_widgets import *
-from frontend.editing_widgets import TimeTableEditor
+from frontend.widgets.settings import *
+from frontend.widgets.timetable import TimeTableEditor
 
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill

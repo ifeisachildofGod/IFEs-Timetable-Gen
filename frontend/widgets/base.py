@@ -2,8 +2,6 @@ from frontend.imports import *
 from frontend.extras import *
 from frontend.theme.theme import THEME_MANAGER
 
-
-
 BaseWidgetInfoType = Union[
     list[tuple[str, str]],
     dict[str, dict[str, dict[str, dict[str, str | bool]]] | dict[int, str]],
