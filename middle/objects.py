@@ -2,7 +2,7 @@
 # from matplotlib.cbook import flatten
 
 from imports import *
-from middle.frameworks import ClassFW
+from middle.frameworks import FreePeriodFW, BreakPeriodFW
 
 class Subject:
     def __init__(self, _id: str, name: str, total: int, perWeek: int, teacher: 'Teacher', cls: 'Class') -> None:
@@ -143,9 +143,6 @@ class Timetable:
         
         self.freePeriodAmt = max(sum(self.periodsPerDay) - (sum([subject.perWeek for subject in self.subjects]) + len(self.weekInfo)), 0)
         
-        self.freePeriodID = "Subject ID: Free"
-        self.breakPeriodID = "Subject ID: Break"
-        
         self._perfectTimetableCounter = 0
         self._maxPerfectTimetableTries = 30
         self._foundPerfectTimeTable = False
@@ -168,18 +165,18 @@ class Timetable:
         return timetable
     
     def addFreePeriod(self, day: str, total: int, perWeek: int):
-        self.table[day].append(Subject(self.freePeriodID, "Free", total, perWeek, None, self.cls))
+        self.table[day].append(Subject(FREE_PERIOD_ID, "Free", total, perWeek, None, self.cls))
     
     def addFreePeriods(self):
         if self.freePeriodAmt:
-            self.subjects.append(Subject(self.freePeriodID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.cls))
-            self._subjects.append(Subject(self.freePeriodID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.cls))
+            self.subjects.append(Subject(FREE_PERIOD_ID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.cls))
+            self._subjects.append(Subject(FREE_PERIOD_ID, "Free", int(sum([subject.total for subject in self.subjects]) / len(self.subjects)), self.freePeriodAmt, None, self.cls))
     
     def reset(self):
         self.subjects = self._subjects
-        self._subjects = [subject.copy() for subject in self.subjects if subject.id != self.freePeriodID]
+        self._subjects = [subject.copy() for subject in self.subjects if subject.id != FREE_PERIOD_ID]
         
-        self.table: dict[str, list[SubjectType]] = {day: [Subject(self.freePeriodID, "Free", b - 1, 0, None, self.cls), Subject(self.breakPeriodID, "Break", 1, 0, None, self.cls), Subject(self.freePeriodID, "Free", p - b, 0, None, self.cls)] for day, p, b in self.weekInfo}
+        self.table: dict[str, list[SubjectType]] = {day: [Subject(FREE_PERIOD_ID, "Free", b - 1, 0, None, self.cls), Subject(BREAK_PERIOD_ID, "Break", 1, 0, None, self.cls), Subject(FREE_PERIOD_ID, "Free", p - b, 0, None, self.cls)] for day, p, b in self.weekInfo}
         self.remainderContent = []
         
         for subject in self.subjects:
@@ -227,7 +224,7 @@ class Timetable:
                         for sIndex, s in enumerate(subj):
                             replacementPeriod = sum([subjInfo.total for subjInfo in subj[:sIndex]])
                             if not [True for subjInfo in subjects if subjInfo.id == s.id]\
-                               and s.id != self.breakPeriodID and subject.perWeek > s.total\
+                               and s.id != BREAK_PERIOD_ID and subject.perWeek > s.total\
                                and subject.total + s.total == subject.perWeek\
                                and not self.findClashes(subject, timetableDay, replacementPeriod)\
                                and not self.findClashes(s, day, subjectPeriod)\
@@ -378,10 +375,10 @@ class Timetable:
         src_subjs[row1] = temp_tar_subj
         tar_subjs[row2] = temp_src_subj
         
-        if temp_src_subj.id == self.breakPeriodID:
+        if temp_src_subj.id == BREAK_PERIOD_ID:
             self.weekInfo[col1][2] = self.cls.breakTimePeriods[col1]\
                 = self.breakTimePeriods[col1] = row2 + 1
-        elif temp_tar_subj.id == self.breakPeriodID:
+        elif temp_tar_subj.id == BREAK_PERIOD_ID:
             self.weekInfo[col2][2] = self.cls.breakTimePeriods[col2]\
                 = self.breakTimePeriods[col2] = row1 + 1
         
@@ -393,16 +390,16 @@ class Timetable:
         
         self.spread(subjects)
         
-        break_period_before = self.idFind(self.breakPeriodID, col)
+        break_period_before = self.idFind(BREAK_PERIOD_ID, col)
         before_break = self.weekInfo[col][2] - break_period_before - 1
         
         if before_break < 0:
             for i in range(-before_break):
                 last_subj = subjects.pop(break_period_before - i - 1)
-                if last_subj != self.freePeriodID:
+                if last_subj != FREE_PERIOD_ID:
                     raise Exception("Subject amount error")
         else:
-            free = Subject(self.freePeriodID, "Free", 1, 0, None, self.cls)
+            free = Subject(FREE_PERIOD_ID, "Free", 1, 0, None, self.cls)
             for _ in range(before_break):
                 subjects.insert(break_period_before, free)
         
@@ -410,10 +407,10 @@ class Timetable:
         if after_break < 0:
             for _ in range(-after_break):
                 last_subj = subjects.pop()
-                if last_subj.id != self.freePeriodID:
+                if last_subj.id != FREE_PERIOD_ID:
                     raise Exception("Subject amount error")
         else:
-            free = Subject(self.freePeriodID, "Free", 1, 0, None, self.cls)
+            free = Subject(FREE_PERIOD_ID, "Free", 1, 0, None, self.cls)
             for _ in range(after_break):
                 subjects.append(free)
         
@@ -498,13 +495,13 @@ class Timetable:
                     subjects.append(s)
                 else:
                     period += 1
-                    subjects.append(Subject(self.breakPeriodID, 'Break', 1, 1, None, self.cls))
+                    subjects.append(Subject(BREAK_PERIOD_ID, 'Break', 1, 1, None, self.cls))
                     
                     self.subjects.append(subject)
                     empties.append(subjectIndex)
             
             rem_periods = periods - sum([s.total for s in subjects])
-            subjects.append(Subject(self.freePeriodID, "Free", rem_periods, rem_periods, None, self.cls))
+            subjects.append(Subject(FREE_PERIOD_ID, "Free", rem_periods, rem_periods, None, self.cls))
             
             self.table[day] = subjects
             
@@ -516,18 +513,18 @@ class Timetable:
             self.subjects = tempSubjects
         
         for dayIndex, (_, subjects) in enumerate(self.table.items()):
-            if self.breakPeriodID not in [subject.id for subject in subjects]:
+            if BREAK_PERIOD_ID not in [subject.id for subject in subjects]:
                 period = 1
                 for subjectIndex, subject in enumerate(subjects):
                     period += subject.total
                     if period >= self.breakTimePeriods[dayIndex]:
                         if period == self.breakTimePeriods[dayIndex]:
-                            subjects.insert(subjectIndex + 1, Subject(self.breakPeriodID, 'Break', 1, 1, None, subject.cls))
+                            subjects.insert(subjectIndex + 1, Subject(BREAK_PERIOD_ID, 'Break', 1, 1, None, subject.cls))
                         elif period > self.breakTimePeriods[dayIndex]:
                             replacementAmt = period - self.breakTimePeriods[dayIndex]
                             subject.total -= replacementAmt
                             
-                            subjects.insert(subjectIndex + 1, Subject(self.breakPeriodID, 'Break', 1, 1, None, subject.cls))
+                            subjects.insert(subjectIndex + 1, Subject(BREAK_PERIOD_ID, 'Break', 1, 1, None, subject.cls))
                             s = (
                                 CompoundSubject(subject.id, subject.name, replacementAmt, subject.perWeek, subject.subjects, subject.cls)
                                 if isinstance(subject, CompoundSubject) else
@@ -559,6 +556,7 @@ class Timetable:
         else:
             self.schoolDict[self.cls] = self
 
-SubjectType = Subject | CompoundSubject
+SubjectType = Union[Subject, CompoundSubject]
 
-
+FREE_PERIOD_ID = FreePeriodFW.id
+BREAK_PERIOD_ID = BreakPeriodFW.id

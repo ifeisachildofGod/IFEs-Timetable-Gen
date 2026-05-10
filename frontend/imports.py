@@ -2,9 +2,9 @@ import pickle
 from imports import *
 from pathlib import Path
 
-from docx import Document
-from docx.shared import RGBColor
-from docx.oxml import OxmlElement
+# from docx import Document
+# from docx.shared import RGBColor
+# from docx.oxml import OxmlElement
 
 from middle.main import School
 from middle.objects import *

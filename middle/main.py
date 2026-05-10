@@ -226,15 +226,15 @@ class School:
         for cls_id in cls_ids:
             cls = self.classes[cls_id]
             
-            cls.timetable.table = {day: [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(p_amt)] for day, (p_amt, _) in self.framework.classes[cls_id].dotw_data.items()}
+            cls.timetable.table = {day: [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(p_amt)] for day, (p_amt, _) in self.framework.classes[cls_id].dotw_data.items()}
             
             cls.timetable.remainderContent = []
             
             for rem_s in self.framework.classes[cls_id].timetable_remains:
                 if isinstance(rem_s, FreePeriodFW):
-                    new_rem_s = Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls)
+                    new_rem_s = Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls)
                 elif isinstance(rem_s, BreakPeriodFW):
-                    new_rem_s = Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None, cls)
+                    new_rem_s = Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)
                 else:
                     new_rem_s = Subject(self.subjects[rem_s.id].id, rem_s.name, 1, 1, self.teachers[rem_s.teacher.id], cls)
                     new_rem_s.uniqueID = s.id
@@ -247,9 +247,9 @@ class School:
                     
                     for s in subjects:
                         if isinstance(s, FreePeriodFW):
-                            new_s = Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls)
+                            new_s = Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls)
                         elif isinstance(s, BreakPeriodFW):
-                            new_s = Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None, cls)
+                            new_s = Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)
                         else:
                             new_s = Subject(self.subjects[s.id].id, s.name, 1, 1, self.teachers[s.teacher.id], cls)
                             new_s.uniqueID = s.id
@@ -348,7 +348,7 @@ class School:
         subjects = {}
         for _, cls in self.classes.items():
             for subject in cls.subjects:
-                if subject.id not in (cls.timetable.freePeriodID, cls.timetable.breakPeriodID):
+                if subject.id not in (FREE_PERIOD_ID, BREAK_PERIOD_ID):
                     subjectLevelClassInfo = [(subject.teacher.id, subject.teacher.name), self.project["subjects"][subject.id][1][str(cls.index)][2][cls.classID][1]]
                     subjectLevelInfo = [subject.TOTAL, subject.PERWEEK, {cls.classID: subjectLevelClassInfo}]
                     
@@ -370,9 +370,9 @@ class School:
         for _, cls in self.classes.items():
             cls.timetable.reset()
             for dayIndex, (day, _) in enumerate(cls.timetable.table.items()):
-                free1 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
-                break_t = [Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None, cls)]
-                free2 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
+                free1 = [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
+                break_t = [Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)]
+                free2 = [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
                 
                 cls.timetable.table[day] = list(flatten([free1, break_t, free2]))
                 
@@ -404,10 +404,10 @@ class School:
                 
                 for index, subject in enumerate(subjects):
                     if not newSubjects or (newSubjects and newSubjects[-1].uniqueID != subject.uniqueID):
-                        if subject.uniqueID == cls.timetable.freePeriodID:
+                        if subject.uniqueID == FREE_PERIOD_ID:
                             total = 0
                             for s in subjects[index:]:
-                                if s.uniqueID == cls.timetable.freePeriodID:
+                                if s.uniqueID == FREE_PERIOD_ID:
                                     total += 1
                                     continue
                                 break

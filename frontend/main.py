@@ -3,8 +3,8 @@ from frontend.imports import *
 from frontend.widgets.settings import *
 from frontend.widgets.timetable import TimeTableEditor
 
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill
+# from openpyxl import Workbook
+# from openpyxl.styles import PatternFill
 
 class Window(QMainWindow):
     saved_state_changed = pyqtSignal()
@@ -233,7 +233,7 @@ class Window(QMainWindow):
         self.update_interaction(self.display_index, 3)
         
         if export_mode == 0:
-            if path.endswith(("png", "jpg", "wpeg", "svg", "pdf", "html", "msisx", "xlsx")):
+            if path.endswith(("png", "jpg", "wpeg", "svg", "pdf", "html")):
                 title = "Timetable"
                 
                 widgets = list(self.timetable_widget.timetable_widgets.values())
@@ -335,65 +335,65 @@ class Window(QMainWindow):
                     
                     with open(path, "w") as file:
                         file.write(html)
-                elif path.endswith("msix"):
-                    doc = Document()
+                # elif path.endswith("msix"):
+                #     doc = Document()
                     
-                    doc.add_heading(title, level=1)
+                #     doc.add_heading(title, level=1)
                     
-                    for cls_ttbl in widgets:
-                        doc.add_heading(cls_ttbl.cls.name, level=2)
+                #     for cls_ttbl in widgets:
+                #         doc.add_heading(cls_ttbl.cls.name, level=2)
                         
-                        # Create a Word table
-                        word_table = doc.add_table(cls_ttbl.rowCount(), cls_ttbl.columnCount())
-                        word_table.style = "Table Grid"
+                #         # Create a Word table
+                #         word_table = doc.add_table(cls_ttbl.rowCount(), cls_ttbl.columnCount())
+                #         word_table.style = "Table Grid"
                         
                         
-                        for row in range(cls_ttbl.rowCount()):
-                            word_table.cell(row, 0).text = cls_ttbl.varticalHeaderItem(row).text()
-                            for col in range(cls_ttbl.columnCount()):
-                                word_table.cell(0, col).text = cls_ttbl.horizontalHeaderItem(col).text()
+                #         for row in range(cls_ttbl.rowCount()):
+                #             word_table.cell(row, 0).text = cls_ttbl.varticalHeaderItem(row).text()
+                #             for col in range(cls_ttbl.columnCount()):
+                #                 word_table.cell(0, col).text = cls_ttbl.horizontalHeaderItem(col).text()
                         
-                        for row in range(1, cls_ttbl.rowCount() + 1):
-                            for col in range(1, cls_ttbl.columnCount() + 1):
-                                item = cls_ttbl.item(row - 1, col - 1)
-                                word_table.cell(row, col).text = "" if item.break_time or item.free_period else item.text()
+                #         for row in range(1, cls_ttbl.rowCount() + 1):
+                #             for col in range(1, cls_ttbl.columnCount() + 1):
+                #                 item = cls_ttbl.item(row - 1, col - 1)
+                #                 word_table.cell(row, col).text = "" if item.break_time or item.free_period else item.text()
                         
-                        for r, row in enumerate(word_table.rows):
-                            for c, cell in enumerate(row.cells):
-                                item = cls_ttbl.item(r, c)
+                #         for r, row in enumerate(word_table.rows):
+                #             for c, cell in enumerate(row.cells):
+                #                 item = cls_ttbl.item(r, c)
                                 
-                                self._set_cell_bg(cell, "000000" if not r or not c else ("1F1F1F" if item.break_time else "FFFFFF"))
+                #                 self._set_cell_bg(cell, "000000" if not r or not c else ("1F1F1F" if item.break_time else "FFFFFF"))
 
-                    doc.save(path)
-                elif path.endswith("xlsx"):
-                    wb = Workbook()
-                    ws = wb.active
-                    ws.title = title
+                #     doc.save(path)
+                # elif path.endswith("xlsx"):
+                #     wb = Workbook()
+                #     ws = wb.active
+                #     ws.title = title
                     
-                    bg_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
-                    general_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
-                    break_fill = PatternFill(start_color="1F1F1F", end_color="1F1F1F", fill_type="solid")
+                #     bg_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+                #     general_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+                #     break_fill = PatternFill(start_color="1F1F1F", end_color="1F1F1F", fill_type="solid")
                     
-                    for cls_ttbl in widgets:
-                        # Add header row
-                        headers = [cls_ttbl.horizontalHeaderItem(col).text() for col in range(cls_ttbl.columnCount())]
-                        ws.append(headers)
+                #     for cls_ttbl in widgets:
+                #         # Add header row
+                #         headers = [cls_ttbl.horizontalHeaderItem(col).text() for col in range(cls_ttbl.columnCount())]
+                #         ws.append(headers)
                         
-                        for row in range(cls_ttbl.rowCount()):
-                            row_data = [cls_ttbl.verticalHeaderItem(row).text()]
-                            for col in range(cls_ttbl.columnCount()):
-                                item = cls_ttbl.item(row, col)
+                #         for row in range(cls_ttbl.rowCount()):
+                #             row_data = [cls_ttbl.verticalHeaderItem(row).text()]
+                #             for col in range(cls_ttbl.columnCount()):
+                #                 item = cls_ttbl.item(row, col)
                                 
-                                row_data.append("" if item.break_time or item.free_period else item.text())
-                            ws.append(row_data)
+                #                 row_data.append("" if item.break_time or item.free_period else item.text())
+                #             ws.append(row_data)
                         
-                        for r, row in enumerate(ws.iter_rows()):
-                            for c, cell in enumerate(row):
-                                item = cls_ttbl.item(r, c)
+                #         for r, row in enumerate(ws.iter_rows()):
+                #             for c, cell in enumerate(row):
+                #                 item = cls_ttbl.item(r, c)
                                 
-                                cell.fill = break_fill if item.break_time else (bg_fill if not r or not c else general_fill)
+                #                 cell.fill = break_fill if item.break_time else (bg_fill if not r or not c else general_fill)
                     
-                    wb.save(path)
+                #     wb.save(path)
                 else:
                     pixmap = QPixmap(widget.size())
                     widget.render(pixmap)
@@ -407,13 +407,13 @@ class Window(QMainWindow):
         elif export_mode == 1:
             pass
     
-    def _set_cell_bg(cell, color):
-        """Set background color of a Word cell"""
-        tc = cell._tc
-        tcPr = tc.get_or_add_tcPr()
-        shd = OxmlElement('w:shd')
-        shd.set('w:fill', color)  # hex without #
-        tcPr.append(shd)
+    # def _set_cell_bg(cell, color):
+    #     """Set background color of a Word cell"""
+    #     tc = cell._tc
+    #     tcPr = tc.get_or_add_tcPr()
+    #     shd = OxmlElement('w:shd')
+    #     shd.set('w:fill', color)  # hex without #
+    #     tcPr.append(shd)
     
     def undo(self):
         undo_func = self.focusWidget().__dict__.get("undo")
