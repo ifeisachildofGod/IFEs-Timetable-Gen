@@ -726,7 +726,7 @@ class SubjectSelection(BaseSubWidget):
         
         remainder_days = self.week_total - total_per_week
         
-        print(self.info[subject_id][0], total_per_week, diff, remainder_days)
+        # print(self.info[subject_id][0], total_per_week, diff, remainder_days)
         
         for s_id in self.info:
             if s_id in self.main_subjects_info and subject_id in self.main_subjects_info and self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id]):
