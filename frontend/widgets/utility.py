@@ -59,13 +59,13 @@ class NumberLineEdit(QWidget):
         self._min_num = min_validatorAmt
         self._max_num = max_validatorAmt
         
-        self.min_num = self._min_num
-        self.max_num = self._max_num
-        
         self.edit = QLineEdit()
         self.edit.textChanged.connect(self._updateNumber)
         self.edit.setValidator(QIntValidator())
         self.setNumber(number)
+        
+        self.min_num = self._min_num
+        self.max_num = self._max_num
         
         layout = QHBoxLayout()
         self.setLayout(layout)
@@ -94,6 +94,8 @@ class NumberLineEdit(QWidget):
         
         self.setFixedHeight(50)
         self.edit.setFixedHeight(30)
+        
+        self._updateNumber(str(number))
     
     @property
     def min_num(self):
@@ -102,6 +104,9 @@ class NumberLineEdit(QWidget):
     @min_num.setter
     def min_num(self, value: int):
         self._min_num = value
+        
+        if self._min_num > self.number():
+            self.setNumber(self._min_num)
         
         assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
     
@@ -112,6 +117,9 @@ class NumberLineEdit(QWidget):
     @max_num.setter
     def max_num(self, value: int):
         self._max_num = value
+        
+        if self._max_num < self.number():
+            self.setNumber(self._max_num)
         
         assert self.min_num <= self.max_num, f"Min: {self.min_num}; Max: {self.max_num}"
     
@@ -129,8 +137,8 @@ class NumberLineEdit(QWidget):
         if not text.isnumeric() or self.max_num < int(text) < self.min_num:
             self.edit.setText(self._number)
         else:
+            self.textChanged.emit(int(text))
             self._number = text
-            self.textChanged.emit(int(self._number))
     
     def _incDecNumber(self, direction: int):
         number = self.number() + direction

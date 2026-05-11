@@ -370,11 +370,11 @@ class School:
         for _, cls in self.classes.items():
             cls.timetable.reset()
             for dayIndex, (day, _) in enumerate(cls.timetable.table.items()):
-                free1 = [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
-                break_t = [Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)]
-                free2 = [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
-                
-                cls.timetable.table[day] = list(flatten([free1, break_t, free2]))
+                cls.timetable.table[day] = (
+                    [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)] +
+                    [Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)] +
+                    [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
+                )
                 
                 for s in cls.timetable.table[day]:
                     s.perWeek = 0

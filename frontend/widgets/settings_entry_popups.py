@@ -578,7 +578,21 @@ class TeacherDropdownCheckBoxes(BaseSubWidget):
         return func
 
 class SubjectSelection(BaseSubWidget):
-    def __init__(self, title: str, info: dict[str, dict[str, str | dict[str, list[str | None] | dict[int, str]]] | dict[int, str] | dict[str, list[str | None]]], week_total: int, saved_state_changed: pyqtBoundSignal):
+    def __init__(
+        self,
+        title: str,
+        info: dict[
+            str,
+            dict[
+                str,
+                str | dict[str, list[str | None] | dict[int, str]]
+            ] | dict[int, str] | dict[str, list[str | None]]
+        ],
+        index: int,
+        main_subjects_info: dict[str, tuple[str, dict[str, tuple[int, int, dict]]]],
+        week_total: int,
+        saved_state_changed: pyqtBoundSignal
+    ):
         super().__init__(title, info, saved_state_changed)
         
         self.setFixedSize(600, 400)
@@ -597,8 +611,14 @@ class SubjectSelection(BaseSubWidget):
         
         self.main_layout.addWidget(self.scroll_area)
         
+        self.main_subjects_info = {s_id: set(data[2]) for s_id, (_, values) in main_subjects_info.items() if (data := values.get(str(index)))}
+        
         for subject_id, (subject_name, subject_info) in self.info.items():
             self.add_subject(subject_id, subject_name, subject_info) # type: ignore
+        
+        for subject_id, (per_day_edit, per_week_edit) in self.number_edits.items():
+            per_day_edit.textChanged.emit(self.info[subject_id][1]["per_day"])
+            per_week_edit.textChanged.emit(self.info[subject_id][1]["per_week"])
         
         self.container_layout.addStretch()
     
@@ -640,7 +660,7 @@ class SubjectSelection(BaseSubWidget):
         per_day_edit.setPlaceholderText("Per day")
         per_day_edit.textChanged.connect(self.make_per_day_text_changed_func(subject_id, per_day_edit))
         
-        per_week_edit = NumberLineEdit(info["per_week"], 1, self.week_total - sum([v["per_week"] for _, v in self.info.values()]))
+        per_week_edit = NumberLineEdit(info["per_week"], 1, self.week_total)
         # per_week_edit.edit.setFixedWidth(54)
         per_week_edit.setPlaceholderText("Per week")
         per_week_edit.textChanged.connect(self.make_per_week_text_changed_func(subject_id, per_day_edit, per_week_edit))
@@ -680,30 +700,44 @@ class SubjectSelection(BaseSubWidget):
         return text_changed_func
     
     def make_per_week_text_changed_func(self, subject_id: str, per_day_edit: 'NumberLineEdit', per_week_edit: 'NumberLineEdit'):
-        def text_changed_func():
-            diff = per_week_edit.number() - self.info[subject_id][1]["per_week"]
+        def text_changed_func(number):
+            diff = number - self.info[subject_id][1]["per_week"]
             
-            self.info[subject_id][1]["per_week"] = per_week_edit.number()
+            new_per_week = number
             
-            if self.info[subject_id][1]["per_week"] < per_day_edit.max_num and self.info[subject_id][1]["per_week"] < self.info[subject_id][1]["per_day"]:
-                per_day_edit.setNumber(self.info[subject_id][1]["per_week"])
+            if self._update_max_per_week(subject_id, diff):
+                per_week_edit.setNumber(new_per_week)
+            else:
+                per_week_edit.setNumber(per_week_edit.number())
             
-            per_day_edit.max_num = self.info[subject_id][1]["per_week"]
-            self._update_max_per_week(diff)
+            per_day_edit.max_num = self.info[subject_id][1]["per_week"] = new_per_week
             
             self.saved_state_changed.emit()
         
         return text_changed_func
     
-    def _update_max_per_week(self, diff: int):
-        total_per_week = sum(info_data["per_week"] for _, info_data in self.info.values()) + diff
+    def _update_max_per_week(self, subject_id: str, diff: int):
+        total_per_week = sum(
+            info_data["per_week"]
+            for s_id, (_, info_data)
+            in self.info.items()
+            if s_id in self.main_subjects_info and subject_id in self.main_subjects_info and self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id])
+        ) + diff
+        
         remainder_days = self.week_total - total_per_week
         
+        print(self.info[subject_id][0], total_per_week, diff, remainder_days)
+        
         for s_id in self.info:
-            self.number_edits[s_id][1].max_num = self.info[s_id][1]["per_week"] + remainder_days
-            
-            if self.number_edits[s_id][1].max_num < self.info[s_id][1]["per_week"] and self.number_edits[s_id][1].number() > self.number_edits[s_id][1].max_num:
-                self.number_edits[s_id][1].setNumber(self.number_edits[s_id][1].max_num)
+            if s_id in self.main_subjects_info and subject_id in self.main_subjects_info and self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id]):
+                if self.number_edits[s_id][1].max_num > self.info[subject_id][1]["per_week"] + remainder_days:
+                    return False
+        
+        for s_id in self.info:
+            if s_id in self.main_subjects_info and subject_id in self.main_subjects_info and self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id]):
+                self.number_edits[s_id][1].max_num = self.info[subject_id][1]["per_week"] + remainder_days
+        
+        return True
 
 class OptionsMaker(BaseSubWidget):
     def __init__(self, title: str, info: dict[str, str], saved_state_changed: pyqtBoundSignal):

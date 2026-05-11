@@ -178,10 +178,14 @@ class _TimetableSettings(QWidget):
         right_option_layout = QVBoxLayout()
         right_option_widget.setLayout(right_option_layout)
         
-        generate_button = QPushButton("Generate New")
+        generate_button = QPushButton("Generate New School")
         generate_button.clicked.connect(self.generate_new_school_timetable)
         
+        clear_button = QPushButton("Clear Timetables")
+        clear_button.clicked.connect(self.clear_all_timetables)
+        
         right_option_layout.addWidget(generate_button)
+        right_option_layout.addWidget(clear_button)
         
         general_settings_layout.addWidget(left_option_widget)
         general_settings_layout.addWidget(right_option_widget)
@@ -208,6 +212,10 @@ class _TimetableSettings(QWidget):
     def _toogle(self):
         self.settings_menu.set_pos(self.toogle_button.mapToGlobal(QPoint(-470, self.toogle_button.height())))
         self.settings_menu.toogle()
+    
+    def clear_all_timetables(self):
+        for ttbl in self.editor.timetable_widgets.values():
+            ttbl.clear_timetable()
     
     def _generate(self):
         self.saved_state_changed.emit()
@@ -611,6 +619,23 @@ class ClassTimetable(QTableWidget):
                             ]
                             
                             self.editor.school.project["subjects"][item.subject.id][1][str(self.cls.index)][2][self.cls.classID][1].append(coords)
+    
+    def clear_timetable(self):
+        for day, period_amt, break_period in self.timetable.weekInfo:
+            for subject in self.timetable.table[day]:
+                if subject.id not in (FREE_PERIOD_ID, BREAK_PERIOD_ID):
+                    for _ in range(subject.total):
+                        self.timetable.remainderContent.append(subject)
+            
+            self.timetable.table[day] = (
+                [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, self.cls) for _ in range(break_period - 1)] +
+                [Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, self.cls)] +
+                [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, self.cls) for _ in range(period_amt - break_period)]
+            )
+        
+        self.timetable.remainderContent.sort(key=lambda subj: subj.name)
+        
+        self.populate_timetable()
     
     def populate_timetable(self):
         """Load the timetable data into the grid"""
@@ -1044,20 +1069,6 @@ class TimeTableEditor(QWidget):
                 for ttbl in self.timetable_widgets.values():
                     ttbl.save_timetable()
     
-    # def paintEvent(self, a0):
-    #     super().paintEvent(a0)
-        
-    #     painter = QPainter(self)
-    #     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-    #     pen = painter.pen()
-    #     pen.setWidth(5)
-    #     pen.setBrush(QColor("#12ab93"))
-    #     painter.setPen(pen)
-        
-    #     painter.setBrush(Qt.BrushStyle.NoBrush)
-    #     painter.drawLine(0, 0, 700, 500)
-    
     def _certify_class_level_info(self, class_index: int, class_id: str, option_id: str):
         if class_index < len(self.school.project["levels"]):
             if class_id + option_id in self.school.project["levels"][class_index][1]:
@@ -1186,6 +1197,11 @@ class TimeTableEditor(QWidget):
             
             self.saved_state_changed.emit()
         
+        def clear_func():
+            for ttbl in self.timetable_widgets.values():
+                if ttbl.cls.index == lvl_index:
+                    ttbl.clear_timetable()
+        
         self.cls_levels_data[lvl_index] = {
             "break-func": break_period_changed,
             "period-func": period_amt_changed,
@@ -1203,8 +1219,11 @@ class TimeTableEditor(QWidget):
         dotw_button = QPushButton("Weekdays")
         dotw_button.clicked.connect(self.cls_levels_data[lvl_index]["dotw"].exec)
         
-        generate_new_button = QPushButton("Generate New")
+        generate_new_button = QPushButton("Generate New Level")
         generate_new_button.clicked.connect(generate_new_func)
+        
+        clear_button = QPushButton("Clear Timetable")
+        clear_button.clicked.connect(clear_func)
         
         layout.addWidget(period_amt_edit)
         layout.addWidget(breakperiod_edit)
@@ -1212,6 +1231,7 @@ class TimeTableEditor(QWidget):
         layout.addWidget(dotw_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         layout.addSpacing(20)
         layout.addWidget(generate_new_button, alignment=Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(clear_button, alignment=Qt.AlignmentFlag.AlignHCenter)
         
         return widget_menu
     
@@ -1259,9 +1279,6 @@ class TimeTableEditor(QWidget):
         remainder_scroll_area.setFixedWidth(settings_width)
         remainder_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
-        generate_new_button = QPushButton("Generate New")
-        generate_new_button.clicked.connect(generate_individual_taimetable)
-        
         remainder_widget = QWidget()
         remainder_widget.setFixedWidth(settings_width)
         remainder_scroll_area.setWidget(remainder_widget)
@@ -1275,6 +1292,12 @@ class TimeTableEditor(QWidget):
         remainder_title = QLabel("Remaining Subjects")
         remainder_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
+        generate_new_button = QPushButton("Generate New Timetable")
+        generate_new_button.clicked.connect(generate_individual_taimetable)
+        
+        clear_button = QPushButton("Clear Timetalbe")
+        clear_button.clicked.connect(timetable.clear_timetable)
+        
         remainder_widget_layout.addWidget(remainder_title, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         
         remainder_widget_layout.addStretch()
@@ -1284,6 +1307,7 @@ class TimeTableEditor(QWidget):
         
         sidebar_widget_layout.addWidget(remainder_scroll_area, alignment=Qt.AlignmentFlag.AlignHCenter)
         sidebar_widget_layout.addWidget(generate_new_button)
+        sidebar_widget_layout.addWidget(clear_button)
         
         layout.addWidget(class_header)
         layout.addWidget(class_widget)

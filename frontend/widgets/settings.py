@@ -449,7 +449,17 @@ class Classes(BaseSettingWidget):
         
         self._make_popup(_id, "Option Selector", layout, OptionsMaker, "options", button_name="Options") # type: ignore
         
-        self._make_popup(_id, "Subjects", layout, SubjectSelection, "subjects", alignment=Qt.AlignmentFlag.AlignLeft, week_total=sum(self.main_window.school.project["levels"][index][1][0]))
+        self._make_popup(
+            _id,
+            "Subjects",
+            layout,
+            SubjectSelection,
+            "subjects",
+            alignment=Qt.AlignmentFlag.AlignLeft,
+            index=index,
+            main_subjects_info=self.main_window.school.project["subjects"],
+            week_total=sum(self.main_window.school.project["levels"][index][1][0])
+        )
     
     def popup_closed(self, _id, var_name, popup, init = False):
         super().popup_closed(_id, var_name, popup, init)
