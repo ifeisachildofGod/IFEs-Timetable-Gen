@@ -34,12 +34,13 @@ ProjectType = dict[str, PotentialOptionType]
 
 class School:
     def __init__(self, project: ProjectType):
+        self.project = project
+        
         self.subjects: dict[str, SubjectType] = {}
         self.classes: dict[str, Class] = {}
         self.teachers: dict[str, Teacher] = {}
         self.schoolDict: dict[Class, Timetable] = {}
-        
-        self.setProjectData(project)
+        # self.setProjectData(project)
         self.framework = None
     
     def _add_subject_clash(self, clashes: dict[str, dict[str, list[tuple[int, Subject, Subject]]]], s1: Subject, s2: Subject, day: str, period: int):
@@ -75,7 +76,11 @@ class School:
                 clash_point.append(clashing_subject_ids)
     
     def setProjectData(self, project: ProjectType):
-        self.project = project
+        if self.project is project:
+            project = project.copy()
+        
+        self.project.clear()
+        self.project.update(project)
     
     @staticmethod
     def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):

@@ -448,10 +448,10 @@ class Classes(BaseSettingWidget):
             ])
         
         self._make_popup(_id, "Option Selector", layout, OptionsMaker, "options", button_name="Options") # type: ignore
-        
+        self.main_window.school.project["subjects"]
         self._make_popup(
             _id,
-            "Subjects",
+            "Subjects Timing",
             layout,
             SubjectSelection,
             "subjects",

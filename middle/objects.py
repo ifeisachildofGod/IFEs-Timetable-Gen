@@ -4,6 +4,7 @@
 from imports import *
 from middle.frameworks import FreePeriodFW, BreakPeriodFW
 
+
 class Subject:
     def __init__(self, _id: str, name: str, total: int, perWeek: int, teacher: 'Teacher', cls: 'Class') -> None:
         self.TOTAL = total
@@ -210,7 +211,6 @@ class Timetable:
                     subjPeriod += subj.total
         
         return clashes
-    
     
     def switchExtras(self, day: str, subjects: list['SubjectType']):
         for subjectIndex, subject in enumerate(subjects):
@@ -555,6 +555,7 @@ class Timetable:
                 self.generate()
         else:
             self.schoolDict[self.cls] = self
+
 
 SubjectType = Union[Subject, CompoundSubject]
 

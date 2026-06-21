@@ -11,6 +11,8 @@ class Window(QMainWindow):
     
     def __init__(self, app: QApplication, arguments: list[str]):
         super().__init__()
+        self._disable_unsave = False
+        
         path = len(arguments) > 1 and arguments[1] or None
         
         self.app = app
@@ -141,6 +143,8 @@ class Window(QMainWindow):
         self.go_forward_action.setDisabled(True)
         self.title_bar.go_forward_button.setDisabled(True)
         
+        self.update_interaction(0, 3)
+        
         if path is not None:
             self.saved_callback()
     
@@ -189,12 +193,13 @@ class Window(QMainWindow):
         self._make_set_app_stylsheet(self.save_data.get("theme", "dark-blue"))()
     
     def unsaved_callback(self):
-        self.saved = False
-        
-        if self.file.path is not None:
-            self.setWindowTitle(f"{self.title} - {Path(self.file.path).absolute().as_posix()} *Unsaved")
-        else:
-            self.setWindowTitle(self.title)
+        if not self._disable_unsave:
+            self.saved = False
+            
+            if self.file.path is not None:
+                self.setWindowTitle(f"{self.title} - {Path(self.file.path).as_posix()} *Unsaved")
+            else:
+                self.setWindowTitle(self.title)
     
     def saved_callback(self):
         self.saved = True
@@ -218,6 +223,7 @@ class Window(QMainWindow):
         self.file.path = path
         
         self.update_interaction(self.display_index, self.prev_display_index)
+        self.update_interaction(0, 3)
         
         self.save_data.update(self.get_settings_info())
         
@@ -593,6 +599,8 @@ class Window(QMainWindow):
             self.display_index = index
     
     def update_interaction(self, prev_index: int, curr_index: int):
+        self._disable_unsave = True
+        print(id(self.school.project))
         match prev_index:
             case 3:
                 for _, info1 in self.school.project["subjects"].values():
@@ -630,6 +638,7 @@ class Window(QMainWindow):
                     self.subjects_widget.update_data_interaction(prev_index, curr_index)
                     self.teachers_widget.update_data_interaction(prev_index, curr_index)
                 self.timetable_widget.update_data_interaction(prev_index, curr_index)
-
+        
+        self._disable_unsave = False
 
 

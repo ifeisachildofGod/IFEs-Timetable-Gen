@@ -1,10 +1,14 @@
 
+import json
 import math
 import random
 from dataclasses import dataclass
 from matplotlib.cbook import flatten
 
-# Always run init before doing anything
+
+class PeriodAssignmentException(Exception):
+    pass
+
 
 @dataclass
 class GeneratingData:
@@ -171,8 +175,11 @@ class SchoolFrameWork:
                                 max_score = max(score)
                                 
                                 selected_period = day, score.index(max_score)
-                        
-                        assert selected_period, (scores, self._log_data[cls_id][s_id])
+                        if not selected_period:
+                            print(cls.subjects[s_id].name)
+                            print(json.dumps(self._log_data[cls_id][s_id], indent=2))
+                            
+                            raise PeriodAssignmentException("No valid periods available")
                         
                         day, index = selected_period
                         
@@ -310,14 +317,14 @@ class SchoolFrameWork:
                 [p.id for p in periods].count(s_id) >= subject.freq_info[0] or
                 abs(p_index - next((p_i for p_i, p in enumerate(periods) if p.id == s_id), p_index + 1)) != 1
                 ):
-            if period.id != FreePeriodFW.id:
-                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Period is not free"))
-            if period.id != FreePeriodFW.id:
+            if period.id == BreakPeriodFW.id:
                 self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Break period"))
-            if [p.id for p in periods].count(s_id) >= subject.freq_info[0]:
-                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Per day max reached"))
-            if abs(p_index - next((p_i for p_i, p in enumerate(periods) if p.id == s_id), p_index + 1)) != 1:
-                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Island"))
+            elif period.id != FreePeriodFW.id:
+                self._log_data[cls.id()][s_id].append(((day, p_index + 1), f"Period is occupied by {period.name}"))
+            elif [p.id for p in periods].count(s_id) >= subject.freq_info[0]:
+                self._log_data[cls.id()][s_id].append(((day, p_index + 1), f"Per day max reached: {[p.id for p in periods].count(s_id)}"))
+            else:
+                self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Period island"))
             
             return -math.inf
         
@@ -332,12 +339,13 @@ class SchoolFrameWork:
                     
                     assert s_teacher
                     
-                    combined = next((
+                    combined = next(
+                        (
                             True
                             for s_list, c_list in
                             self.gen_data.combined_subjects.items()
                             if (s_id in s_list and s_subject.id in s_list) and (cls.id in c_list and s_cls.id in c_list)
-                            ),
+                        ),
                         False
                         )
                     
@@ -358,7 +366,7 @@ class SchoolFrameWork:
                         raise Exception()
                     
                     if is_clashing and not combined:
-                        self._log_data[cls.id()][s_id].append(((day, p_index + 1), "Alignment Error"))
+                        self._log_data[cls.id()][s_id].append(((day, p_index + 1), f"Alignment Error: subject is{"not " if isinstance(subject.teacher, TeacherFW) else ""} combined and{"" if isinstance(subject.teacher, TeacherFW) else "not "} clashing/aligned with {"another subject" if isinstance(s_teacher, TeacherFW) else "any subject"}"))
                         
                         return -math.inf
         else:

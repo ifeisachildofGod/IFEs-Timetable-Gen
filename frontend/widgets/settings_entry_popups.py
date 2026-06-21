@@ -613,6 +613,21 @@ class SubjectSelection(BaseSubWidget):
         
         self.main_subjects_info = {s_id: set(data[2]) for s_id, (_, values) in main_subjects_info.items() if (data := values.get(str(index)))}
         
+        self.focuses_ids = {
+            subject_id: list (
+                    s_id
+                    for s_id
+                    in self.info
+                    if (
+                        s_id in self.main_subjects_info and
+                        subject_id in self.main_subjects_info and
+                        self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id])
+                    )
+                )
+            for subject_id
+            in self.info
+        }
+        
         for subject_id, (subject_name, subject_info) in self.info.items():
             self.add_subject(subject_id, subject_name, subject_info) # type: ignore
         
@@ -660,7 +675,7 @@ class SubjectSelection(BaseSubWidget):
         per_day_edit.setPlaceholderText("Per day")
         per_day_edit.textChanged.connect(self.make_per_day_text_changed_func(subject_id, per_day_edit))
         
-        per_week_edit = NumberLineEdit(info["per_week"], 1, self.week_total)
+        per_week_edit = NumberLineEdit(info["per_week"], 1, info["per_week"] + self.week_total - sum(self.info[s_id][1]["per_week"] for s_id in self.focuses_ids[subject_id]))
         # per_week_edit.edit.setFixedWidth(54)
         per_week_edit.setPlaceholderText("Per week")
         per_week_edit.textChanged.connect(self.make_per_week_text_changed_func(subject_id, per_day_edit, per_week_edit))
@@ -701,47 +716,24 @@ class SubjectSelection(BaseSubWidget):
     
     def make_per_week_text_changed_func(self, subject_id: str, per_day_edit: 'NumberLineEdit', per_week_edit: 'NumberLineEdit'):
         def text_changed_func(number):
-            diff = number - self.info[subject_id][1]["per_week"]
+            diff = self.week_total - sum((self.info[s_id][1]["per_week"] if s_id != subject_id else number) for s_id in self.focuses_ids[subject_id])
             
-            new_per_week = number
+            print()
+            print("---", self.info[subject_id][0], diff)
+            for s_id in self.focuses_ids[subject_id]:
+                print(self.info[s_id][0], self.number_edits[s_id][1].number(), self.number_edits[s_id][1].max_num, self.number_edits[s_id][1].number() + diff)
+                self.number_edits[s_id][1].max_num = self.number_edits[s_id][1].number() + diff
             
-            if self._update_max_per_week(subject_id, diff):
-                per_week_edit.setNumber(new_per_week)
-            else:
-                per_week_edit.setNumber(per_week_edit.number())
-            
-            per_day_edit.max_num = self.info[subject_id][1]["per_week"] = new_per_week
+            per_day_edit.max_num = self.info[subject_id][1]["per_week"] = number
             
             self.saved_state_changed.emit()
         
         return text_changed_func
-    
-    def _update_max_per_week(self, subject_id: str, diff: int):
-        total_per_week = sum(
-            info_data["per_week"]
-            for s_id, (_, info_data)
-            in self.info.items()
-            if s_id in self.main_subjects_info and subject_id in self.main_subjects_info and self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id])
-        ) + diff
-        
-        remainder_days = self.week_total - total_per_week
-        
-        # print(self.info[subject_id][0], total_per_week, diff, remainder_days)
-        
-        for s_id in self.info:
-            if s_id in self.main_subjects_info and subject_id in self.main_subjects_info and self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id]):
-                if self.number_edits[s_id][1].max_num > self.info[subject_id][1]["per_week"] + remainder_days:
-                    return False
-        
-        for s_id in self.info:
-            if s_id in self.main_subjects_info and subject_id in self.main_subjects_info and self.main_subjects_info[subject_id].intersection(self.main_subjects_info[s_id]):
-                self.number_edits[s_id][1].max_num = self.info[subject_id][1]["per_week"] + remainder_days
-        
-        return True
 
 class OptionsMaker(BaseSubWidget):
     def __init__(self, title: str, info: dict[str, str], saved_state_changed: pyqtBoundSignal):
         super().__init__(title, info, saved_state_changed)
+        
         self.option_widgets: dict[str, _OW_Entry] = {}
         self.current_row = 0
         self.current_col = 0
