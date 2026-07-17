@@ -2,7 +2,8 @@
 # from matplotlib.cbook import flatten
 # from typing import Union
 # from objects import *
-
+import traceback
+from middle.frameworks import *
 from middle.objects import *
 
 PotentialOptionType = Union[
@@ -33,14 +34,134 @@ ProjectType = dict[str, PotentialOptionType]
 
 class School:
     def __init__(self, project: ProjectType):
-        self.subjects: dict[str, Subject] = {}
+        self.project = project
+        
+        self.subjects: dict[str, SubjectType] = {}
         self.classes: dict[str, Class] = {}
         self.teachers: dict[str, Teacher] = {}
         self.schoolDict: dict[Class, Timetable] = {}
-        
-        self.setProjectData(project)
+        # self.setProjectData(project)
+        self.framework = None
     
-    def _getSubjects(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
+    def _add_subject_clash(self, clashes: dict[str, dict[str, list[tuple[int, Subject, Subject]]]], s1: Subject, s2: Subject, day: str, period: int):
+        if None not in (s1.teacher, s2.teacher) and s1.teacher.id == s2.teacher.id:
+            period += 1  # Convert period index to actual period
+            
+            clashing_subject_ids = (period, s1, s2)
+            
+            if s1.teacher.id not in clashes:
+                clashes[s1.teacher.id] = {}
+            
+            clash_point = clashes[s1.teacher.id][day] = clashes[s1.teacher.id].get(day, [])
+            
+            if next((
+                False
+                for p, s, ps in clash_point
+                if (
+                    p == period
+                    and
+                    (
+                        (
+                            (ps.id == s2.id and ps.cls.uniqueID == s2.cls.uniqueID) and
+                            (s.id == s1.id and s.cls.uniqueID == s1.cls.uniqueID)
+                            ) or
+                        (
+                            (s.id == s2.id and s.cls.uniqueID == s2.cls.uniqueID) and
+                            (ps.id == s1.id and ps.cls.uniqueID == s1.cls.uniqueID)
+                            )
+                        )
+                    )
+                ), True):
+                
+                clash_point.append(clashing_subject_ids)
+    
+    def setProjectData(self, project: ProjectType):
+        if self.project is project:
+            project = project.copy()
+        
+        self.project.clear()
+        self.project.update(project)
+    
+    @staticmethod
+    def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):
+        placedClassLevels = {}
+        
+        for maxClasses, strClassIndex, t_data, available_options in randomTeachers:
+            classAmt = 0
+            placedSubClasses = {}
+            
+            if random.choice([True, False]):
+                random.shuffle(available_options)
+            
+            for option in available_options:
+                if classAmt >= maxClasses:
+                    break
+                
+                placedSubClasses[option] = [t_data, []]
+                classAmt += 1
+            
+            placedClassLevels[strClassIndex] = placedSubClasses
+        
+        return placedClassLevels
+    
+    def getClashes(self):
+        def create_ttbl_copy(ttbl: Timetable):
+            ttbl_copy = ttbl.copy()
+            
+            for i in range(len(ttbl_copy.table)):
+                ttbl_copy.correct(i)
+            
+            return ttbl_copy
+        
+        clashes: dict[str, dict[str, list[tuple[int, Subject, Subject]]]] = {}
+        
+        school_dict_copy = {s_cls.copy(): create_ttbl_copy(s_ttbl) for s_cls, s_ttbl in self.schoolDict.items()}
+        
+        for cls, timetable in school_dict_copy.items():
+            for day, subjects in timetable.table.items():
+                Timetable.spread(subjects)
+                for period, subject in enumerate(subjects):
+                    for sub_cls, sub_timetable in school_dict_copy.items():
+                        if sub_cls.uniqueID != cls.uniqueID:
+                            Timetable.spread(sub_timetable.table[day])
+                            possible_clash_subject = sub_timetable.table[day][period]
+                            
+                            if isinstance(subject, Subject) and isinstance(possible_clash_subject, Subject):
+                                self._add_subject_clash(clashes, subject, possible_clash_subject, day, period)
+                            elif isinstance(subject, Subject) and isinstance(possible_clash_subject, CompoundSubject):
+                                for sub_p_subject in possible_clash_subject.subjects:
+                                    self._add_subject_clash(clashes, subject, sub_p_subject, day, period)
+                            elif isinstance(subject, CompoundSubject) and isinstance(possible_clash_subject, Subject):
+                                for sub_subject in subject.subjects:
+                                    self._add_subject_clash(clashes, possible_clash_subject, sub_subject, day, period)
+                            elif isinstance(subject, CompoundSubject) and isinstance(possible_clash_subject, CompoundSubject):
+                                for sub_subject in subject.subjects:
+                                    for sub_p_subject in possible_clash_subject.subjects:
+                                        self._add_subject_clash(clashes, sub_subject, sub_p_subject, day, period)
+        
+        return clashes
+    
+    def generateTimetable(self, cls: Class):
+        # cls.timetable.reset()
+        # cls.timetable.generate()
+        try:
+            self.framework.generate_timetable([cls.uniqueID])
+            self.setTimetableFromFramework([cls.uniqueID])
+        except Exception as e:
+            traceback.print_exc()
+    
+    def generateNewSchoolTimetables(self):
+        # for cls in self.classes.values():
+        #     self.generateTimetable(cls)
+        try:
+            print("Started Generation")
+            self.framework.generate_timetable()
+            self.setTimetableFromFramework()
+            print("Ended Generation")
+        except Exception as e:
+            traceback.print_exc()
+    
+    def createSubjectsFromSubjectTeacherMapping(self, classOptions: dict[str, list[str]], mappings: dict[str, dict[str, list | dict[str, list]]]):
         subjects = {}
         
         for subjectID, (subjectName, subjectInfo) in mappings.items():
@@ -78,66 +199,67 @@ class School:
         
         return subjects
     
-    @staticmethod
-    def placeRandomTeachers(randomTeachers: list[tuple[int, str, tuple[str, str], list[str]]]):
-        placedClassLevels = {}
+    def setFrameworkFromSchool(self):
+        text = ""
         
-        for maxClasses, strClassIndex, t_data, available_options in randomTeachers:
-            classAmt = 0
-            placedSubClasses = {}
-            
-            if random.choice([True, False]):
-                random.shuffle(available_options)
-            
-            for option in available_options:
-                if classAmt >= maxClasses:
+        id_mappings = {"subjects": [s.uniqueID for s in self.subjects.values()], "teachers": [s.id for s in self.teachers.values()], "classes": [(c.index, c.classID) for c in self.classes.values()], }
+        
+        s_id_indices = list(self.subjects)
+        t_id_indices = list(self.teachers)
+        
+        text += "\n".join([s.name for s in self.subjects.values()])
+        text += "\n---"
+        text += "\n".join([f"{t.name}: {" ".join([str(s_id_indices.index(id) + 1) for id in t.subjectIDs])}" for t in self.teachers.values()])
+        text += "\n---\n"
+        text += "\n".join([f"{c.name}: {" ".join([f"{t_id_indices.index(s.teacher.id) + 1}/{s.teacher.subjectIDs.index(s.uniqueID) + 1}/{s.total}/{s.perWeek}" for s in c.subjects])}" for c in self.classes.values()])
+        text += "\n---\n"
+        text += "\n---\n"
+        for cls_index, cls in enumerate(self.classes.values()):
+            for day_index, day in enumerate(DOTW_DATA["content"]):
+                if day is None:
+                    if cls_index != len(self.classes) - 1:
+                        text += "_\n"
                     break
                 
-                placedSubClasses[option] = [t_data, []]
-                classAmt += 1
+                text += f"{day}: {cls.periodsPerDay[day_index]} {cls.breakTimePeriods[day_index]}\n"
+        
+        return SchoolFrameWork.school_from_text(text, id_mappings)
+    
+    def setTimetableFromFramework(self, cls_ids: list[str] | None = None):
+        cls_ids = cls_ids or list(self.classes)
+        
+        for cls_id in cls_ids:
+            cls = self.classes[cls_id]
             
-            placedClassLevels[strClassIndex] = placedSubClasses
-        
-        return placedClassLevels
-    
-    def findClashes(self, subject: Subject, day: str, period: int, cls: Class):
-        clashes: list[tuple[Subject, Class]] = []
-        
-        for ttCls, timetable in self.schoolDict.items():
-            subjPeriod = 1
-            for subj in timetable.table[day]:
-                if cls.uniqueID != ttCls.uniqueID and period <= subjPeriod <= period + subject.total - 1 and subject.teacher is not None and subj.teacher is not None and subject.teacher.id == subj.teacher.id:
-                    clashes.append([subj, ttCls])
-                subjPeriod += subj.total
-        
-        return clashes
-    
-    def getClashes(self):
-        clashes: dict[Subject, dict[str, list[Subject, Class]]] = {}
-        
-        for cls, timetable in self.schoolDict.items():
-            for day, subjects in timetable.table.items():
-                for subjectIndex, subject in enumerate(subjects):
-                    if subject.teacher is not None:
-                        period = sum([subj.total for subj in subjects[:subjectIndex]]) + 1
-                        clash = self.findClashes(subject, day, period, cls)
-                        if clash:
-                            if clashes.get(subject) is None:
-                                clashes[subject] = {}
-                            clashes[subject][day] = clash
-        
-        return clashes
-    
-    def generateTimetable(self, cls: Class):
-        cls.timetable.reset()
-        cls.timetable.generate()
-    
-    def generateNewSchoolTimetables(self):
-        for cls in self.classes.values():
-            self.generateTimetable(cls)
-    
-    def setProjectData(self, project: ProjectType):
-        self.project = project
+            cls.timetable.table = {day: [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(p_amt)] for day, (p_amt, _) in self.framework.classes[cls_id].dotw_data.items()}
+            
+            cls.timetable.remainderContent = []
+            
+            for rem_s in self.framework.classes[cls_id].timetable_remains:
+                if isinstance(rem_s, FreePeriodFW):
+                    new_rem_s = Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls)
+                elif isinstance(rem_s, BreakPeriodFW):
+                    new_rem_s = Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)
+                else:
+                    new_rem_s = Subject(self.subjects[rem_s.id].id, rem_s.name, 1, 1, self.teachers[rem_s.teacher.id], cls)
+                    new_rem_s.uniqueID = s.id
+                
+                cls.timetable.remainderContent.append(new_rem_s)
+            
+            if self.framework.classes[cls_id].timetable:
+                for day, subjects in self.framework.classes[cls_id].timetable.items():
+                    cls.timetable.table[day] = []
+                    
+                    for s in subjects:
+                        if isinstance(s, FreePeriodFW):
+                            new_s = Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls)
+                        elif isinstance(s, BreakPeriodFW):
+                            new_s = Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)
+                        else:
+                            new_s = Subject(self.subjects[s.id].id, s.name, 1, 1, self.teachers[s.teacher.id], cls)
+                            new_s.uniqueID = s.id
+                        
+                        cls.timetable.table[day].append(new_s)
     
     def setSchoolInfoFromProjectDict(self):
         self.subjects = {}
@@ -156,7 +278,7 @@ class School:
         subjects = self.project.get("subjects")
         
         if subjects is None:
-            subjects = self.project["subjects"] = self._getSubjects(classOptions, self.project["subjectTeacherMapping"])
+            subjects = self.project["subjects"] = self.createSubjectsFromSubjectTeacherMapping(classOptions, self.project["subjectTeacherMapping"])
         
         for classIndex, classIDs in enumerate(classOptions):
             for classID in classIDs:
@@ -179,6 +301,8 @@ class School:
                     cls.timetable._subjects.append(subj.copy())
                     
                     self.subjects[subj.uniqueID] = subj
+        
+        self.framework = self.setFrameworkFromSchool()
     
     def setProjectDictFromSchoolInfo(self):
         classLevels = []
@@ -229,7 +353,7 @@ class School:
         subjects = {}
         for _, cls in self.classes.items():
             for subject in cls.subjects:
-                if subject.id not in (cls.timetable.freePeriodID, cls.timetable.breakPeriodID):
+                if subject.id not in (FREE_PERIOD_ID, BREAK_PERIOD_ID):
                     subjectLevelClassInfo = [(subject.teacher.id, subject.teacher.name), self.project["subjects"][subject.id][1][str(cls.index)][2][cls.classID][1]]
                     subjectLevelInfo = [subject.TOTAL, subject.PERWEEK, {cls.classID: subjectLevelClassInfo}]
                     
@@ -251,11 +375,11 @@ class School:
         for _, cls in self.classes.items():
             cls.timetable.reset()
             for dayIndex, (day, _) in enumerate(cls.timetable.table.items()):
-                free1 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)]
-                break_t = [Subject(cls.timetable.breakPeriodID, "Break", 1, 1, None, cls)]
-                free2 = [Subject(cls.timetable.freePeriodID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
-                
-                cls.timetable.table[day] = list(flatten([free1, break_t, free2]))
+                cls.timetable.table[day] = (
+                    [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.breakTimePeriods[dayIndex] - 1)] +
+                    [Subject(BREAK_PERIOD_ID, "Break", 1, 1, None, cls)] +
+                    [Subject(FREE_PERIOD_ID, "Free", 1, 1, None, cls) for _ in range(cls.timetable.periodsPerDay[dayIndex] - cls.timetable.breakTimePeriods[dayIndex])]
+                )
                 
                 for s in cls.timetable.table[day]:
                     s.perWeek = 0
@@ -285,10 +409,10 @@ class School:
                 
                 for index, subject in enumerate(subjects):
                     if not newSubjects or (newSubjects and newSubjects[-1].uniqueID != subject.uniqueID):
-                        if subject.uniqueID == cls.timetable.freePeriodID:
+                        if subject.uniqueID == FREE_PERIOD_ID:
                             total = 0
                             for s in subjects[index:]:
-                                if s.uniqueID == cls.timetable.freePeriodID:
+                                if s.uniqueID == FREE_PERIOD_ID:
                                     total += 1
                                     continue
                                 break
@@ -302,7 +426,7 @@ def _display_school(school: dict[Class, Timetable], drawType: int = 1):
             print(f"| {cls.name} |")
             
             for day, todaysSubjects in timetable.table.items():
-                subjectsContent = [subjs.get() for subjs in todaysSubjects]
+                subjectsContent = [[subjs.name for _ in range(subjs.total)] for subjs in todaysSubjects]
                 
                 print(day, ":", ", ".join(list(flatten(subjectsContent))))
             
@@ -323,7 +447,7 @@ def _display_school(school: dict[Class, Timetable], drawType: int = 1):
             for cls, timetable in school.items():
                 for timetableDay, todaysSubjects in timetable.table.items():
                     if day == timetableDay:
-                        subjectsContent = [subjs.get() for subjs in todaysSubjects]
+                        subjectsContent = [[subjs.name for _ in range(subjs.total)] for subjs in todaysSubjects]
                         print(f"{cls.name}: {str(subjectsContent).replace('[', '').replace(']', '').replace("'", '')}")
                         break
     
@@ -338,7 +462,7 @@ def _display_school(school: dict[Class, Timetable], drawType: int = 1):
                         todaysSubjects
                         
                         for subjs in todaysSubjects:
-                            subjectsContent += [subjs.name + ", " + (subjs.teacher.name if subjs.teacher is not None else "null") + ", " + timetable.cls.name for _ in range(subjs.total)]
+                            subjectsContent += [subjs.name + ", " + (f"({",".join([s.name for s in subjs.subjects])})" if isinstance(subjs, CompoundSubject) else (subjs.teacher.name if subjs.teacher is not None else "null")) + ", " + timetable.cls.name for _ in range(subjs.total)]
                             # subjectsContent += [(subjs.teacher.name if subjs.teacher is not None else None) for _ in range(subjs.total)]
                             # print(subjs.name)
                         

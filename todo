@@ -39,18 +39,16 @@
 
 ### Settings
 1. Add a general checkbox to each subject to ask if that subject is general to the school
-2. Make it possible for a subject to be linked to a parent subject Ex:
+2. Make it possible for a subject to be linked to a parent subject (Combined subjects). Ex:
     - Trade subjects:
         - EI
-        - CCP
-        - Animal Hus
-        - Catering
+        - Animal Husbandry
     - Computer\Fmaths:
         - Computer
         - Fmaths
 3. Implement an abbreviation edit to teachers and subjects (If none is provided the name is used. If it is too long, it is ellipsed)
-4. Add search functionality to find teachers and subjects
-5. Add a marker to each selection (whether teacher or subject) to show that it has been selected by another teacher or subject
+4. ~~Add search functionality to find teachers, subjects and classes~~ **(Completed)**
+5. ~~Add a marker to each selection (whether teacher or subject) to show that it has been selected by another teacher or subject~~ **(Completed)**
 6. Add a status bar, which shows certain information (Warnings and abouts)
 7. Add a warnings system that shows that subjects which are viable to be in a particular class or section have not been assigned a teacher if the subjects have not been assigned a teacher yet
 
@@ -60,7 +58,7 @@
 3. Add a way of clearing timetables
 
 ### Timetable Generator
-1. Update the generating algorithm and make it better at avoiding clashes and remainders
+1. ~~Update the generating algorithm and make it better at avoiding clashes and remainders~~  **(Completed)**
 
 
 

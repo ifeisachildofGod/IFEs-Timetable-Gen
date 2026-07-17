@@ -16,7 +16,13 @@
         subjectID: (
             subjectName,
             {
-                teachersID: (teachersName, {classLevelIndex: (maxRandomClassesAmt, *classID)}),
+                teachersID: (
+                    teachersName,
+                    {
+                        classLevelIndex: (maxRandomClassesAmt, *classID),
+                        ...
+                    }
+                ),
                 ...,
                 "&timings": {
                     classLevelIndex: (maxPerDay, maxPerWeek),
